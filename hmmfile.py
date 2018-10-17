@@ -31,12 +31,33 @@ DISCLAIMER:
     if advised of the possibility of such damage.
 """
 
+import re
+
 import famdb
 
+
+def set_family_code(family, code, value):
+    """
+    Sets an attribute on 'family' based on the hmm shortcode 'code'.
+    For codes corresponding to list attributes, values are appended.
+    """
+    if code == "NAME":
+        family.name = value
+    elif code == "ACC":
+        family.accession = value
+    elif code == "DESC":
+        family.description = value
+    elif code == "LENG":
+        family.length = int(value)
+    elif code == "MS":
+        match = re.match(r"TaxId:\s*(\d+)", value)
+        if match:
+            family.clades += [match.group(1)]
 
 def iterate_hmm_file(file):
     """Iterates over Family objects from the .hmm file 'file'."""
     family = None
+    in_metadata = False
     model = None
 
     for line in file:
@@ -44,25 +65,23 @@ def iterate_hmm_file(file):
             # HMMER3/f indicates start of metadata
             if line.startswith("HMMER3/f"):
                 family = famdb.Family()
-                model = None
+                in_metadata = True
+                model = line
         else:
-            if model is None:
+            model += line
+            if in_metadata:
                 # HMM line indicates start of model
                 if line.startswith("HMM"):
-                    model = line
+                    in_metadata = False
 
                 # Continuing metadata
                 else:
                     code = line[:6].strip()
                     value = line[6:].rstrip("\n")
-                    family.set_code(code, value)
-            else:
-                # '//' line indicates end of a model
-                if line.startswith("//"):
-                    family.model = model
-                    yield family
-                    family = None
+                    set_family_code(family, code, value)
 
-                # Continuing model text
-                else:
-                    model += line
+            # '//' line indicates end of a model
+            elif line.startswith("//"):
+                family.model = model
+                yield family
+                family = None

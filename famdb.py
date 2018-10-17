@@ -42,7 +42,6 @@ import argparse
 import collections
 import datetime
 import logging
-import re
 
 import h5py
 import numpy
@@ -54,44 +53,38 @@ LOGGER = logging.getLogger(__name__)
 class Family:
     """A Transposable Element family, made up of metadata and a model."""
 
-    FamilyField = collections.namedtuple("FamilyField", ["name", "db_column", "code", "type"])
+    FamilyField = collections.namedtuple("FamilyField", ["name", "type"])
 
     # Known metadata fields
     META_FIELDS = [
-        FamilyField("name", "name", "NAME", str),
-        FamilyField("accession", "accession", "ACC", str),
-        FamilyField("description", "description", "DESC", str),
-        FamilyField("length", "model_length", "LENG", str),
-        FamilyField("max_length", "maxl", "MAXL", str),
-        FamilyField("alphabet", None, "ALPH", str),
-        FamilyField("is_reference_annotated", None, "RF", str),
-        FamilyField("is_model_masked", None, "MM", str),
-        FamilyField("has_consensus_residues", None, "CONS", str),
-        FamilyField("has_consensus_structures", None, "CS", str),
-        FamilyField("is_map_annotated", None, "MAP", str),
-        FamilyField("date", None, "DATE", str),
-        FamilyField("commands", None, "COM", list),
-        FamilyField("seq_num", None, "NSEQ", str),
-        FamilyField("effective_seq_num", None, "EFFN", str),
-        FamilyField("checksum", None, "CKSUM", str),
-        FamilyField("pfam_ga", None, "GA", str),
-        FamilyField("pfam_tc", None, "TC", str),
-        FamilyField("pfam_nc", None, "NC", str),
-        FamilyField("thresholds", None, "TH", list),
-        FamilyField("build_method", None, "BM", str),
-        FamilyField("search_method", None, "SM", str),
-        FamilyField("classification", None, "CT", list),
-        FamilyField("classification_note", None, "CN", str),
-        FamilyField("model_specificity", None, "MS", list),
-        FamilyField("comments", None, "CC", list),
-        FamilyField("stats", None, "STATS", list),
+        # Core required family metadata
+        FamilyField("name", str),
+        FamilyField("accession", str),
+        FamilyField("consensus", str),
+        FamilyField("length", int),
+
+        # Optional family metadata
+        FamilyField("description", str),
+        FamilyField("author", str),
+        FamilyField("classification", list),
+        FamilyField("classification_note", str),
+        FamilyField("search_stages", str),
+        FamilyField("buffer_stages", str),
+        FamilyField("clades", list),
+        FamilyField("date_created", str),
+        FamilyField("date_modified", str),
+        FamilyField("thresholds", list),
+        FamilyField("type", str),
+        FamilyField("subtype", str),
+        FamilyField("features", str),
+        FamilyField("aliases", list),
+        FamilyField("citations", list),
+        FamilyField("refineable", bool),
+        FamilyField("target_site_cons", str),
     ]
 
     # Metadata lookup by field name
     META_LOOKUP = {field.name: field for field in META_FIELDS}
-
-    # Known Dfam-style HMM shortcodes for metadata
-    HMM_CODES = {field.code: field.name for field in META_FIELDS if field.code}
 
     def __init__(self):
         super().__setattr__("meta", {})
@@ -103,76 +96,40 @@ class Family:
         return Family.META_LOOKUP[name].type
 
     def __getattr__(self, name):
-        if name in Family.META_LOOKUP:
-            value = self.meta.get(name)
+        if name not in Family.META_LOOKUP:
+            raise AttributeError("Unknown Family metadata attribute '{}'".format(name))
 
-            # Initialize empty values
-            if not value:
-                data_ty = self.type_for(name)
-                if data_ty is list:
-                    self.meta[name] = value = []
+        value = self.meta.get(name)
 
-            return value
+        # Initialize empty values
+        if not value:
+            data_ty = self.type_for(name)
+            if data_ty is list:
+                self.meta[name] = value = []
 
-        raise AttributeError("Unknown Family metadata attribute '{}'".format(name))
+        return value
 
     def __setattr__(self, name, value):
         if name in Family.META_LOOKUP:
             expected_type = self.type_for(name)
-            if isinstance(value, expected_type):
-                self.meta[name] = value
-            else:
-                raise TypeError("Incompatible type for '{}'. Expected '{}', got '{}'".format(
-                    name, expected_type, type(value)))
+            if not isinstance(value, expected_type):
+                try:
+                    value = expected_type(value)
+                except:
+                    raise TypeError("Incompatible type for '{}'. Expected '{}', got '{}'".format(
+                        name, expected_type, type(value)))
+            self.meta[name] = value
         elif name in ["model"]:
             super().__setattr__(name, value)
         else:
             raise AttributeError("Unknown Family metadata attribute '{}'".format(name))
 
-    def set_code(self, code, value):
-        """
-        Sets an attribute on 'self' by the shortcode 'code'.
-        If the attribute is a list type, the value is appended to the list.
-        """
-        name = Family.HMM_CODES[code]
-
-        if self.type_for(name) is list:
-            data = getattr(self, name)
-            data += [value]
-        else:
-            setattr(self, name, value)
-
     def extract_tax_ids(self):
         """
         Return the taxonomy IDs associated with this Family,
-        extracted from the 'model_specificity' metadata field.
+        extracted from the 'clades' metadata field.
         """
-        ids = []
-
-        for mod_spec in self.model_specificity:
-            match = re.match(r"TaxId:\s*(\d+)", mod_spec)
-            if match:
-                ids += [int(match.group(1))]
-
-        return ids
-
-    def to_hmm_str(self):
-        """Returns 'self' formatted as a Dfam-style HMM model string."""
-        string = "HMMER3/f [3.1b2 | February 2015]\n"
-
-        for field in Family.META_FIELDS:
-            code_padded = "{:6}".format(field.code)
-            value = getattr(self, field.name)
-            if value:
-                if field.type is list:
-                    for line in value:
-                        string += code_padded + line + "\n"
-                elif field.type is str:
-                    string += code_padded + value + "\n"
-
-        string += self.model
-
-        return string
+        return map(int, self.clades)
 
 
 class FamDB:

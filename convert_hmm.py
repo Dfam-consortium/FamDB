@@ -85,8 +85,7 @@ def command_dump(args):
         family = args.infile.get_family_by_name(name)
 
         # Write the family to the hmm file and append a separator
-        args.outfile.write(family.to_hmm_str())
-        args.outfile.write("//\n")
+        args.outfile.write(family.model)
 
         LOGGER.debug("Exported family %s (%s)", family.name, family.accession)
     LOGGER.info("Exported %d families", count)
