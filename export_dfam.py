@@ -34,6 +34,7 @@ DISCLAIMER:
 import argparse
 import gzip
 import logging
+import time
 
 import sqlalchemy
 
@@ -75,6 +76,8 @@ def load_taxonomy(session):
     nodes = {}
 
     LOGGER.info("Reading taxonomy nodes")
+    start = time.perf_counter()
+
     for tax_node in session.query(
             dfam_dev.NcbiTaxdbNode.tax_id,
             dfam_dev.NcbiTaxdbNode.parent_id
@@ -86,7 +89,8 @@ def load_taxonomy(session):
             node.parent_node = nodes[node.parent_id]
             node.parent_node.children += [node]
 
-    LOGGER.info("Loaded %d taxonomy nodes", len(nodes))
+    delta = time.perf_counter() - start
+    LOGGER.info("Loaded %d taxonomy nodes in %f seconds", len(nodes), delta)
 
     return nodes
 
@@ -95,6 +99,8 @@ def load_used_taxonomy_names(nodes, session):
     """Loads the names of used taxonomy nodes from the database."""
 
     LOGGER.info("Reading taxonomy names")
+    start = time.perf_counter()
+
     count = 0
     for node in nodes.values():
         if node.used:
@@ -111,7 +117,8 @@ def load_used_taxonomy_names(nodes, session):
             if dfam_rec:
                 node.names += [["dfam sanitized name", dfam_rec.sanitized_name]]
 
-    LOGGER.info("Loaded names for %d used taxonomy nodes", count)
+    delta = time.perf_counter() - start
+    LOGGER.info("Loaded names for %d used taxonomy nodes in %f", count, delta)
 
 
 class ClassificationNode:  # pylint: disable=too-few-public-methods
@@ -144,6 +151,7 @@ def load_classification(session):
     nodes = {}
 
     LOGGER.info("Reading classification nodes")
+    start = time.perf_counter()
 
     for (class_node, type_name, subtype_name) in session.query(
             dfam_dev.Classification,
@@ -164,7 +172,8 @@ def load_classification(session):
             node.parent_node = nodes[node.parent_id]
             node.parent_node.children += [node]
 
-    LOGGER.info("Loaded %d classification nodes", len(nodes))
+    delta = time.perf_counter() - start
+    LOGGER.info("Loaded %d classification nodes in %f", len(nodes), delta)
 
     return nodes
 
@@ -182,6 +191,7 @@ def run_export(args):  # pylint: disable=too-many-locals,too-many-branches,too-m
 
     target_count = query.count()
     LOGGER.info("Importing %d families", target_count)
+    start = time.perf_counter()
 
     show_progress = LOGGER.getEffectiveLevel() > logging.DEBUG
     batches = 20
@@ -314,7 +324,8 @@ def run_export(args):  # pylint: disable=too-many-locals,too-many-branches,too-m
         if show_progress and (count % batch_size) == 0:
             print("%5d / %5d" % (count, target_count))
 
-    LOGGER.info("Imported %d families", count)
+    delta = time.perf_counter() - start
+    LOGGER.info("Imported %d families in %f", count, delta)
 
     load_used_taxonomy_names(tax_db, session)
     args.outfile.write_taxonomy(tax_db)

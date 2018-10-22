@@ -42,6 +42,7 @@ import argparse
 import collections
 import datetime
 import logging
+import time
 
 import h5py
 import numpy
@@ -270,6 +271,7 @@ class FamDB:
     def write_taxonomy(self, tax_db):
         """Writes taxonomy nodes in 'tax_db' to the database."""
         LOGGER.info("Writing taxonomy nodes to database")
+        start = time.perf_counter()
 
         count = 0
         for taxon in tax_db.values():
@@ -304,7 +306,8 @@ class FamDB:
         # 1 is the "root" taxon
         store_tree_links(tax_db[1], None)
 
-        LOGGER.info("Wrote %d taxonomy nodes", count)
+        delta = time.perf_counter() - start
+        LOGGER.info("Wrote %d taxonomy nodes in %f", count, delta)
 
     def has_taxon(self, tax_id):
         """Returns True if 'self' has a taxonomy entry for 'tax_id'"""
