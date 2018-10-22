@@ -50,7 +50,7 @@ import numpy
 LOGGER = logging.getLogger(__name__)
 
 
-class Family:
+class Family:  # pylint: disable=too-many-instance-attributes
     """A Transposable Element family, made up of metadata and a model."""
 
     FamilyField = collections.namedtuple("FamilyField", ["name", "type"])
@@ -102,8 +102,6 @@ class Family:
         if name not in Family.META_LOOKUP:
             raise AttributeError("Unknown Family metadata attribute '{}'".format(name))
 
-        return None
-
     def __setattr__(self, name, value):
         if name in Family.META_LOOKUP:
             expected_type = self.type_for(name)
@@ -120,7 +118,7 @@ class Family:
     def __str__(self):
         return "{} ({})".format(self.name, self.accession)
 
-    def to_dfam_hmm(self, famdb):
+    def to_dfam_hmm(self, famdb):  # pylint: disable=too-many-locals
         """Converts 'self' to Dfam-style HMM format."""
         if self.model is None:
             return None
@@ -453,6 +451,7 @@ class FamDB:
 
 
 def walk_tree(tree):
+    """Returns all elements in 'tree' with all levels flattened."""
     if hasattr(tree, "__iter__"):
         for elem in tree:
             yield from walk_tree(elem)
@@ -521,12 +520,15 @@ def print_families(args, families):
 
     if args.format == "hmm":
         # TODO: Correct release and date
+        release = "Dfam_2.0"
+        date = "2015-09-23"
+
         print(\
 """#   Dfam - A database of transposable element (TE) sequence alignments and HMMs
 #   Copyright (C) 2012 The Dfam consortium.
 #
-#   Release: Dfam_2.0
-#   Date   : 2015-09-23
+#   Release: %s
+#   Date   : %s
 #
 #   This database is free; you can redistribute it and/or modify it
 #   as you wish, under the terms of the CC0 1.0 license, a
@@ -552,7 +554,7 @@ def print_families(args, families):
 #
 #   You may also obtain a copy of the CC0 license here:
 #   http://creativecommons.org/publicdomain/zero/1.0/legalcode
-#""")
+#""" % (release, date))
 
     for family in families:
         if not args.batch:
@@ -575,6 +577,7 @@ def command_family(args):
     else:
         print_families(args, [])
 
+
 def command_families(args):
     """The 'families' command outputs all families associated with the given taxon."""
     target_id = args.file.resolve_one_species(args.term)
@@ -586,6 +589,7 @@ def command_families(args):
         families += [args.file.get_family_by_accession(accession)]
 
     print_families(args, families)
+
 
 def main():
     """Parses command-line arguments and runs the requested command."""

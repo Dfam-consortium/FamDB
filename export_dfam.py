@@ -90,6 +90,7 @@ def load_taxonomy(session):
 
     return nodes
 
+
 def load_used_taxonomy_names(nodes, session):
     """Loads the names of used taxonomy nodes from the database."""
 
@@ -115,7 +116,7 @@ def load_used_taxonomy_names(nodes, session):
 
 class ClassificationNode:  # pylint: disable=too-few-public-methods
     """A Dfam Classification node linked to its parent and children."""
-    def __init__(self, class_id, parent_id, name, type_name, subtype_name):
+    def __init__(self, class_id, parent_id, name, type_name, subtype_name):  # pylint: disable=too-many-arguments
         self.class_id = class_id
         self.parent_id = parent_id
         self.name = name
@@ -168,7 +169,7 @@ def load_classification(session):
     return nodes
 
 
-def run_export(args):
+def run_export(args):  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
     """Exports from a Dfam database to a FamDB file."""
 
     engine = sqlalchemy.create_engine(args.connection)
@@ -320,6 +321,7 @@ def run_export(args):
 
     LOGGER.info("Finished import")
 
+
 def main():
     """Parses command-line arguments and runs the import."""
 
@@ -333,6 +335,7 @@ def main():
     args = parser.parse_args()
     logging.getLogger().setLevel(getattr(logging, args.log_level.upper()))
     run_export(args)
+
 
 if __name__ == "__main__":
     main()
