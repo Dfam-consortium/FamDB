@@ -177,15 +177,17 @@ def run_export(args):
     class_db = load_classification(session)
     tax_db = load_taxonomy(session)
 
-    LOGGER.info("Importing families")
+    query = session.query(dfam_dev.Family).filter(dfam_dev.Family.disabled != True)
+
+    target_count = query.count()
+    LOGGER.info("Importing %d families", target_count)
+
+    show_progress = LOGGER.getEffectiveLevel() > logging.DEBUG
+    batches = 20
+    batch_size = target_count // batches
+
     count = 0
-
-    for record in session.query(dfam_dev.Family).filter(
-            # TODO: Suspicious NULL handling
-            # TODO: Better filters should be added here
-            dfam_dev.Family.disabled != True
-        ).all():
-
+    for record in query.all():
         count += 1
 
         family = famdb.Family()
@@ -307,6 +309,9 @@ def run_export(args):
 
         args.outfile.add_family(family)
         LOGGER.debug("Imported family %s (%s)", family.name, family.accession)
+
+        if show_progress and (count % batch_size) == 0:
+            print("%5d / %5d" % (count, target_count))
 
     LOGGER.info("Imported %d families", count)
 
