@@ -60,35 +60,38 @@ class Family:
         # Core required family metadata
         FamilyField("name", str),
         FamilyField("accession", str),
+        FamilyField("version", int),
         FamilyField("consensus", str),
         FamilyField("length", int),
 
         # Optional family metadata
         FamilyField("description", str),
         FamilyField("author", str),
-        FamilyField("classification", list),
+        FamilyField("classification", str),
         FamilyField("classification_note", str),
         FamilyField("search_stages", str),
         FamilyField("buffer_stages", str),
         FamilyField("clades", list),
         FamilyField("date_created", str),
         FamilyField("date_modified", str),
-        FamilyField("thresholds", list),
-        FamilyField("type", str),
-        FamilyField("subtype", str),
-        FamilyField("features", str),
-        FamilyField("aliases", list),
+        FamilyField("taxa_thresholds", str),
+        FamilyField("repeat_type", str),
+        FamilyField("repeat_subtype", str),
+        FamilyField("features", list),
+        FamilyField("aliases", str),
         FamilyField("citations", list),
         FamilyField("refineable", bool),
         FamilyField("target_site_cons", str),
+
+        # Metadata available when a model is present
+        FamilyField("model", str),
+        FamilyField("max_length", int),
+        FamilyField("is_model_masked", bool),
+        FamilyField("seed_count", int),
     ]
 
     # Metadata lookup by field name
     META_LOOKUP = {field.name: field for field in META_FIELDS}
-
-    def __init__(self):
-        super().__setattr__("meta", {})
-        self.model = ""
 
     @staticmethod
     def type_for(name):
@@ -99,37 +102,100 @@ class Family:
         if name not in Family.META_LOOKUP:
             raise AttributeError("Unknown Family metadata attribute '{}'".format(name))
 
-        value = self.meta.get(name)
-
-        # Initialize empty values
-        if not value:
-            data_ty = self.type_for(name)
-            if data_ty is list:
-                self.meta[name] = value = []
-
-        return value
+        return None
 
     def __setattr__(self, name, value):
         if name in Family.META_LOOKUP:
             expected_type = self.type_for(name)
-            if not isinstance(value, expected_type):
+            if value is not None and not isinstance(value, expected_type):
                 try:
                     value = expected_type(value)
-                except:
+                except Exception as exc:
                     raise TypeError("Incompatible type for '{}'. Expected '{}', got '{}'".format(
-                        name, expected_type, type(value)))
-            self.meta[name] = value
-        elif name in ["model"]:
+                        name, expected_type, type(value))) from exc
             super().__setattr__(name, value)
         else:
             raise AttributeError("Unknown Family metadata attribute '{}'".format(name))
 
-    def extract_tax_ids(self):
-        """
-        Return the taxonomy IDs associated with this Family,
-        extracted from the 'clades' metadata field.
-        """
-        return map(int, self.clades)
+    def __str__(self):
+        return "{} ({})".format(self.name, self.accession)
+
+    def to_dfam_hmm(self, famdb):
+        """Converts 'self' to Dfam-style HMM format."""
+        if self.model is None:
+            return None
+
+        out = ""
+
+        def append(tag, text):
+            nonlocal out
+            text = str(text)
+            lines = text.split("\n")
+            for line in lines:
+                out += "%-6s%s\n" % (tag, line)
+
+        model_lines = self.model.split("\n")
+
+        i = 0
+        for i, line in enumerate(model_lines):
+            if line.startswith("NAME"):
+                append("NAME", self.name)
+                append("ACC", "%s.%d" % (self.accession, self.version or 0))
+                append("DESC", self.description)
+            elif line.startswith("CKSUM"):
+                out += line + "\n"
+                break
+            else:
+                out += line + "\n"
+
+        max_tc = None
+        th_lines = []
+        for threshold in self.taxa_thresholds.split("\n"):
+            parts = threshold.split(",")
+            tax_id = int(parts[0])
+            (hmm_ga, hmm_tc, hmm_nc, hmm_fdr) = map(float, parts[1:])
+            max_tc = max(max_tc or hmm_tc, hmm_tc)
+
+            tax_name = famdb.get_taxon_names(tax_id, 'scientific name')[0]
+            th_lines += ["TaxId:%d; TaxName:%s; GA:%.2f; TC:%.2f; NC:%.2f; fdr:%.3f;" % (
+                tax_id, tax_name, hmm_ga, hmm_tc, hmm_nc, hmm_fdr)]
+
+        # TODO: not sure if max_tc is really the right value here
+        if max_tc:
+            append("GA", "%.2f;" % max_tc)
+            append("TC", "%.2f;" % max_tc)
+            append("NC", "%.2f;" % max_tc)
+
+        for th_line in th_lines:
+            append("TH", th_line)
+
+        # TODO: BM (?)
+        # TODO: SM (?)
+
+        for clade_id in self.clades:
+            tax_name = famdb.get_taxon_names(clade_id, 'dfam sanitized name')[0]
+            append("MS", "TaxId:%d TaxName:%s" % (clade_id, tax_name))
+
+        append("CC", "RepeatMasker Annotations:")
+        append("CC", "     Type: %s" % (self.repeat_type or ""))
+        append("CC", "     SubType: %s" % (self.repeat_subtype or ""))
+
+        species_names = [famdb.get_taxon_names(c, 'dfam sanitized name')[0] for c in self.clades]
+        append("CC", "     Species: %s" % ", ".join(species_names))
+
+        append("CC", "     SearchStages: %s" % (self.search_stages or ""))
+        append("CC", "     BufferStages: %s" % (self.buffer_stages or ""))
+
+        if self.refineable:
+            append("CC", "     Refineable")
+
+        # TODO: CC "Annotation:"
+        # TODO: CC "Description:"
+
+        # Append all remaining lines unchanged
+        out += "\n".join(model_lines[i+1:])
+
+        return out
 
 
 class FamDB:
@@ -189,16 +255,12 @@ class FamDB:
         self.__check_unique(family, "accession")
 
         # Create the family data
-        dset = self.group_families.create_dataset(family.accession,
-                                                  data=family.model,
-                                                  dtype=FamDB.dtype_str)
+        dset = self.group_families.create_dataset(family.accession, (0,))
 
         # Set the family attributes
         for k in Family.META_LOOKUP:
             value = getattr(family, k)
             if value:
-                if isinstance(value, list):
-                    value = "\n".join(value)
                 dset.attrs[k] = value
 
         # Create links
@@ -375,11 +437,7 @@ class FamDB:
         # Read the family attributes and data
         for k in entry.attrs:
             value = entry.attrs[k]
-            if Family.type_for(k) is list:
-                value = value.split("\n")
             setattr(family, k, value)
-
-        family.model = entry[()]
 
         return family
 
@@ -458,18 +516,64 @@ def command_lineage(args):
         print_lineage_tree(args.file, tree, "", "")
 
 
+def print_families(args, families):
+    """Prints each family in 'families' in the requested format."""
+
+    if args.format == "hmm":
+        # TODO: Correct release and date
+        print(\
+"""#   Dfam - A database of transposable element (TE) sequence alignments and HMMs
+#   Copyright (C) 2012 The Dfam consortium.
+#
+#   Release: Dfam_2.0
+#   Date   : 2015-09-23
+#
+#   This database is free; you can redistribute it and/or modify it
+#   as you wish, under the terms of the CC0 1.0 license, a
+#   'no copyright' license:
+#
+#   The Dfam consortium has dedicated the work to the public domain, waiving
+#   all rights to the work worldwide under copyright law, including all related
+#   and neighboring rights, to the extent allowed by law.
+#
+#   You can copy, modify, distribute and perform the work, even for
+#   commercial purposes, all without asking permission.
+#   See Other Information below.
+#
+#
+#   Other Information
+#
+#   o In no way are the patent or trademark rights of any person affected by
+#     CC0, nor are the rights that other persons may have in the work or in how
+#     the work is used, such as publicity or privacy rights.
+#   o Makes no warranties about the work, and disclaims liability for all uses of the
+#     work, to the fullest extent permitted by applicable law.
+#   o When using or citing the work, you should not imply endorsement by the Dfam consortium.
+#
+#   You may also obtain a copy of the CC0 license here:
+#   http://creativecommons.org/publicdomain/zero/1.0/legalcode
+#""")
+
+    for family in families:
+        if not args.batch:
+            print(family)
+
+        if args.format == "hmm":
+            hmm = family.to_dfam_hmm(args.file)
+            if hmm:
+                print(hmm, end="")
+
+
 def command_family(args):
     """The 'family' command outputs a single family by name or accession."""
     family = args.file.get_family_by_accession(args.term)
     if not family:
         family = args.file.get_family_by_name(args.term)
 
-    if args.batch:
-        # TODO: batch mode output format
-        print(family)
+    if family:
+        print_families(args, [family])
     else:
-        print(family)
-
+        print_families(args, [])
 
 def command_families(args):
     """The 'families' command outputs all families associated with the given taxon."""
@@ -481,14 +585,7 @@ def command_families(args):
                                                         ancestors=args.ancestors):
         families += [args.file.get_family_by_accession(accession)]
 
-    if args.batch:
-        # TODO: batch mode output format
-        for family in families:
-            print(family)
-    else:
-        for family in families:
-            print(family)
-
+    print_families(args, families)
 
 def main():
     """Parses command-line arguments and runs the requested command."""
@@ -517,10 +614,12 @@ def main():
     p_families = p_query_sub.add_parser("families")
     p_families.add_argument("-a", "--ancestors", action="store_true")
     p_families.add_argument("-d", "--descendants", action="store_true")
+    p_families.add_argument("-f", "--format")
     p_families.add_argument("term")
     p_families.set_defaults(func=command_families)
 
     p_family = p_query_sub.add_parser("family")
+    p_family.add_argument("-f", "--format")
     p_family.add_argument("term")
     p_family.set_defaults(func=command_family)
 
