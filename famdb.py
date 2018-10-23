@@ -89,6 +89,8 @@ class Family:  # pylint: disable=too-many-instance-attributes
         FamilyField("max_length", int),
         FamilyField("is_model_masked", bool),
         FamilyField("seed_count", int),
+        FamilyField("build_method", str),
+        FamilyField("search_method", str),
     ]
 
     # Metadata lookup by field name
@@ -168,8 +170,10 @@ class Family:  # pylint: disable=too-many-instance-attributes
         for th_line in th_lines:
             append("TH", th_line)
 
-        # TODO: BM (?)
-        # TODO: SM (?)
+        if self.build_method:
+            append("BM", self.build_method)
+        if self.search_method:
+            append("SM", self.search_method)
 
         for clade_id in self.clades:
             tax_name = famdb.get_taxon_names(clade_id, 'dfam sanitized name')[0]
