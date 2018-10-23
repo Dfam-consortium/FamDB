@@ -33,6 +33,7 @@ DISCLAIMER:
 
 import argparse
 import gzip
+import json
 import logging
 import time
 
@@ -269,6 +270,9 @@ def run_export(args):  # pylint: disable=too-many-locals,too-many-branches,too-m
 
         # Taxa-specific thresholds. "ID, GA, TC, NC, fdr"
         th_values = []
+
+        # TODO: general_cutoff is not yet in the database
+        max_tc = None
         for (spec_rec, tax_id) in session.query(
                 dfam_dev.FamilyAssemblyDatum,
                 dfam_dev.Assembly.dfam_taxdb_tax_id
@@ -285,7 +289,11 @@ def run_export(args):  # pylint: disable=too-many-locals,too-many-branches,too-m
                 spec_rec.hmm_fdr,
             )]
 
-        family.taxa_thresholds = "\n".join(th_values)
+            max_tc = max(max_tc or spec_rec.hmm_hit_TC, spec_rec.hmm_hit_TC)
+
+        if th_values:
+            family.taxa_thresholds = "\n".join(th_values)
+            family.general_cutoff = max_tc
 
         # TODO: features
 
@@ -296,12 +304,25 @@ def run_export(args):  # pylint: disable=too-many-locals,too-many-branches,too-m
             .filter(dfam_dev.FamilyDatabaseAlia.family_id == record.id)\
             .all():
 
-            alias_values += ["%s=%s" % (alias.db_id, alias.db_link)]
+            alias_values += ["%s: %s" % (alias.db_id, alias.db_link)]
 
         if alias_values:
             family.aliases = "\n".join(alias_values)
 
-        # TODO: citations
+        citation_values = []
+        for citation in session.query(dfam_dev.Citation).join(dfam_dev.FamilyHasCitation)\
+            .filter(dfam_dev.FamilyHasCitation.family_id == record.id)\
+            .all():
+
+            obj = {
+                "title": citation.title,
+                "authors": citation.authors,
+                "journal": citation.journal,
+            }
+            citation_values += [obj]
+
+        if citation_values:
+            family.citations = json.dumps(citation_values)
 
         # MODEL DATA + METADATA
 

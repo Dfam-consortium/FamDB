@@ -41,6 +41,7 @@ DISCLAIMER:
 import argparse
 import collections
 import datetime
+import json
 import logging
 import time
 
@@ -75,12 +76,11 @@ class Family:  # pylint: disable=too-many-instance-attributes
         FamilyField("clades", list),
         FamilyField("date_created", str),
         FamilyField("date_modified", str),
-        FamilyField("taxa_thresholds", str),
         FamilyField("repeat_type", str),
         FamilyField("repeat_subtype", str),
         FamilyField("features", list),
         FamilyField("aliases", str),
-        FamilyField("citations", list),
+        FamilyField("citations", str),
         FamilyField("refineable", bool),
         FamilyField("target_site_cons", str),
 
@@ -91,6 +91,8 @@ class Family:  # pylint: disable=too-many-instance-attributes
         FamilyField("seed_count", int),
         FamilyField("build_method", str),
         FamilyField("search_method", str),
+        FamilyField("taxa_thresholds", str),
+        FamilyField("general_cutoff", float),
     ]
 
     # Metadata lookup by field name
@@ -119,7 +121,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
             raise AttributeError("Unknown Family metadata attribute '{}'".format(name))
 
     def __str__(self):
-        return "{} ({})".format(self.name, self.accession)
+        return "%s.%d %s" % (self.accession, self.version or 0, self.name)
 
     def to_dfam_hmm(self, famdb):  # pylint: disable=too-many-locals
         """Converts 'self' to Dfam-style HMM format."""
@@ -149,23 +151,20 @@ class Family:  # pylint: disable=too-many-instance-attributes
             else:
                 out += line + "\n"
 
-        max_tc = None
         th_lines = []
         for threshold in self.taxa_thresholds.split("\n"):
             parts = threshold.split(",")
             tax_id = int(parts[0])
             (hmm_ga, hmm_tc, hmm_nc, hmm_fdr) = map(float, parts[1:])
-            max_tc = max(max_tc or hmm_tc, hmm_tc)
 
             tax_name = famdb.get_taxon_names(tax_id, 'scientific name')[0]
             th_lines += ["TaxId:%d; TaxName:%s; GA:%.2f; TC:%.2f; NC:%.2f; fdr:%.3f;" % (
                 tax_id, tax_name, hmm_ga, hmm_tc, hmm_nc, hmm_fdr)]
 
-        # TODO: not sure if max_tc is really the right value here
-        if max_tc:
-            append("GA", "%.2f;" % max_tc)
-            append("TC", "%.2f;" % max_tc)
-            append("NC", "%.2f;" % max_tc)
+        if self.general_cutoff:
+            append("GA", "%.2f;" % self.general_cutoff)
+            append("TC", "%.2f;" % self.general_cutoff)
+            append("NC", "%.2f;" % self.general_cutoff)
 
         for th_line in th_lines:
             append("TH", th_line)
@@ -192,11 +191,128 @@ class Family:  # pylint: disable=too-many-instance-attributes
         if self.refineable:
             append("CC", "     Refineable")
 
-        # TODO: CC "Annotation:"
-        # TODO: CC "Description:"
-
         # Append all remaining lines unchanged
         out += "\n".join(model_lines[i+1:])
+
+        return out
+
+    def to_fasta(self, famdb, use_accession=False):
+        """Converts 'self' to FASTA format."""
+        sequence = self.consensus
+        if sequence is None:
+            return None
+
+        if use_accession:
+            identifier = "%s.%d" % (self.accession, self.version)
+        else:
+            identifier = self.name
+
+        header = ">%s#%s/%s" % (identifier, self.repeat_type, self.repeat_subtype)
+
+        for clade_id in self.clades:
+            clade_name = famdb.get_taxon_names(clade_id, 'dfam sanitized name')[0]
+            header += " @" + clade_name
+
+        if self.search_stages:
+            header += " [S:%s]" % self.search_stages
+
+        out = header + "\n"
+
+        i = 0
+        while i < len(sequence):
+            out += sequence[i:i+60] + "\n"
+            i += 60
+
+        return out
+
+    def to_embl(self, famdb, include_meta=True, include_seq=True):  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+        """Converts 'self' to EMBL format."""
+
+        sequence = self.consensus
+        if sequence is None:
+            return None
+
+        out = ""
+
+        def append(tag, text):
+            nonlocal out
+            text = str(text)
+            lines = text.split("\n")
+            for line in lines:
+                out += "%-6s%s\n" % (tag, line)
+
+        append("ID", "%s     repeatmasker; DNA;  ???;  %d BP." % (self.name, self.length))
+        append("CC", "%s DNA" % self.name)
+        out += "XX\n"
+
+        if include_meta:
+            repbase_aliases = []
+            if self.aliases:
+                for alias_line in self.aliases.splitlines():
+                    [db_id, db_link] = map(str.strip, alias_line.split(":"))
+                    if db_id == "Repbase":
+                        repbase_aliases += [db_link]
+            if repbase_aliases:
+                append("DE", "RepbaseID: %s" % ",".join(repbase_aliases))
+                out += "XX\n"
+
+            if self.repeat_type == "LTR":
+                append("KW", "Long terminal repeat of retrovirus-like element; %s." % self.name)
+            else:
+                append("KW", "%s/%s." % (self.repeat_type or "", self.repeat_subtype or ""))
+            out += "XX\n"
+
+            if self.citations:
+                citations = json.loads(self.citations)
+                for cit in citations:
+                    append("RN", "[1] (bases 1 to %d)" % self.length)
+                    append("RA", cit["authors"])
+                    append("RT", cit["title"])
+                    append("RL", cit["journal"])
+                out += "XX\n"
+
+            append("CC", "RepeatMasker Annotations:")
+            append("CC", "     Type: %s" % (self.repeat_type or ""))
+            append("CC", "     SubType: %s" % (self.repeat_subtype or ""))
+
+            species_names = [famdb.get_taxon_names(c, 'dfam sanitized name')[0]
+                             for c in self.clades]
+            append("CC", "     Species: %s" % " ".join(species_names))
+
+            append("CC", "     SearchStages: %s" % (self.search_stages or ""))
+            append("CC", "     BufferStages: %s" % (self.buffer_stages or ""))
+
+            if self.refineable:
+                append("CC", "     Refineable")
+
+            out += "XX\n"
+
+        if include_seq:
+            sequence = sequence.lower()
+            i = 0
+            counts = {"a": 0, "c": 0, "g": 0, "t": 0, "other": 0}
+            for char in sequence:
+                if char not in counts:
+                    char = "other"
+                counts[char] += 1
+
+            append("SQ", "Sequence %d BP; %d A; %d C; %d G; %d T; %d other;" % (
+                len(sequence), counts["a"], counts["c"], counts["g"], counts["t"],
+                counts["other"]))
+
+            while i < len(sequence):
+                chunk = sequence[i:i+60]
+                i += 60
+
+                j = 0
+                line = ""
+                while j < len(chunk):
+                    line += chunk[j:j + 10] + " "
+                    j += 10
+
+                out += "      %-66s %d\n" % (line, min(i, len(sequence)))
+
+        out += "//\n"
 
         return out
 
@@ -525,52 +641,27 @@ def command_lineage(args):
 def print_families(args, families):
     """Prints each family in 'families' in the requested format."""
 
-    if args.format == "hmm":
-        # TODO: Correct release and date
-        release = "Dfam_2.0"
-        date = "2015-09-23"
-
-        print(\
-"""#   Dfam - A database of transposable element (TE) sequence alignments and HMMs
-#   Copyright (C) 2012 The Dfam consortium.
-#
-#   Release: %s
-#   Date   : %s
-#
-#   This database is free; you can redistribute it and/or modify it
-#   as you wish, under the terms of the CC0 1.0 license, a
-#   'no copyright' license:
-#
-#   The Dfam consortium has dedicated the work to the public domain, waiving
-#   all rights to the work worldwide under copyright law, including all related
-#   and neighboring rights, to the extent allowed by law.
-#
-#   You can copy, modify, distribute and perform the work, even for
-#   commercial purposes, all without asking permission.
-#   See Other Information below.
-#
-#
-#   Other Information
-#
-#   o In no way are the patent or trademark rights of any person affected by
-#     CC0, nor are the rights that other persons may have in the work or in how
-#     the work is used, such as publicity or privacy rights.
-#   o Makes no warranties about the work, and disclaims liability for all uses of the
-#     work, to the fullest extent permitted by applicable law.
-#   o When using or citing the work, you should not imply endorsement by the Dfam consortium.
-#
-#   You may also obtain a copy of the CC0 license here:
-#   http://creativecommons.org/publicdomain/zero/1.0/legalcode
-#""" % (release, date))
-
     for family in families:
         if not args.batch:
             print(family)
 
         if args.format == "hmm":
-            hmm = family.to_dfam_hmm(args.file)
-            if hmm:
-                print(hmm, end="")
+            entry = family.to_dfam_hmm(args.file)
+        elif args.format == "fasta" or args.format == "fasta_name":
+            entry = family.to_fasta(args.file)
+        elif args.format == "fasta_acc":
+            entry = family.to_fasta(args.file, use_accession=True)
+        elif args.format == "embl":
+            entry = family.to_embl(args.file)
+        elif args.format == "embl_meta":
+            entry = family.to_embl(args.file, include_meta=True, include_seq=False)
+        elif args.format == "embl_seq":
+            entry = family.to_embl(args.file, include_meta=False, include_seq=True)
+        else:
+            entry = str(family) + "\n"
+
+        if entry:
+            print(entry, end="")
 
 
 def command_family(args):
