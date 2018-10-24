@@ -537,8 +537,13 @@ class FamDB:
         correspond to the same arguments for 'get_lineage'.
         """
 
+        seen = set()
+
         for node in walk_tree(self.get_lineage(tax_id, **kwargs)):
-            yield from self.get_families_for_taxon(node)
+            for accession in self.get_families_for_taxon(node):
+                if accession not in seen:
+                    seen.add(accession)
+                    yield accession
 
     def get_family_names(self):
         """Returns a list of names of families in the database."""
