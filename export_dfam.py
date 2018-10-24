@@ -146,6 +146,8 @@ class ClassificationNode:  # pylint: disable=too-few-public-methods
             name = node.name + ";" + name
             node = node.parent_node
 
+        return name
+
 
 def load_classification(session):
     """Loads all classification nodes from the database."""

@@ -121,7 +121,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
             raise AttributeError("Unknown Family metadata attribute '{}'".format(name))
 
     def __str__(self):
-        return "%s.%d %s" % (self.accession, self.version or 0, self.name)
+        return "%s.%d '%s': %s len=%d" % (self.accession, self.version or 0, self.name, self.classification, self.length)
 
     def to_dfam_hmm(self, famdb):  # pylint: disable=too-many-locals
         """Converts 'self' to Dfam-style HMM format."""
@@ -598,12 +598,17 @@ def command_names(args):
         names = args.file.get_taxon_names(tax_id)
         entries += [[tax_id, names]]
 
-    if args.batch:
-        # TODO: batch mode output format
-        raise NotImplementedError()
-    else:
+    if args.format == "pretty":
         for (tax_id, names) in entries:
             print(tax_id, ", ".join(["{1} ({0})".format(*n) for n in names]))
+    elif args.format == "json":
+        obj = []
+        for (tax_id, names) in entries:
+            names_obj = [{"kind": name[0], "value": name[1]} for name in names]
+            obj += [{"id": tax_id, "names": names_obj}]
+        print(json.dumps(obj))
+    else:
+        raise ValueError("Unimplemented names format: %s" % args.format)
 
 
 def print_lineage_tree(file, tree, gutter_self, gutter_children):
@@ -625,27 +630,43 @@ def print_lineage_tree(file, tree, gutter_self, gutter_children):
         print_lineage_tree(file, children[-1], gutter_children + "└─", gutter_children + "  ")
 
 
+def print_lineage_semicolons(file, tree, parent_name):
+    """Prints a lineage tree as a list of semicolon-delimited names."""
+    if not tree:
+        return
+
+    tax_id = tree[0]
+    children = tree[1:]
+    name = file.get_taxon_names(tax_id, 'scientific name')[0]
+    if parent_name:
+        name = parent_name + ";" + name
+
+    count = len(file.get_families_for_taxon(tax_id))
+    print("{}: {} [{}]".format(tax_id, name, count))
+
+    for child in children:
+        print_lineage_semicolons(file, child, name)
+
 def command_lineage(args):
     """The 'lineage' command outputs ancestors and/or descendants of the given taxon."""
 
     target_id = args.file.resolve_one_species(args.term)
     tree = args.file.get_lineage(target_id, descendants=args.descendants, ancestors=args.ancestors)
 
-    if args.batch:
-        # TODO: batch mode output format
-        raise NotImplementedError()
-    else:
+    if args.format == "pretty":
         print_lineage_tree(args.file, tree, "", "")
-
+    elif args.format == "semicolon":
+        print_lineage_semicolons(args.file, tree, "")
+    else:
+        raise ValueError("Unimplemented lineage format: %s" % args.format)
 
 def print_families(args, families):
     """Prints each family in 'families' in the requested format."""
 
     for family in families:
-        if not args.batch:
-            print(family)
-
-        if args.format == "hmm":
+        if args.format == "summary":
+            entry = str(family) + "\n"
+        elif args.format == "hmm":
             entry = family.to_dfam_hmm(args.file)
         elif args.format == "fasta" or args.format == "fasta_name":
             entry = family.to_fasta(args.file)
@@ -658,7 +679,7 @@ def print_families(args, families):
         elif args.format == "embl_seq":
             entry = family.to_embl(args.file, include_meta=False, include_seq=True)
         else:
-            entry = str(family) + "\n"
+            raise ValueError("Unimplemented family format: %s" % args.format)
 
         if entry:
             print(entry, end="")
@@ -699,29 +720,32 @@ def main():
     subparsers = parser.add_subparsers(title="modes")
 
     p_query = subparsers.add_parser("query")
-    p_query.add_argument("-b", "--batch", action="store_true")
     p_query.add_argument("file", type=famdb_file_type("r"))
     p_query_sub = p_query.add_subparsers()
 
     p_names = p_query_sub.add_parser("names")
+    p_names.add_argument("-f", "--format", default="pretty", choices=["pretty", "json"])
     p_names.add_argument("term")
     p_names.set_defaults(func=command_names)
 
     p_lineage = p_query_sub.add_parser("lineage")
     p_lineage.add_argument("-a", "--ancestors", action="store_true")
     p_lineage.add_argument("-d", "--descendants", action="store_true")
+    p_lineage.add_argument("-f", "--format", default="pretty", choices=["pretty", "semicolon"])
     p_lineage.add_argument("term")
     p_lineage.set_defaults(func=command_lineage)
+
+    family_formats = ["summary", "hmm", "fasta_name", "fasta_acc", "embl", "embl_meta", "embl_seq"]
 
     p_families = p_query_sub.add_parser("families")
     p_families.add_argument("-a", "--ancestors", action="store_true")
     p_families.add_argument("-d", "--descendants", action="store_true")
-    p_families.add_argument("-f", "--format")
+    p_families.add_argument("-f", "--format", default="summary", choices=family_formats)
     p_families.add_argument("term")
     p_families.set_defaults(func=command_families)
 
     p_family = p_query_sub.add_parser("family")
-    p_family.add_argument("-f", "--format")
+    p_family.add_argument("-f", "--format", default="summary", choices=family_formats)
     p_family.add_argument("term")
     p_family.set_defaults(func=command_family)
 
