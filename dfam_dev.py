@@ -33,6 +33,16 @@ class DbVersion(Base):
     dfam_release_date = Column(Date, primary_key=True, nullable=False)
 
 
+class DeadFamily(Base):
+    __tablename__ = 'dead_family'
+
+    accession = Column(String(45), primary_key=True)
+    name = Column(String(45))
+    comment = Column(MEDIUMTEXT)
+    user = Column(INTEGER(11))
+    deleted = Column(DateTime)
+
+
 class DfamTaxdb(Base):
     __tablename__ = 'dfam_taxdb'
 
@@ -115,6 +125,13 @@ class RepeatmaskerType(Base):
     description = Column(String(128))
 
 
+class SeedAlignDatum(Base):
+    __tablename__ = 'seed_align_data'
+
+    family_id = Column(BIGINT(20), primary_key=True)
+    graph_json = Column(LONGBLOB, nullable=False)
+
+
 class Wikipedia(Base):
     __tablename__ = 'wikipedia'
 
@@ -130,14 +147,15 @@ class Assembly(Base):
 
     id = Column(BIGINT(20), primary_key=True)
     name = Column(String(45), nullable=False, unique=True)
-    description = Column(String(100), nullable=False)
+    description = Column(String(100))
     dfam_taxdb_tax_id = Column(ForeignKey('dfam_taxdb.tax_id'), nullable=False, index=True)
-    source = Column(Enum('ensembl', 'ensembl_genomes', 'ncbi', 'ucsc'), nullable=False)
-    release_date = Column(DateTime, nullable=False)
-    version = Column(String(45), nullable=False)
+    source = Column(Enum('ensembl', 'ensembl_genomes', 'broad', 'ncbi', 'ucsc', 'baylor'))
+    release_date = Column(DateTime)
+    version = Column(String(45))
     schema_name = Column(String(45))
     visible = Column(INTEGER(11), server_default=text("'0'"))
     display_order = Column(INTEGER(11), server_default=text("'0'"))
+    z_size = Column(BIGINT(20))
 
     dfam_taxdb_tax = relationship('DfamTaxdb')
 
@@ -146,7 +164,7 @@ class Classification(Base):
     __tablename__ = 'classification'
 
     id = Column(BIGINT(20), primary_key=True)
-    parent_id = Column(String(45))
+    parent_id = Column(BIGINT(20))
     name = Column(String(80), nullable=False)
     tooltip = Column(String(128))
     description = Column(Text)
@@ -158,6 +176,7 @@ class Classification(Base):
     wicker_equiv = Column(String(255))
     curcio_derbyshire_equiv = Column(String(255))
     piegu_equiv = Column(String(255))
+    lineage = Column(Text)
 
     repeatmasker_subtype = relationship('RepeatmaskerSubtype')
     repeatmasker_type = relationship('RepeatmaskerType')
@@ -196,30 +215,39 @@ class Family(Base):
     length = Column(INTEGER(11))
     hmm_maxl = Column(INTEGER(11))
     hmm_general_NC = Column(Float(asdecimal=True))
+    seed_ref = Column(Text)
 
     classification = relationship('Classification')
     curation_state = relationship('CurationState')
     repeatmasker_stages = relationship('RepeatmaskerStage', secondary='family_has_search_stage')
 
 
-class ModelDatum(Family):
-    __tablename__ = 'model_data'
+class CodingSequence(Base):
+    __tablename__ = 'coding_sequence'
 
-    family_id = Column(ForeignKey('family.id'), primary_key=True)
-    hmm_logo = Column(LONGBLOB)
-    hmm = Column(LONGBLOB)
-    seed = Column(LONGBLOB)
-    annotated_hmm = Column(LONGBLOB)
-    annotated_seed = Column(LONGBLOB)
-    hmm_png = Column(LONGBLOB)
+    id = Column(BIGINT(20), primary_key=True)
+    product = Column(String(45), nullable=False, unique=True)
+    translation = Column(Text, nullable=False)
+    cds_start = Column(INTEGER(10))
+    cds_end = Column(INTEGER(10))
+    exon_count = Column(INTEGER(10))
+    exon_starts = Column(LONGBLOB)
+    exon_ends = Column(LONGBLOB)
+    family_id = Column(ForeignKey('family.id'), index=True)
+    external_reference = Column(String(128))
+    reverse = Column(TINYINT(1))
+    stop_codons = Column(INTEGER(11))
+    frameshifts = Column(INTEGER(11))
+    gaps = Column(INTEGER(11))
+    percent_identity = Column(Float)
+    left_unaligned = Column(INTEGER(11))
+    right_unaligned = Column(INTEGER(11))
+    classification_id = Column(BIGINT(20))
+    align_data = Column(Text)
+    description = Column(Text)
+    protein_type = Column(String(45))
 
-
-class SeedCoverageDatum(Family):
-    __tablename__ = 'seed_coverage_data'
-
-    family_id = Column(ForeignKey('family.id'), primary_key=True)
-    whisker = Column(LONGBLOB)
-    seed = Column(LONGBLOB)
+    family = relationship('Family')
 
 
 class FamilyAssemblyDatum(Base):
@@ -230,10 +258,10 @@ class FamilyAssemblyDatum(Base):
 
     family_id = Column(ForeignKey('family.id'), primary_key=True, nullable=False)
     assembly_id = Column(ForeignKey('assembly.id'), primary_key=True, nullable=False, index=True)
-    cons_genome_avg_kimura_div = Column(Float)
-    cons_genome_avg_kimura_div_cpgadj = Column(Float)
-    hmm_genome_avg_kimura_div = Column(Float)
-    hmm_genome_avg_kimura_div_cpgadj = Column(Float)
+    cons_genome_avg_kimura_div_GA = Column(Float)
+    cons_genome_avg_kimura_div_TC = Column(Float)
+    hmm_genome_avg_kimura_div_GA = Column(Float)
+    hmm_genome_avg_kimura_div_TC = Column(Float)
     cons_GA_hit_count = Column(BIGINT(20))
     cons_TC_hit_count = Column(BIGINT(20))
     cons_GA_nrph_hit_count = Column(BIGINT(20))
@@ -252,17 +280,20 @@ class FamilyAssemblyDatum(Base):
     hmm_method_id = Column(INTEGER(10))
     cons_fdr = Column(Float(asdecimal=True))
     cons_method_id = Column(INTEGER(10))
-    cons_35GC_GA = Column(INTEGER(11))
-    cons_37GC_GA = Column(INTEGER(11))
-    cons_39GC_GA = Column(INTEGER(11))
-    cons_41GC_GA = Column(INTEGER(11))
-    cons_43GC_GA = Column(INTEGER(11))
-    cons_45GC_GA = Column(INTEGER(11))
-    cons_47GC_GA = Column(INTEGER(11))
-    cons_49GC_GA = Column(INTEGER(11))
-    cons_51GC_GA = Column(INTEGER(11))
-    cons_53GC_GA = Column(INTEGER(11))
-    cons_matrix_div = Column(INTEGER(11))
+    cons_35GC_GA = Column(INTEGER(10))
+    cons_37GC_GA = Column(INTEGER(10))
+    cons_39GC_GA = Column(INTEGER(10))
+    cons_41GC_GA = Column(INTEGER(10))
+    cons_43GC_GA = Column(INTEGER(10))
+    cons_45GC_GA = Column(INTEGER(10))
+    cons_47GC_GA = Column(INTEGER(10))
+    cons_49GC_GA = Column(INTEGER(10))
+    cons_51GC_GA = Column(INTEGER(10))
+    cons_53GC_GA = Column(INTEGER(10))
+    cons_matrix_div = Column(INTEGER(10))
+    hmm_avg_hit_length = Column(INTEGER(10))
+    cons_avg_hit_length = Column(INTEGER(10))
+    hmm_thresh_search_evalue = Column(String(15))
 
     assembly = relationship('Assembly')
     family = relationship('Family')
@@ -281,7 +312,7 @@ class FamilyDatabaseAlia(Base):
     family_id = Column(ForeignKey('family.id'), primary_key=True, nullable=False, index=True)
     db_id = Column(String(80), primary_key=True, nullable=False)
     db_link = Column(String(80), primary_key=True, nullable=False)
-    other_params = Column(Text)
+    deprecated = Column(TINYINT(1), server_default=text("'0'"))
     comment = Column(Text)
 
     family = relationship('Family')
@@ -296,6 +327,7 @@ class FamilyFeature(Base):
     description = Column(Text)
     model_start_pos = Column(INTEGER(10))
     model_end_pos = Column(INTEGER(10))
+    label = Column(String(45))
 
     family = relationship('Family')
 
@@ -342,6 +374,16 @@ class FamilyOverlap(Base):
     family2 = relationship('Family', primaryjoin='FamilyOverlap.family2_id == Family.id')
 
 
+class HmmModelDatum(Base):
+    __tablename__ = 'hmm_model_data'
+
+    family_id = Column(ForeignKey('family.id'), primary_key=True)
+    hmm_logo = Column(LONGBLOB)
+    hmm = Column(LONGBLOB)
+
+    family = relationship('Family', uselist=False)
+
+
 t_seed_region = Table(
     'seed_region', metadata,
     Column('family_id', ForeignKey('family.id'), nullable=False, index=True),
@@ -360,8 +402,8 @@ class FeatureAttribute(Base):
     __tablename__ = 'feature_attribute'
 
     family_feature_id = Column(ForeignKey('family_feature.id'), primary_key=True, nullable=False)
-    feature_name = Column(String(45), primary_key=True, nullable=False)
-    feature_value = Column(String(45))
+    attribute = Column(String(45), primary_key=True, nullable=False, unique=True)
+    value = Column(String(45))
 
     family_feature = relationship('FamilyFeature')
 

@@ -239,7 +239,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
             text = str(text)
             lines = text.split("\n")
             for line in lines:
-                out += "%-6s%s\n" % (tag, line)
+                out += "%-4s %s\n" % (tag, line)
 
         append("ID", "%s     repeatmasker; DNA;  ???;  %d BP." % (self.name, self.length))
         append("CC", "%s DNA" % self.name)
@@ -277,7 +277,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
 
             species_names = [famdb.get_taxon_names(c, 'dfam sanitized name')[0]
                              for c in self.clades]
-            append("CC", "     Species: %s" % " ".join(species_names))
+            append("CC", "     Species: %s" % ", ".join(species_names))
 
             append("CC", "     SearchStages: %s" % (self.search_stages or ""))
             append("CC", "     BufferStages: %s" % (self.buffer_stages or ""))

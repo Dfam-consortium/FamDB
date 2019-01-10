@@ -328,8 +328,8 @@ def run_export(args):  # pylint: disable=too-many-locals,too-many-branches,too-m
 
         # MODEL DATA + METADATA
 
-        hmm = session.query(dfam_dev.ModelDatum.hmm).filter(
-            dfam_dev.ModelDatum.family_id == record.id).one_or_none()
+        hmm = session.query(dfam_dev.HmmModelDatum.hmm).filter(
+            dfam_dev.HmmModelDatum.family_id == record.id).one_or_none()
         if hmm:
             family.model = gzip.decompress(hmm[0]).decode()
 
