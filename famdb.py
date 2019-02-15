@@ -67,8 +67,9 @@ class Family:  # pylint: disable=too-many-instance-attributes
         FamilyField("length", int),
 
         # Optional family metadata
-        FamilyField("description", str),
+        FamilyField("title", str),
         FamilyField("author", str),
+        FamilyField("description", str),
         FamilyField("classification", str),
         FamilyField("classification_note", str),
         FamilyField("search_stages", str),
@@ -121,10 +122,16 @@ class Family:  # pylint: disable=too-many-instance-attributes
             raise AttributeError("Unknown Family metadata attribute '{}'".format(name))
 
     def __str__(self):
-        return "%s.%d '%s': %s len=%d" % (self.accession, self.version or 0, self.name, self.classification, self.length)
+        return "%s.%d '%s': %s len=%d" % (self.accession, self.version or 0,
+                                          self.name, self.classification, self.length)
 
-    def to_dfam_hmm(self, famdb):  # pylint: disable=too-many-locals
-        """Converts 'self' to Dfam-style HMM format."""
+    def to_dfam_hmm(self, famdb, species=None):  # pylint: disable=too-many-locals,too-many-branches
+        """
+        Converts 'self' to Dfam-style HMM format.
+        'famdb' is required for further taxonomy lookups.
+        If 'species' is given, the GA/TC/NC thresholds will be set to the
+        assembly-specific thresholds.
+        """
         if self.model is None:
             return None
 
@@ -141,10 +148,14 @@ class Family:  # pylint: disable=too-many-instance-attributes
 
         i = 0
         for i, line in enumerate(model_lines):
-            if line.startswith("NAME"):
+            if line.startswith("HMMER3"):
+                out += line + "\n"
                 append("NAME", self.name)
                 append("ACC", "%s.%d" % (self.accession, self.version or 0))
-                append("DESC", self.description)
+                append("DESC", self.title)
+            elif any(map(line.startswith, ["NAME", "ACC", "DESC"])):
+                # Correct version of this line was output already
+                pass
             elif line.startswith("CKSUM"):
                 out += line + "\n"
                 break
@@ -152,19 +163,27 @@ class Family:  # pylint: disable=too-many-instance-attributes
                 out += line + "\n"
 
         th_lines = []
+        species_hmm_ga = None
+        species_hmm_tc = None
+        species_hmm_nc = None
         for threshold in self.taxa_thresholds.split("\n"):
             parts = threshold.split(",")
             tax_id = int(parts[0])
             (hmm_ga, hmm_tc, hmm_nc, hmm_fdr) = map(float, parts[1:])
 
             tax_name = famdb.get_taxon_names(tax_id, 'scientific name')[0]
+            if tax_id == species:
+                species_hmm_ga, species_hmm_tc, species_hmm_nc = hmm_ga, hmm_tc, hmm_nc
             th_lines += ["TaxId:%d; TaxName:%s; GA:%.2f; TC:%.2f; NC:%.2f; fdr:%.3f;" % (
                 tax_id, tax_name, hmm_ga, hmm_tc, hmm_nc, hmm_fdr)]
 
-        if self.general_cutoff:
-            append("GA", "%.2f;" % self.general_cutoff)
-            append("TC", "%.2f;" % self.general_cutoff)
-            append("NC", "%.2f;" % self.general_cutoff)
+        if not species and self.general_cutoff:
+            species_hmm_ga = species_hmm_tc = species_hmm_nc = self.general_cutoff
+
+        if species_hmm_ga:
+            append("GA", "%.2f;" % species_hmm_ga)
+            append("TC", "%.2f;" % species_hmm_tc)
+            append("NC", "%.2f;" % species_hmm_nc)
 
         for th_line in th_lines:
             append("TH", th_line)
@@ -173,6 +192,8 @@ class Family:  # pylint: disable=too-many-instance-attributes
             append("BM", self.build_method)
         if self.search_method:
             append("SM", self.search_method)
+
+        append("CT", self.classification.replace("root;", ""))
 
         for clade_id in self.clades:
             tax_name = famdb.get_taxon_names(clade_id, 'dfam sanitized name')[0]
@@ -265,6 +286,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
             if self.citations:
                 citations = json.loads(self.citations)
                 for cit in citations:
+                    # TODO: specify citation order instead of hardcoding [1]
                     append("RN", "[1] (bases 1 to %d)" % self.length)
                     append("RA", cit["authors"])
                     append("RT", cit["title"])
@@ -665,7 +687,7 @@ def command_lineage(args):
     else:
         raise ValueError("Unimplemented lineage format: %s" % args.format)
 
-def print_families(args, families):
+def print_families(args, families, species=None):
     """Prints each family in 'families' in the requested format."""
 
     for family in families:
@@ -673,6 +695,8 @@ def print_families(args, families):
             entry = str(family) + "\n"
         elif args.format == "hmm":
             entry = family.to_dfam_hmm(args.file)
+        elif args.format == "hmm_species":
+            entry = family.to_dfam_hmm(args.file, species)
         elif args.format == "fasta" or args.format == "fasta_name":
             entry = family.to_fasta(args.file)
         elif args.format == "fasta_acc":
@@ -712,7 +736,7 @@ def command_families(args):
                                                         ancestors=args.ancestors):
         families += [args.file.get_family_by_accession(accession)]
 
-    print_families(args, families)
+    print_families(args, families, target_id)
 
 
 def main():
@@ -740,7 +764,7 @@ def main():
     p_lineage.add_argument("term")
     p_lineage.set_defaults(func=command_lineage)
 
-    family_formats = ["summary", "hmm", "fasta_name", "fasta_acc", "embl", "embl_meta", "embl_seq"]
+    family_formats = ["summary", "hmm", "hmm_species", "fasta_name", "fasta_acc", "embl", "embl_meta", "embl_seq"]
 
     p_families = p_query_sub.add_parser("families")
     p_families.add_argument("-a", "--ancestors", action="store_true")

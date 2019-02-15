@@ -125,13 +125,6 @@ class RepeatmaskerType(Base):
     description = Column(String(128))
 
 
-class SeedAlignDatum(Base):
-    __tablename__ = 'seed_align_data'
-
-    family_id = Column(BIGINT(20), primary_key=True)
-    graph_json = Column(LONGBLOB, nullable=False)
-
-
 class Wikipedia(Base):
     __tablename__ = 'wikipedia'
 
@@ -214,8 +207,10 @@ class Family(Base):
     cons_build_method_id = Column(BIGINT(20))
     length = Column(INTEGER(11))
     hmm_maxl = Column(INTEGER(11))
-    hmm_general_NC = Column(Float(asdecimal=True))
-    seed_ref = Column(Text)
+    hmm_general_threshold = Column(Float(asdecimal=True))
+    seed_ref = Column(MEDIUMTEXT)
+    title = Column(String(80))
+    curation_notes = Column(Text)
 
     classification = relationship('Classification')
     curation_state = relationship('CurationState')
@@ -384,6 +379,15 @@ class HmmModelDatum(Base):
     family = relationship('Family', uselist=False)
 
 
+class SeedAlignDatum(Base):
+    __tablename__ = 'seed_align_data'
+
+    family_id = Column(ForeignKey('family.id'), primary_key=True)
+    graph_json = Column(LONGBLOB, nullable=False)
+
+    family = relationship('Family', uselist=False)
+
+
 t_seed_region = Table(
     'seed_region', metadata,
     Column('family_id', ForeignKey('family.id'), nullable=False, index=True),
@@ -391,7 +395,7 @@ t_seed_region = Table(
     Column('seq_id', String(50), nullable=False),
     Column('seq_start', BIGINT(20), nullable=False),
     Column('seq_end', BIGINT(20), nullable=False),
-    Column('a2m_seq', Text, nullable=False),
+    Column('a3m_seq', Text, nullable=False),
     Column('strand', Enum('+', '-'), nullable=False),
     Column('model_start', MEDIUMINT(8), nullable=False),
     Column('model_end', MEDIUMINT(8), nullable=False)

@@ -190,7 +190,7 @@ def run_export(args):  # pylint: disable=too-many-locals,too-many-branches,too-m
     class_db = load_classification(session)
     tax_db = load_taxonomy(session)
 
-    query = session.query(dfam_dev.Family).filter(dfam_dev.Family.disabled != True)
+    query = session.query(dfam_dev.Family).filter(dfam_dev.Family.disabled != 1)
 
     target_count = query.count()
     LOGGER.info("Importing %d families", target_count)
@@ -209,6 +209,7 @@ def run_export(args):  # pylint: disable=too-many-locals,too-many-branches,too-m
         # REQUIRED FIELDS
         family.name = record.name
         family.accession = record.accession
+        family.title = record.title
         family.version = record.version
         family.consensus = record.consensus
         if family.consensus:
@@ -221,6 +222,7 @@ def run_export(args):  # pylint: disable=too-many-locals,too-many-branches,too-m
         family.date_modified = record.date_modified
         family.refineable = record.refineable
         family.target_site_cons = record.target_site_cons
+        family.general_cutoff = record.hmm_general_threshold
 
         if record.classification_id in class_db:
             cls = class_db[record.classification_id]
@@ -273,8 +275,6 @@ def run_export(args):  # pylint: disable=too-many-locals,too-many-branches,too-m
         # Taxa-specific thresholds. "ID, GA, TC, NC, fdr"
         th_values = []
 
-        # TODO: general_cutoff is not yet in the database
-        max_tc = None
         for (spec_rec, tax_id) in session.query(
                 dfam_dev.FamilyAssemblyDatum,
                 dfam_dev.Assembly.dfam_taxdb_tax_id
@@ -291,11 +291,8 @@ def run_export(args):  # pylint: disable=too-many-locals,too-many-branches,too-m
                 spec_rec.hmm_fdr,
             )]
 
-            max_tc = max(max_tc or spec_rec.hmm_hit_TC, spec_rec.hmm_hit_TC)
-
         if th_values:
             family.taxa_thresholds = "\n".join(th_values)
-            family.general_cutoff = max_tc
 
         # TODO: features
 
@@ -312,6 +309,7 @@ def run_export(args):  # pylint: disable=too-many-locals,too-many-branches,too-m
             family.aliases = "\n".join(alias_values)
 
         citation_values = []
+        # TODO: Include/respect citation order
         for citation in session.query(dfam_dev.Citation).join(dfam_dev.FamilyHasCitation)\
             .filter(dfam_dev.FamilyHasCitation.family_id == record.id)\
             .all():
