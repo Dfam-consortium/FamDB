@@ -310,7 +310,12 @@ def run_export(args):  # pylint: disable=too-many-locals,too-many-branches,too-m
 
         citation_values = []
         # TODO: Include/respect citation order
-        for citation in session.query(dfam_dev.Citation).join(dfam_dev.FamilyHasCitation)\
+        for citation in session.query(
+                dfam_dev.Citation.title,
+                dfam_dev.Citation.authors,
+                dfam_dev.Citation.journal,
+                dfam_dev.FamilyHasCitation.order_added,
+            ).filter(dfam_dev.Citation.pmid == dfam_dev.FamilyHasCitation.citation_pmid)\
             .filter(dfam_dev.FamilyHasCitation.family_id == record.id)\
             .all():
 
@@ -318,6 +323,7 @@ def run_export(args):  # pylint: disable=too-many-locals,too-many-branches,too-m
                 "title": citation.title,
                 "authors": citation.authors,
                 "journal": citation.journal,
+                "order_added": citation.order_added,
             }
             citation_values += [obj]
 

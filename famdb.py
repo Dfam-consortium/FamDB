@@ -285,9 +285,9 @@ class Family:  # pylint: disable=too-many-instance-attributes
 
             if self.citations:
                 citations = json.loads(self.citations)
+                citations.sort(key=lambda c: c["order_added"])
                 for cit in citations:
-                    # TODO: specify citation order instead of hardcoding [1]
-                    append("RN", "[1] (bases 1 to %d)" % self.length)
+                    append("RN", "[%d] (bases 1 to %d)" % (cit["order_added"], self.length))
                     append("RA", cit["authors"])
                     append("RT", cit["title"])
                     append("RL", cit["journal"])
