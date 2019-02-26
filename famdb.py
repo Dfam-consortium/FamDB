@@ -410,6 +410,24 @@ class FamDB:
         self.file.attrs["version"] = "0.1"
         self.file.attrs["created"] = str(datetime.datetime.now())
 
+    def set_db_info(self, name, version, date, copyright):
+        """Sets database metadata for the current file"""
+        self.file.attrs["db_name"] = name
+        self.file.attrs["db_version"] = version
+        self.file.attrs["db_date"] = date
+        self.file.attrs["db_copyright"] = copyright
+
+    def get_db_info(self):
+        if "db_name" not in self.file.attrs:
+            return None
+
+        return {
+            "name": self.file.attrs["db_name"],
+            "version": self.file.attrs["db_version"],
+            "date": self.file.attrs["db_date"],
+            "copyright": self.file.attrs["db_copyright"],
+        }
+
     def close(self):
         """Closes this FamDB instance, making further use invalid."""
         self.file.close()
@@ -755,6 +773,11 @@ def command_lineage(args):
 def print_families(args, families, species=None):
     """Prints each family in 'families' in the requested format."""
 
+    if len(families) > 1:
+        db_info = args.file.get_db_info()
+        if db_info:
+            print(db_info["copyright"])
+
     for family in families:
         if args.format == "summary":
             entry = str(family) + "\n"
@@ -796,9 +819,9 @@ def command_families(args):
     target_id = args.file.resolve_one_species(args.term)
 
     families = []
-    for accession in args.file.get_families_for_lineage(target_id,
+    for accession in sorted(args.file.get_families_for_lineage(target_id,
                                                         descendants=args.descendants,
-                                                        ancestors=args.ancestors):
+                                                        ancestors=args.ancestors)):
         families += [args.file.get_family_by_accession(accession)]
 
     print_families(args, families, target_id)

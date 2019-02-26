@@ -190,6 +190,43 @@ def run_export(args):  # pylint: disable=too-many-locals,too-many-branches,too-m
     class_db = load_classification(session)
     tax_db = load_taxonomy(session)
 
+    db_version = session.query(dfam_dev.DbVersion).one()
+    version = db_version.dfam_version
+    date = db_version.dfam_release_date.strftime("%Y-%m-%d")
+    copyright = \
+"""#   Dfam - A database of transposable element (TE) sequence alignments and HMMs
+#   Copyright (C) %d The Dfam consortium.
+#
+#   Release: Dfam_%s
+#   Date   : %s
+#
+#   This database is free; you can redistribute it and/or modify it
+#   as you wish, under the terms of the CC0 1.0 license, a
+#   'no copyright' license:
+#
+#   The Dfam consortium has dedicated the work to the public domain, waiving
+#   all rights to the work worldwide under copyright law, including all related
+#   and neighboring rights, to the extent allowed by law.
+#
+#   You can copy, modify, distribute and perform the work, even for
+#   commercial purposes, all without asking permission.
+#   See Other Information below.
+#
+#
+#   Other Information
+#
+#   o In no way are the patent or trademark rights of any person affected by
+#     CC0, nor are the rights that other persons may have in the work or in how
+#     the work is used, such as publicity or privacy rights.
+#   o Makes no warranties about the work, and disclaims liability for all uses of the
+#     work, to the fullest extent permitted by applicable law.
+#   o When using or citing the work, you should not imply endorsement by the Dfam consortium.
+#
+#   You may also obtain a copy of the CC0 license here:
+#   http://creativecommons.org/publicdomain/zero/1.0/legalcode
+#""" % (db_version.dfam_release_date.year, version, date)
+    args.outfile.set_db_info("Dfam", version, date, copyright)
+
     query = session.query(dfam_dev.Family).filter(dfam_dev.Family.disabled != 1)
 
     target_count = query.count()

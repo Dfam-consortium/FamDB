@@ -29,7 +29,7 @@ class CurationState(Base):
 class DbVersion(Base):
     __tablename__ = 'db_version'
 
-    ncbi_taxdb_version = Column(String(45), primary_key=True, nullable=False)
+    dfam_version = Column(String(45), primary_key=True, nullable=False)
     dfam_release_date = Column(Date, primary_key=True, nullable=False)
 
 
@@ -170,6 +170,7 @@ class Classification(Base):
     curcio_derbyshire_equiv = Column(String(255))
     piegu_equiv = Column(String(255))
     lineage = Column(Text)
+    aliases = Column(Text)
 
     repeatmasker_subtype = relationship('RepeatmaskerSubtype')
     repeatmasker_type = relationship('RepeatmaskerType')
