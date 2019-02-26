@@ -43,6 +43,7 @@ import collections
 import datetime
 import json
 import logging
+import textwrap
 import time
 
 import h5py
@@ -79,7 +80,8 @@ class Family:  # pylint: disable=too-many-instance-attributes
         FamilyField("date_modified", str),
         FamilyField("repeat_type", str),
         FamilyField("repeat_subtype", str),
-        FamilyField("features", list),
+        FamilyField("features", str),
+        FamilyField("coding_sequences", str),
         FamilyField("aliases", str),
         FamilyField("citations", str),
         FamilyField("refineable", bool),
@@ -137,12 +139,17 @@ class Family:  # pylint: disable=too-many-instance-attributes
 
         out = ""
 
-        def append(tag, text):
+        def append(tag, text, wrap=False):
             nonlocal out
+            if not text:
+                return
+
+            prefix = "%-6s" % tag
             text = str(text)
-            lines = text.split("\n")
-            for line in lines:
-                out += "%-6s%s\n" % (tag, line)
+            if wrap:
+                text = textwrap.fill(text, width=72)
+            out += textwrap.indent(text, prefix)
+            out += "\n"
 
         model_lines = self.model.split("\n")
 
@@ -199,6 +206,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
             tax_name = famdb.get_taxon_names(clade_id, 'dfam sanitized name')[0]
             append("MS", "TaxId:%d TaxName:%s" % (clade_id, tax_name))
 
+        append("CC", self.description, True)
         append("CC", "RepeatMasker Annotations:")
         append("CC", "     Type: %s" % (self.repeat_type or ""))
         append("CC", "     SubType: %s" % (self.repeat_subtype or ""))
@@ -255,15 +263,30 @@ class Family:  # pylint: disable=too-many-instance-attributes
 
         out = ""
 
-        def append(tag, text):
+        def append(tag, text, wrap=False):
             nonlocal out
-            text = str(text)
-            lines = text.split("\n")
-            for line in lines:
-                out += "%-4s %s\n" % (tag, line)
+            if not text:
+                return
 
-        append("ID", "%s     repeatmasker; DNA;  ???;  %d BP." % (self.name, self.length))
-        append("CC", "%s DNA" % self.name)
+            prefix = "%-5s" % tag
+            out += textwrap.indent(textwrap.fill(str(text), width=72), prefix)
+            out += "\n"
+
+        def append_featuredata(text):
+            nonlocal out
+            prefix = "FT                   "
+            if text:
+                out += textwrap.indent(textwrap.fill(str(text), width=72), prefix)
+            out += "\n"
+
+        accession_version = "%s.%d" % (self.accession, self.version or 0)
+
+        append("ID", "%s     repeatmasker; DNA;  ???;  %d BP." % (accession_version, self.length))
+        append("NM", self.name)
+        out += "XX\n"
+        append("AC", self.accession + ';')
+        out += "XX\n"
+        append("DE", self.title, True)
         out += "XX\n"
 
         if include_meta:
@@ -273,8 +296,8 @@ class Family:  # pylint: disable=too-many-instance-attributes
                     [db_id, db_link] = map(str.strip, alias_line.split(":"))
                     if db_id == "Repbase":
                         repbase_aliases += [db_link]
-            if repbase_aliases:
-                append("DE", "RepbaseID: %s" % ",".join(repbase_aliases))
+            for alias in repbase_aliases:
+                append("DR", "Repbase; %s." % alias)
                 out += "XX\n"
 
             if self.repeat_type == "LTR":
@@ -283,16 +306,25 @@ class Family:  # pylint: disable=too-many-instance-attributes
                 append("KW", "%s/%s." % (self.repeat_type or "", self.repeat_subtype or ""))
             out += "XX\n"
 
+            for clade_id in self.clades:
+                lineage = famdb.get_lineage_name(clade_id).replace("root;", "")
+                last_semi = lineage.rfind(';')
+                append("OS", lineage[last_semi+1:])
+                append("OC", lineage[:last_semi].replace(";", "; ") + ".", True)
+            out += "XX\n"
+
             if self.citations:
                 citations = json.loads(self.citations)
                 citations.sort(key=lambda c: c["order_added"])
                 for cit in citations:
                     append("RN", "[%d] (bases 1 to %d)" % (cit["order_added"], self.length))
-                    append("RA", cit["authors"])
-                    append("RT", cit["title"])
+                    append("RA", cit["authors"], True)
+                    append("RT", cit["title"], True)
                     append("RL", cit["journal"])
                 out += "XX\n"
 
+            append("CC", self.description, True)
+            out += "CC\n"
             append("CC", "RepeatMasker Annotations:")
             append("CC", "     Type: %s" % (self.repeat_type or ""))
             append("CC", "     SubType: %s" % (self.repeat_subtype or ""))
@@ -303,9 +335,22 @@ class Family:  # pylint: disable=too-many-instance-attributes
 
             append("CC", "     SearchStages: %s" % (self.search_stages or ""))
             append("CC", "     BufferStages: %s" % (self.buffer_stages or ""))
-
             if self.refineable:
                 append("CC", "     Refineable")
+
+            if self.coding_sequences:
+                out += "XX\n"
+                append("FH", "Key             Location/Qualifiers")
+                out += "FH\n"
+                for cds in json.loads(self.coding_sequences):
+                    # TODO: sanitize values which might already contain a " in them?
+
+                    append("FT", "CDS             %d..%d" % (cds["cds_start"], cds["cds_end"]))
+                    append_featuredata('/product="%s"' % cds["product"])
+                    append_featuredata('/number=%s' % cds["exon_count"])
+                    append_featuredata('/note="%s"' % cds["description"])
+                    append_featuredata('/translation="%s"' % cds["translation"])
+
 
             out += "XX\n"
 
@@ -332,7 +377,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
                     line += chunk[j:j + 10] + " "
                     j += 10
 
-                out += "      %-66s %d\n" % (line, min(i, len(sequence)))
+                out += "     %-66s %d\n" % (line, min(i, len(sequence)))
 
         out += "//\n"
 
@@ -552,6 +597,26 @@ class FamDB:
                     tax_id = None
 
         return tree
+
+    def get_lineage_name(self, tax_id, **kwargs):
+        """
+        Returns a ';'-separated string of the lineage for 'tax_id'.
+        """
+
+        tree = self.get_lineage(tax_id, ancestors=True)
+        lineage = ""
+
+        while tree:
+            node = tree[0]
+            tree = tree[1] if len(tree) > 1 else None
+
+            tax_name = self.get_taxon_names(node, 'scientific name')[0]
+            lineage += tax_name
+            if tree:
+                lineage += ';'
+
+        return lineage
+
 
     def get_families_for_lineage(self, tax_id, **kwargs):
         """

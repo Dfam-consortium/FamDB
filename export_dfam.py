@@ -212,8 +212,7 @@ def run_export(args):  # pylint: disable=too-many-locals,too-many-branches,too-m
         family.title = record.title
         family.version = record.version
         family.consensus = record.consensus
-        if family.consensus:
-            family.length = len(family.consensus)
+        family.length = record.length
 
         # RECOMMENDED FIELDS
         family.description = record.description
@@ -294,7 +293,60 @@ def run_export(args):  # pylint: disable=too-many-locals,too-many-branches,too-m
         if th_values:
             family.taxa_thresholds = "\n".join(th_values)
 
-        # TODO: features
+        feature_values = []
+        for feature in session.query(dfam_dev.FamilyFeature)\
+            .filter(dfam_dev.FamilyFeature.family_id == record.id)\
+            .all():
+
+            obj = {
+                "type": feature.feature_type,
+                "description": feature.description,
+                "model_start_pos": feature.model_start_pos,
+                "model_end_pos": feature.model_end_pos,
+                "label": feature.label,
+                "attributes": [],
+            }
+
+            for attribute in session.query(dfam_dev.FeatureAttribute)\
+                .filter(dfam_dev.FeatureAttribute.family_feature_id == feature.id)\
+                .all():
+
+                obj.attributes += [{"attribute": attribute.attribute, "value": attribute.value}]
+
+            feature_values += [obj]
+
+        if feature_values:
+            family.features = json.dumps(feature_values)
+
+        cds_values = []
+        for cds in session.query(dfam_dev.CodingSequence)\
+            .filter(dfam_dev.CodingSequence.family_id == record.id)\
+            .all():
+
+            obj = {
+                "product": cds.product,
+                "translation": cds.translation,
+                "cds_start": cds.cds_start,
+                "cds_end": cds.cds_end,
+                "exon_count": cds.exon_count,
+                "exon_starts": str(cds.exon_starts),
+                "exon_ends": str(cds.exon_ends),
+                "external_reference": cds.external_reference,
+                "reverse": (cds.reverse == 1),
+                "stop_codons": cds.stop_codons,
+                "frameshifts": cds.frameshifts,
+                "gaps": cds.gaps,
+                "percent_identity": cds.percent_identity,
+                "left_unaligned": cds.left_unaligned,
+                "right_unaligned": cds.right_unaligned,
+                "description": cds.description,
+                "protein_type": cds.protein_type,
+            }
+
+            cds_values += [obj]
+
+        if cds_values:
+            family.coding_sequences = json.dumps(cds_values)
 
         # External aliases
 
@@ -309,7 +361,6 @@ def run_export(args):  # pylint: disable=too-many-locals,too-many-branches,too-m
             family.aliases = "\n".join(alias_values)
 
         citation_values = []
-        # TODO: Include/respect citation order
         for citation in session.query(
                 dfam_dev.Citation.title,
                 dfam_dev.Citation.authors,
