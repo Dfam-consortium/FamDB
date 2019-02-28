@@ -43,6 +43,7 @@ import collections
 import datetime
 import json
 import logging
+import re
 import textwrap
 import time
 
@@ -269,7 +270,9 @@ class Family:  # pylint: disable=too-many-instance-attributes
                 return
 
             prefix = "%-5s" % tag
-            out += textwrap.indent(textwrap.fill(str(text), width=72), prefix)
+            if wrap:
+                text = textwrap.fill(str(text), width=72)
+            out += textwrap.indent(str(text), prefix)
             out += "\n"
 
         def append_featuredata(text):
@@ -279,9 +282,8 @@ class Family:  # pylint: disable=too-many-instance-attributes
                 out += textwrap.indent(textwrap.fill(str(text), width=72), prefix)
             out += "\n"
 
-        accession_version = "%s.%d" % (self.accession, self.version or 0)
-
-        append("ID", "%s     repeatmasker; DNA;  ???;  %d BP." % (accession_version, self.length))
+        append("ID", "%s; SV %d; linear; DNA; STD; UNC; %d BP." %
+               (self.accession, self.version or 0, len(sequence)))
         append("NM", self.name)
         out += "XX\n"
         append("AC", self.accession + ';')
@@ -321,7 +323,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
                     append("RA", cit["authors"], True)
                     append("RT", cit["title"], True)
                     append("RL", cit["journal"])
-                out += "XX\n"
+                    out += "XX\n"
 
             append("CC", self.description, True)
             out += "CC\n"
@@ -410,14 +412,18 @@ class FamDB:
         self.file.attrs["version"] = "0.1"
         self.file.attrs["created"] = str(datetime.datetime.now())
 
-    def set_db_info(self, name, version, date, copyright):
+    def set_db_info(self, name, version, date, copyright_text):
         """Sets database metadata for the current file"""
         self.file.attrs["db_name"] = name
         self.file.attrs["db_version"] = version
         self.file.attrs["db_date"] = date
-        self.file.attrs["db_copyright"] = copyright
+        self.file.attrs["db_copyright"] = copyright_text
 
     def get_db_info(self):
+        """
+        Gets database metadata for the current file as a dict with keys
+        'name', 'version', 'date', 'copyright'
+        """
         if "db_name" not in self.file.attrs:
             return None
 
@@ -616,7 +622,7 @@ class FamDB:
 
         return tree
 
-    def get_lineage_name(self, tax_id, **kwargs):
+    def get_lineage_name(self, tax_id):
         """
         Returns a ';'-separated string of the lineage for 'tax_id'.
         """
@@ -776,7 +782,16 @@ def print_families(args, families, species=None):
     if len(families) > 1:
         db_info = args.file.get_db_info()
         if db_info:
-            print(db_info["copyright"])
+            copyright_text = db_info["copyright"]
+            # Add appropriate comment character to the copyright header lines
+            if "hmm" in args.format:
+                copyright_text = re.sub("(?m)^", "#   ", copyright_text)
+            elif "fasta" in args.format:
+                copyright_text = None
+            elif "embl" in args.format:
+                copyright_text = re.sub("(?m)^", "CC   ", copyright_text)
+            if copyright_text:
+                print(copyright_text)
 
     for family in families:
         if args.format == "summary":
@@ -820,8 +835,8 @@ def command_families(args):
 
     families = []
     for accession in sorted(args.file.get_families_for_lineage(target_id,
-                                                        descendants=args.descendants,
-                                                        ancestors=args.ancestors)):
+                                                               descendants=args.descendants,
+                                                               ancestors=args.ancestors)):
         families += [args.file.get_family_by_accession(accession)]
 
     print_families(args, families, target_id)
