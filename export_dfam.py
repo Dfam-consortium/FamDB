@@ -3,7 +3,10 @@
 """
     Export the dfam database to FamDB format.
 
-    Usage: export_dfam.py [-h] [-l LOG_LEVEL] connection_string outfile
+    Usage: export_dfam.py [-h] [-l LOG_LEVEL] [-t tax_id] [-t tax_id]... connection_string outfile
+
+    -t, --taxon: Additional taxonomy IDs to include, even if they appear
+                 to be unnecessary
 
 SEE ALSO:
     famdb.py
@@ -189,6 +192,9 @@ def run_export(args):  # pylint: disable=too-many-locals,too-many-branches,too-m
 
     class_db = load_classification(session)
     tax_db = load_taxonomy(session)
+
+    for tid in args.taxon:
+        tax_db[tid].mark_ancestry_used()
 
     db_version = session.query(dfam_dev.DbVersion).one()
     version = db_version.dfam_version
@@ -457,6 +463,7 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-l", "--log-level", default="INFO")
+    parser.add_argument("-t", "--taxon", action="append", type=int)
     parser.add_argument("connection")
     parser.add_argument("outfile", type=famdb_file_type("w"))
 
