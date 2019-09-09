@@ -42,7 +42,7 @@ import time
 
 import sqlalchemy
 
-import dfam_dev
+import dfam_31 as dfam
 import famdb
 
 LOGGER = logging.getLogger(__name__)
@@ -83,8 +83,8 @@ def load_taxonomy(session):
     start = time.perf_counter()
 
     for tax_node in session.query(
-            dfam_dev.NcbiTaxdbNode.tax_id,
-            dfam_dev.NcbiTaxdbNode.parent_id
+            dfam.NcbiTaxdbNode.tax_id,
+            dfam.NcbiTaxdbNode.parent_id
         ).all():
         nodes[tax_node.tax_id] = TaxNode(tax_node.tax_id, tax_node.parent_id)
 
@@ -110,13 +110,13 @@ def load_used_taxonomy_names(nodes, session):
         if node.used:
             count += 1
             for tax_name in session.query(
-                    dfam_dev.NcbiTaxdbName.name_txt,
-                    dfam_dev.NcbiTaxdbName.name_class,
-                ).filter(dfam_dev.NcbiTaxdbName.tax_id == node.tax_id):
+                    dfam.NcbiTaxdbName.name_txt,
+                    dfam.NcbiTaxdbName.name_class,
+                ).filter(dfam.NcbiTaxdbName.tax_id == node.tax_id):
                 node.names += [[tax_name.name_class, tax_name.name_txt]]
 
-            dfam_rec = session.query(dfam_dev.DfamTaxdb)\
-                .filter(dfam_dev.DfamTaxdb.tax_id == node.tax_id)\
+            dfam_rec = session.query(dfam.DfamTaxdb)\
+                .filter(dfam.DfamTaxdb.tax_id == node.tax_id)\
                 .one_or_none()
             if dfam_rec:
                 node.names += [["dfam sanitized name", dfam_rec.sanitized_name]]
@@ -160,12 +160,12 @@ def load_classification(session):
     start = time.perf_counter()
 
     for (class_node, type_name, subtype_name) in session.query(
-            dfam_dev.Classification,
-            dfam_dev.RepeatmaskerType.name,
-            dfam_dev.RepeatmaskerSubtype.name,
+            dfam.Classification,
+            dfam.RepeatmaskerType.name,
+            dfam.RepeatmaskerSubtype.name,
         )\
-        .outerjoin(dfam_dev.RepeatmaskerType)\
-        .outerjoin(dfam_dev.RepeatmaskerSubtype)\
+        .outerjoin(dfam.RepeatmaskerType)\
+        .outerjoin(dfam.RepeatmaskerSubtype)\
         .all():
 
         class_id = class_node.id
@@ -196,7 +196,7 @@ def run_export(args):  # pylint: disable=too-many-locals,too-many-branches,too-m
     for tid in args.taxon:
         tax_db[tid].mark_ancestry_used()
 
-    db_version = session.query(dfam_dev.DbVersion).one()
+    db_version = session.query(dfam.DbVersion).one()
     version = db_version.dfam_version
     date = db_version.dfam_release_date.strftime("%Y-%m-%d")
     copyright_text = \
@@ -233,9 +233,9 @@ http://creativecommons.org/publicdomain/zero/1.0/legalcode
 """ % (db_version.dfam_release_date.year, version, date)
     args.outfile.set_db_info("Dfam", version, date, copyright_text)
 
-    query = session.query(dfam_dev.Family)
+    query = session.query(dfam.Family)
     # TODO: This filter should be re-enabled later
-    # .filter(dfam_dev.Family.disabled != 1)
+    # .filter(dfam.Family.disabled != 1)
 
     target_count = query.count()
     LOGGER.info("Importing %d families", target_count)
@@ -276,8 +276,8 @@ http://creativecommons.org/publicdomain/zero/1.0/legalcode
 
         # clades and taxonomy links
         family.clades = []
-        for clade_record in session.query(dfam_dev.t_family_clade.c.dfam_taxdb_tax_id)\
-            .filter(dfam_dev.t_family_clade.c.family_id == record.id)\
+        for clade_record in session.query(dfam.t_family_clade.c.dfam_taxdb_tax_id)\
+            .filter(dfam.t_family_clade.c.family_id == record.id)\
             .all():
 
             clade_id = clade_record.dfam_taxdb_tax_id
@@ -289,8 +289,8 @@ http://creativecommons.org/publicdomain/zero/1.0/legalcode
 
         # "SearchStages: A,B,C,..."
         ss_values = []
-        for ss_record in session.query(dfam_dev.t_family_has_search_stage)\
-            .filter(dfam_dev.t_family_has_search_stage.c.family_id == record.id)\
+        for ss_record in session.query(dfam.t_family_has_search_stage)\
+            .filter(dfam.t_family_has_search_stage.c.family_id == record.id)\
             .all():
 
             ss_values += [str(ss_record.repeatmasker_stage_id)]
@@ -300,8 +300,8 @@ http://creativecommons.org/publicdomain/zero/1.0/legalcode
 
         # "BufferStages:A,B,C[D-E],..."
         bs_values = []
-        for bs_record in session.query(dfam_dev.FamilyHasBufferStage)\
-            .filter(dfam_dev.FamilyHasBufferStage.family_id == record.id)\
+        for bs_record in session.query(dfam.FamilyHasBufferStage)\
+            .filter(dfam.FamilyHasBufferStage.family_id == record.id)\
             .all():
 
             stage_id = bs_record.repeatmasker_stage_id
@@ -320,11 +320,11 @@ http://creativecommons.org/publicdomain/zero/1.0/legalcode
         th_values = []
 
         for (spec_rec, tax_id) in session.query(
-                dfam_dev.FamilyAssemblyDatum,
-                dfam_dev.Assembly.dfam_taxdb_tax_id
+                dfam.FamilyAssemblyDatum,
+                dfam.Assembly.dfam_taxdb_tax_id
             )\
-            .filter(dfam_dev.FamilyAssemblyDatum.family_id == record.id)\
-            .filter(dfam_dev.Assembly.id == dfam_dev.FamilyAssemblyDatum.assembly_id)\
+            .filter(dfam.FamilyAssemblyDatum.family_id == record.id)\
+            .filter(dfam.Assembly.id == dfam.FamilyAssemblyDatum.assembly_id)\
             .all():
 
             th_values += ["{}, {}, {}, {}, {}".format(
@@ -339,8 +339,8 @@ http://creativecommons.org/publicdomain/zero/1.0/legalcode
             family.taxa_thresholds = "\n".join(th_values)
 
         feature_values = []
-        for feature in session.query(dfam_dev.FamilyFeature)\
-            .filter(dfam_dev.FamilyFeature.family_id == record.id)\
+        for feature in session.query(dfam.FamilyFeature)\
+            .filter(dfam.FamilyFeature.family_id == record.id)\
             .all():
 
             obj = {
@@ -352,8 +352,8 @@ http://creativecommons.org/publicdomain/zero/1.0/legalcode
                 "attributes": [],
             }
 
-            for attribute in session.query(dfam_dev.FeatureAttribute)\
-                .filter(dfam_dev.FeatureAttribute.family_feature_id == feature.id)\
+            for attribute in session.query(dfam.FeatureAttribute)\
+                .filter(dfam.FeatureAttribute.family_feature_id == feature.id)\
                 .all():
 
                 obj["attributes"] += [{"attribute": attribute.attribute, "value": attribute.value}]
@@ -364,8 +364,8 @@ http://creativecommons.org/publicdomain/zero/1.0/legalcode
             family.features = json.dumps(feature_values)
 
         cds_values = []
-        for cds in session.query(dfam_dev.CodingSequence)\
-            .filter(dfam_dev.CodingSequence.family_id == record.id)\
+        for cds in session.query(dfam.CodingSequence)\
+            .filter(dfam.CodingSequence.family_id == record.id)\
             .all():
 
             obj = {
@@ -396,8 +396,8 @@ http://creativecommons.org/publicdomain/zero/1.0/legalcode
         # External aliases
 
         alias_values = []
-        for alias in session.query(dfam_dev.FamilyDatabaseAlia)\
-            .filter(dfam_dev.FamilyDatabaseAlia.family_id == record.id)\
+        for alias in session.query(dfam.FamilyDatabaseAlia)\
+            .filter(dfam.FamilyDatabaseAlia.family_id == record.id)\
             .all():
 
             alias_values += ["%s: %s" % (alias.db_id, alias.db_link)]
@@ -407,12 +407,12 @@ http://creativecommons.org/publicdomain/zero/1.0/legalcode
 
         citation_values = []
         for citation in session.query(
-                dfam_dev.Citation.title,
-                dfam_dev.Citation.authors,
-                dfam_dev.Citation.journal,
-                dfam_dev.FamilyHasCitation.order_added,
-            ).filter(dfam_dev.Citation.pmid == dfam_dev.FamilyHasCitation.citation_pmid)\
-            .filter(dfam_dev.FamilyHasCitation.family_id == record.id)\
+                dfam.Citation.title,
+                dfam.Citation.authors,
+                dfam.Citation.journal,
+                dfam.FamilyHasCitation.order_added,
+            ).filter(dfam.Citation.pmid == dfam.FamilyHasCitation.citation_pmid)\
+            .filter(dfam.FamilyHasCitation.family_id == record.id)\
             .all():
 
             obj = {
@@ -428,8 +428,8 @@ http://creativecommons.org/publicdomain/zero/1.0/legalcode
 
         # MODEL DATA + METADATA
 
-        hmm = session.query(dfam_dev.HmmModelDatum.hmm).filter(
-            dfam_dev.HmmModelDatum.family_id == record.id).one_or_none()
+        hmm = session.query(dfam.HmmModelDatum.hmm).filter(
+            dfam.HmmModelDatum.family_id == record.id).one_or_none()
         if hmm:
             family.model = gzip.decompress(hmm[0]).decode()
 
@@ -437,8 +437,8 @@ http://creativecommons.org/publicdomain/zero/1.0/legalcode
             family.max_length = record.hmm_maxl
         family.is_model_masked = record.model_mask
 
-        seed_count = session.query(dfam_dev.t_seed_region).filter(
-            dfam_dev.t_seed_region.c.family_id == record.id).count()
+        seed_count = session.query(dfam.t_seed_region).filter(
+            dfam.t_seed_region.c.family_id == record.id).count()
         family.seed_count = seed_count
 
         args.outfile.add_family(family)
@@ -463,7 +463,7 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-l", "--log-level", default="INFO")
-    parser.add_argument("-t", "--taxon", action="append", type=int)
+    parser.add_argument("-t", "--taxon", action="append", type=int, default=[])
     parser.add_argument("connection")
     parser.add_argument("outfile", type=famdb_file_type("w"))
 

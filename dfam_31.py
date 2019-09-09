@@ -218,6 +218,21 @@ class Family(Base):
     repeatmasker_stages = relationship('RepeatmaskerStage', secondary='family_has_search_stage')
 
 
+class HmmModelDatum(Family):
+    __tablename__ = 'hmm_model_data'
+
+    family_id = Column(ForeignKey('family.id'), primary_key=True)
+    hmm_logo = Column(LONGBLOB)
+    hmm = Column(LONGBLOB)
+
+
+class SeedAlignDatum(Family):
+    __tablename__ = 'seed_align_data'
+
+    family_id = Column(ForeignKey('family.id'), primary_key=True)
+    graph_json = Column(LONGBLOB, nullable=False)
+
+
 class CodingSequence(Base):
     __tablename__ = 'coding_sequence'
 
@@ -370,34 +385,15 @@ class FamilyOverlap(Base):
     family2 = relationship('Family', primaryjoin='FamilyOverlap.family2_id == Family.id')
 
 
-class HmmModelDatum(Base):
-    __tablename__ = 'hmm_model_data'
-
-    family_id = Column(ForeignKey('family.id'), primary_key=True)
-    hmm_logo = Column(LONGBLOB)
-    hmm = Column(LONGBLOB)
-
-    family = relationship('Family', uselist=False)
-
-
-class SeedAlignDatum(Base):
-    __tablename__ = 'seed_align_data'
-
-    family_id = Column(ForeignKey('family.id'), primary_key=True)
-    graph_json = Column(LONGBLOB, nullable=False)
-
-    family = relationship('Family', uselist=False)
-
-
 t_seed_region = Table(
     'seed_region', metadata,
     Column('family_id', ForeignKey('family.id'), nullable=False, index=True),
     Column('assembly_id', ForeignKey('assembly.id'), nullable=False, index=True),
     Column('seq_id', String(50), nullable=False),
-    Column('seq_start', BIGINT(20), nullable=False),
-    Column('seq_end', BIGINT(20), nullable=False),
+    Column('seq_start', BIGINT(20)),
+    Column('seq_end', BIGINT(20)),
     Column('a3m_seq', Text, nullable=False),
-    Column('strand', Enum('+', '-'), nullable=False),
+    Column('strand', Enum('+', '-')),
     Column('model_start', MEDIUMINT(8), nullable=False),
     Column('model_end', MEDIUMINT(8), nullable=False)
 )
