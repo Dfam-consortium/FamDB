@@ -54,6 +54,69 @@ import numpy
 LOGGER = logging.getLogger(__name__)
 
 
+# Soundex codes
+SOUNDEX_LOOKUP = {
+    'A': 0, 'E': 0, 'I': 0, 'O': 0, 'U': 0, 'Y': 0,
+    'B': 1, 'F': 1, 'P': 1, 'V': 1,
+    'C': 2, 'G': 2, 'J': 2, 'K': 2, 'Q': 2, 'S': 2, 'X': 2, 'Z': 2,
+    'D': 3, 'T': 3,
+    'L': 4,
+    'M': 5, 'N': 5,
+    'R': 6,
+    'H': None, 'W': None,
+}
+
+def soundex(word):
+    """
+    Converts 'word' according to American Soundex[1].
+
+    This is used for "sounds like" types of searches.
+
+    [1]: https://en.wikipedia.org/wiki/Soundex#American_Soundex
+    """
+
+    codes = [SOUNDEX_LOOKUP[ch] for ch in word.upper() if ch in SOUNDEX_LOOKUP]
+
+    # Start at the second code
+    i = 1
+
+    # Drop identical sounds and H and W
+    while i < len(codes):
+        code = codes[i]
+        prev = codes[i-1]
+
+        if code is None:
+            # Drop H and W
+            del codes[i]
+        if code == prev:
+            # Drop adjacent identical sounds
+            del codes[i]
+        else:
+            i += 1
+
+    # Keep the first letter
+    coding = word[0]
+
+    # Keep codes, except for the first or vowels
+    codes_rest = filter(lambda c: c > 0, codes[1:])
+
+    # Append stringified remaining numbers
+    for code in codes_rest:
+        coding += str(code)
+
+    # Pad to 3 digits
+    while len(coding) < 4:
+        coding += '0'
+
+    # Truncate to 3 digits
+    return coding[:4]
+
+def sounds_like(first, second):
+    soundex_first = soundex(first)
+    soundex_second = soundex(second)
+
+    return soundex_first == soundex_second
+
 class Family:  # pylint: disable=too-many-instance-attributes
     """A Transposable Element family, made up of metadata and a model."""
 
@@ -524,10 +587,14 @@ class FamDB:
         """Returns True if 'self' has a taxonomy entry for 'tax_id'"""
         return str(tax_id) in self.group_nodes
 
-    def search_taxon_names(self, text, kind=None):
+    def search_taxon_names(self, text, kind=None, search_similar=False):
         """
         Searches 'self' for taxons with a name containing 'text' and yields the
-        ids of matching nodes. A list of strings may be passed as 'kind' to
+        ids of matching nodes.
+
+        If 'similar' is True, names that sound similar will also be considered eligible.
+
+        A list of strings may be passed as 'kind' to
         restrict what kinds of names will be searched.
         """
 
@@ -540,13 +607,21 @@ class FamDB:
                     if text in name[1].lower():
                         yield int(nid)
                         break
+                    elif search_similar and sounds_like(text, name[1].lower()):
+                        yield int(nid)
+                        break
 
-    def resolve_species(self, term, kind=None):
+    def resolve_species(self, term, kind=None, search_similar=False):
         """
         Resolves 'term' as a species or clade in 'self'. If 'term' is a number,
         it is a taxon id. Otherwise, it will be searched for in 'self' in the
         name fields of all taxa. A list of strings may be passed as 'kind' to
         restrict what kinds of names will be searched.
+
+        If 'search_similar' is True, a "sounds like" search
+        will be tried first. If it is False, a "sounds like"
+        will be performed and printed to the screen but no
+        results will be returned.
 
         This function returns a list of taxon ids that match the query. The list
         will be empty if no matches were found.
@@ -563,7 +638,18 @@ class FamDB:
             pass
 
         # Perform a search by name
-        return self.search_taxon_names(term, kind)
+        results = list(self.search_taxon_names(term, kind, search_similar))
+
+        if len(results) == 0 and not search_similar:
+            # Try a sounds-like search (currently soundex)
+            similar_results = self.resolve_species(term, kind, True)
+            if similar_results:
+                print("No results found by that name, but some names sound similar:")
+                for tax_id in similar_results:
+                    names = self.get_taxon_names(tax_id)
+                    print(tax_id, ", ".join(["{1}".format(*n) for n in names]))
+
+        return results
 
     def resolve_one_species(self, term, kind=None):
         """
@@ -572,7 +658,7 @@ class FamDB:
         Raises an exception if not exactly one result is found.
         """
 
-        results = list(self.resolve_species(term, kind))
+        results = self.resolve_species(term, kind)
         if len(results) == 1:
             return results[0]
 
