@@ -189,7 +189,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
 
     def __str__(self):
         return "%s.%d '%s': %s len=%d" % (self.accession, self.version or 0,
-                                          self.name, self.classification, self.length)
+                                          self.name, self.classification, self.length or -1)
 
     def to_dfam_hmm(self, famdb, species=None):  # pylint: disable=too-many-locals,too-many-branches
         """
