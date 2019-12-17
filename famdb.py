@@ -88,7 +88,7 @@ def soundex(word):
         if code is None:
             # Drop H and W
             del codes[i]
-        if code == prev:
+        elif code == prev:
             # Drop adjacent identical sounds
             del codes[i]
         else:
