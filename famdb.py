@@ -524,7 +524,8 @@ class FamDB:
         """Adds the family described by 'family' to the database."""
         # Verify uniqueness of name and accession.
         # This is important because of the links created to them later.
-        self.__check_unique(family, "name")
+        if family.name:
+            self.__check_unique(family, "name")
         self.__check_unique(family, "accession")
 
         # Create the family data
@@ -537,7 +538,8 @@ class FamDB:
                 dset.attrs[k] = value
 
         # Create links
-        self.group_byname[family.name] = h5py.SoftLink("/Families/" + family.accession)
+        if family.name:
+            self.group_byname[family.name] = h5py.SoftLink("/Families/" + family.accession)
         self.group_byaccession[family.accession] = h5py.SoftLink("/Families/" + family.accession)
 
         LOGGER.debug("Added family %s (%s)", family.name, family.accession)
