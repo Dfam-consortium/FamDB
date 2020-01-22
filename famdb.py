@@ -923,7 +923,54 @@ def command_families(args):
     for accession in sorted(args.file.get_families_for_lineage(target_id,
                                                                descendants=args.descendants,
                                                                ancestors=args.ancestors)):
-        families += [args.file.get_family_by_accession(accession)]
+        family = args.file.get_family_by_accession(accession)
+
+        # TODO: implement this and other filters in the
+        # original query (i.e. get_families_for_lineage)
+        # where it can be better optimized not to read
+        # the full data of all families
+        if args.stage:
+            stage = str(args.stage)
+            match_stage = False
+
+            if family.search_stages:
+                for sstage in family.search_stages.split(","):
+                    if sstage.strip() == stage:
+                        match_stage = True
+            if family.buffer_stages:
+                for bstage in family.buffer_stages.split(","):
+                    if bstage == stage:
+                        match_stage = True
+                    elif "[" in bstage:
+                        if bstage.split("[")[0] == stage:
+                            match_stage = True
+
+            if not match_stage:
+                continue
+
+        if args.repeat_type:
+            repeat_type = args.repeat_type.lower()
+            match_class = False
+
+            if family.repeat_type:
+                if family.repeat_type.lower().startswith(args.repeat_type):
+                    match_class = True
+
+            if not match_class:
+                continue
+
+        if args.name:
+            name = args.name.lower()
+            match_name = False
+
+            if family.name:
+                if name in family.name.lower():
+                    match_name = True
+
+            if not match_name:
+                continue
+
+        families += [family]
 
     print_families(args, families, target_id)
 
@@ -958,6 +1005,9 @@ def main():
     p_families = p_query_sub.add_parser("families")
     p_families.add_argument("-a", "--ancestors", action="store_true")
     p_families.add_argument("-d", "--descendants", action="store_true")
+    p_families.add_argument("--stage", type=int)
+    p_families.add_argument("--class", dest="repeat_type", type=str)
+    p_families.add_argument("--name", type=str)
     p_families.add_argument("-f", "--format", default="summary", choices=family_formats)
     p_families.add_argument("term")
     p_families.set_defaults(func=command_families)
