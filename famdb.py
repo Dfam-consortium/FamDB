@@ -730,18 +730,82 @@ class FamDB:
         return lineage
 
 
-    def get_families_for_lineage(self, tax_id, **kwargs):
+    def get_accessions_filtered(self, **kwargs):
         """
-        Yields accessions for the families requested. 'tax_id' and 'kwargs'
-        correspond to the same arguments for 'get_lineage'.
+        Yields accessions for the families requested.
+
+        Filters are specified in kwargs:
+            tax_id: int
+            ancestors: boolean, default False
+            descendants: boolean, default False
+                If none of (tax_id, ancestors, descendants) are
+                specified, *all* families will be checked.
+            stage = int
+            repeat_type = string (prefix)
+            name = string (prefix)
+                If any of stage, repeat_type, or name are
+                omitted (or None), they will not be used to filter.
         """
+
+        if not ("tax_id" in kwargs or "ancestors" in kwargs or "descendants" in kwargs):
+            tax_id = 1
+            ancestors = True
+            descendants = True
+        else:
+            tax_id = kwargs["tax_id"]
+            ancestors = kwargs["ancestors"] or False
+            descendants = kwargs["descendants"] or False
+
+        filter_stage = kwargs.get("stage")
+        if filter_stage:
+            filter_stage = str(filter_stage)
+
+        filter_repeat_type = kwargs.get("repeat_type")
+        if filter_repeat_type:
+            filter_repeat_type = filter_repeat_type.lower()
+
+        filter_name = kwargs.get("name")
+        if filter_name:
+            filter_name = filter_name.lower()
 
         seen = set()
-
-        for node in walk_tree(self.get_lineage(tax_id, **kwargs)):
+        for node in walk_tree(self.get_lineage(tax_id, ancestors=ancestors, descendants=descendants)):
             for accession in self.get_families_for_taxon(node):
                 if accession not in seen:
                     seen.add(accession)
+                    family = self.__get_family_raw_by_accession(accession)
+                    if filter_stage:
+                        match_stage = False
+                        if family.attrs.get("search_stages"):
+                            for sstage in family.attrs["search_stages"].split(","):
+                                if sstage.strip() == filter_stage:
+                                    match_stage = True
+                        if family.attrs.get("buffer_stages"):
+                            for bstage in family.attrs["buffer_stages"].split(","):
+                                if bstage == filter_stage:
+                                    match_stage = True
+                                elif "[" in bstage:
+                                    if bstage.split("[")[0] == filter_stage:
+                                        match_stage = True
+                        if not match_stage:
+                            continue
+
+                    if filter_repeat_type:
+                        match_class = False
+                        if family.attrs.get("repeat_type"):
+                            if family.attrs["repeat_type"].lower().startswith(filter_repeat_type):
+                                match_class = True
+                        if not match_class:
+                            continue
+
+                    if filter_name:
+                        match_name = False
+                        if family.attrs.get("name"):
+                            if family.attrs["name"].lower().startswith(filter_name):
+                                match_name = True
+                        if not match_name:
+                            continue
+
                     yield accession
 
     def get_family_names(self):
@@ -765,6 +829,10 @@ class FamDB:
             setattr(family, k, value)
 
         return family
+
+    def __get_family_raw_by_accession(self, accession):
+        """Returns a handle to the data fo the family with the given accession."""
+        return self.file["Families"].get(accession)
 
     def get_family_by_accession(self, accession):
         """Returns the family with the given accession."""
@@ -922,55 +990,13 @@ def command_families(args):
     target_id = args.file.resolve_one_species(args.term)
 
     families = []
-    for accession in sorted(args.file.get_families_for_lineage(target_id,
-                                                               descendants=args.descendants,
-                                                               ancestors=args.ancestors)):
+    for accession in sorted(args.file.get_accessions_filtered(tax_id=target_id,
+                                                              descendants=args.descendants,
+                                                              ancestors=args.ancestors,
+                                                              stage=args.stage,
+                                                              repeat_type=args.repeat_type,
+                                                              name=args.name)):
         family = args.file.get_family_by_accession(accession)
-
-        # TODO: implement this and other filters in the
-        # original query (i.e. get_families_for_lineage)
-        # where it can be better optimized not to read
-        # the full data of all families
-        if args.stage:
-            stage = str(args.stage)
-            match_stage = False
-
-            if family.search_stages:
-                for sstage in family.search_stages.split(","):
-                    if sstage.strip() == stage:
-                        match_stage = True
-            if family.buffer_stages:
-                for bstage in family.buffer_stages.split(","):
-                    if bstage == stage:
-                        match_stage = True
-                    elif "[" in bstage:
-                        if bstage.split("[")[0] == stage:
-                            match_stage = True
-
-            if not match_stage:
-                continue
-
-        if args.repeat_type:
-            repeat_type = args.repeat_type.lower()
-            match_class = False
-
-            if family.repeat_type:
-                if family.repeat_type.lower().startswith(args.repeat_type):
-                    match_class = True
-
-            if not match_class:
-                continue
-
-        if args.name:
-            name = args.name.lower()
-            match_name = False
-
-            if family.name:
-                if name in family.name.lower():
-                    match_name = True
-
-            if not match_name:
-                continue
 
         families += [family]
 

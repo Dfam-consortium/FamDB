@@ -121,7 +121,7 @@ def run_queries(dbfile):
     def _do_fetch_human():
         nonlocal dbfile
 
-        accs = dbfile.get_families_for_lineage(9606, ancestors=True)
+        accs = dbfile.get_accessions_filtered(tax_id=9606, ancestors=True)
         count = 0
         for acc in accs:
             count += 1
