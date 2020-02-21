@@ -19,7 +19,7 @@ show_run ./convert_hmm.py dump "$h5name" "$dumpname"
 show_run diff -u "$dumpname" "test_data/expected_$dumpname" | head || exit 1
 show_run rm "$dumpname"
 
-show_run ./famdb.py query "$h5name" names mus
-show_run ./famdb.py query "$h5name" lineage -d 9605
-show_run ./famdb.py query "$h5name" lineage -a 40674
-show_run ./famdb.py query "$h5name" lineage -d 40674
+show_run ./famdb.py -i "$h5name" names mus
+show_run ./famdb.py -i "$h5name" lineage -d 9605
+show_run ./famdb.py -i "$h5name" lineage -a 40674
+show_run ./famdb.py -i "$h5name" lineage -d 40674

@@ -1008,41 +1008,52 @@ def main():
 
     logging.basicConfig()
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Queries the contents of a famdb file.")
     parser.add_argument("-l", "--log-level", default="INFO")
-    subparsers = parser.add_subparsers(title="modes")
 
-    p_query = subparsers.add_parser("query")
-    p_query.add_argument("file", type=famdb_file_type("r"))
-    p_query_sub = p_query.add_subparsers()
+    parser.add_argument("-i", "--file", type=famdb_file_type("r"), help="specifies the file to query")
 
-    p_names = p_query_sub.add_parser("names")
-    p_names.add_argument("-f", "--format", default="pretty", choices=["pretty", "json"])
-    p_names.add_argument("term")
+    subparsers = parser.add_subparsers(help="Specifies the kind of query to perform. For more information, run e.g. famdb.py lineage --help")
+
+    p_names = subparsers.add_parser("names", description="List the names and taxonomy identifiers of a clade.")
+    p_names.add_argument("-f", "--format", default="pretty", choices=["pretty", "json"],
+        help="choose output format. json is more appropriate for scripts.")
+    p_names.add_argument("term", help="search term. Can be an NCBI taxonomy identifier or part of a scientific or common name")
     p_names.set_defaults(func=command_names)
 
-    p_lineage = p_query_sub.add_parser("lineage")
-    p_lineage.add_argument("-a", "--ancestors", action="store_true")
-    p_lineage.add_argument("-d", "--descendants", action="store_true")
-    p_lineage.add_argument("-f", "--format", default="pretty", choices=["pretty", "semicolon"])
-    p_lineage.add_argument("term")
+    p_lineage = subparsers.add_parser("lineage", description="List the taxonomy tree including counts of families at each clade.")
+    p_lineage.add_argument("-a", "--ancestors", action="store_true",
+        help="include all ancestors of the given clade")
+    p_lineage.add_argument("-d", "--descendants", action="store_true",
+        help="include all descendants of the given clade")
+    p_lineage.add_argument("-f", "--format", default="pretty", choices=["pretty", "semicolon"],
+        help="choose output format. semicolon-delimited is more appropriate for scripts")
+    p_lineage.add_argument("term", help="search term. Can be an NCBI taxonomy identifier or an unambiguous scientific or common name")
     p_lineage.set_defaults(func=command_lineage)
 
     family_formats = ["summary", "hmm", "hmm_species", "fasta_name", "fasta_acc", "embl", "embl_meta", "embl_seq"]
 
-    p_families = p_query_sub.add_parser("families")
-    p_families.add_argument("-a", "--ancestors", action="store_true")
-    p_families.add_argument("-d", "--descendants", action="store_true")
-    p_families.add_argument("--stage", type=int)
-    p_families.add_argument("--class", dest="repeat_type", type=str)
-    p_families.add_argument("--name", type=str)
-    p_families.add_argument("-f", "--format", default="summary", choices=family_formats)
-    p_families.add_argument("term")
+    p_families = subparsers.add_parser("families", description="Retrieve the families associated\
+        with a given clade, optionally filtered by other additional criteria")
+    p_families.add_argument("-a", "--ancestors", action="store_true",
+        help="include all ancestors of the given clade")
+    p_families.add_argument("-d", "--descendants", action="store_true",
+        help="include all descendants of the given clade")
+    p_families.add_argument("--stage", type=int,
+        help="include only families that should be searched in the given stage")
+    p_families.add_argument("--class", dest="repeat_type", type=str,
+        help="include only families that have the specified repeat type")
+    p_families.add_argument("--name", type=str,
+        help="include only families whose name begins with this search term")
+    p_families.add_argument("-f", "--format", default="summary", choices=family_formats,
+        help="choose output format")
+    p_families.add_argument("term", help="search term. Can be an NCBI taxonomy identifier or an unambiguous scientific or common name")
     p_families.set_defaults(func=command_families)
 
-    p_family = p_query_sub.add_parser("family")
-    p_family.add_argument("-f", "--format", default="summary", choices=family_formats)
-    p_family.add_argument("term")
+    p_family = subparsers.add_parser("family", description="Retrieve details of a single family.")
+    p_family.add_argument("-f", "--format", default="summary", choices=family_formats,
+        help="choose output format")
+    p_family.add_argument("term", help="the accession of the family to be retrieved")
     p_family.set_defaults(func=command_family)
 
     args = parser.parse_args()
