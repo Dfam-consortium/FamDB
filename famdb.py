@@ -467,6 +467,8 @@ class FamDB:
         self.group_byname = self.file.require_group("Families/ByName")
         self.group_byaccession = self.file.require_group("Families/ByAccession")
 
+        self.__lineage_cache = {}
+
         if self.mode == "w":
             self.seen = {}
             self.__write_metadata()
@@ -721,10 +723,13 @@ class FamDB:
 
         return tree
 
-    def get_lineage_name(self, tax_id):
+    def get_lineage_name(self, tax_id, cache=True):
         """
         Returns a ';'-separated string of the lineage for 'tax_id'.
         """
+
+        if cache and tax_id in self.__lineage_cache:
+            return self.__lineage_cache[tax_id]
 
         tree = self.get_lineage(tax_id, ancestors=True)
         lineage = ""
@@ -737,6 +742,9 @@ class FamDB:
             lineage += tax_name
             if tree:
                 lineage += ';'
+
+        if cache:
+            self.__lineage_cache[tax_id] = lineage
 
         return lineage
 
