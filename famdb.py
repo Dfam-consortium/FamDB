@@ -237,16 +237,17 @@ class Family:  # pylint: disable=too-many-instance-attributes
         species_hmm_ga = None
         species_hmm_tc = None
         species_hmm_nc = None
-        for threshold in self.taxa_thresholds.split("\n"):
-            parts = threshold.split(",")
-            tax_id = int(parts[0])
-            (hmm_ga, hmm_tc, hmm_nc, hmm_fdr) = map(float, parts[1:])
+        if self.taxa_thresholds:
+            for threshold in self.taxa_thresholds.split("\n"):
+                parts = threshold.split(",")
+                tax_id = int(parts[0])
+                (hmm_ga, hmm_tc, hmm_nc, hmm_fdr) = map(float, parts[1:])
 
-            tax_name = famdb.get_taxon_names(tax_id, 'scientific name')[0]
-            if tax_id == species:
-                species_hmm_ga, species_hmm_tc, species_hmm_nc = hmm_ga, hmm_tc, hmm_nc
-            th_lines += ["TaxId:%d; TaxName:%s; GA:%.2f; TC:%.2f; NC:%.2f; fdr:%.3f;" % (
-                tax_id, tax_name, hmm_ga, hmm_tc, hmm_nc, hmm_fdr)]
+                tax_name = famdb.get_taxon_names(tax_id, 'scientific name')[0]
+                if tax_id == species:
+                    species_hmm_ga, species_hmm_tc, species_hmm_nc = hmm_ga, hmm_tc, hmm_nc
+                th_lines += ["TaxId:%d; TaxName:%s; GA:%.2f; TC:%.2f; NC:%.2f; fdr:%.3f;" % (
+                    tax_id, tax_name, hmm_ga, hmm_tc, hmm_nc, hmm_fdr)]
 
         if not species and self.general_cutoff:
             species_hmm_ga = species_hmm_tc = species_hmm_nc = self.general_cutoff
