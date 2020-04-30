@@ -243,7 +243,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
                 tax_id = int(parts[0])
                 (hmm_ga, hmm_tc, hmm_nc, hmm_fdr) = map(float, parts[1:])
 
-                tax_name = famdb.get_taxon_names(tax_id, 'scientific name')[0]
+                tax_name = famdb.get_taxon_name(tax_id, 'scientific name')
                 if tax_id == species:
                     species_hmm_ga, species_hmm_tc, species_hmm_nc = hmm_ga, hmm_tc, hmm_nc
                 th_lines += ["TaxId:%d; TaxName:%s; GA:%.2f; TC:%.2f; NC:%.2f; fdr:%.3f;" % (
@@ -268,7 +268,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
         append("CT", self.classification.replace("root;", ""))
 
         for clade_id in self.clades:
-            tax_name = famdb.get_taxon_names(clade_id, 'dfam sanitized name')[0]
+            tax_name = famdb.get_taxon_name(clade_id, 'dfam sanitized name')
             append("MS", "TaxId:%d TaxName:%s" % (clade_id, tax_name))
 
         append("CC", self.description, True)
@@ -276,7 +276,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
         append("CC", "     Type: %s" % (self.repeat_type or ""))
         append("CC", "     SubType: %s" % (self.repeat_subtype or ""))
 
-        species_names = [famdb.get_taxon_names(c, 'dfam sanitized name')[0] for c in self.clades]
+        species_names = [famdb.get_taxon_name(c, 'dfam sanitized name') for c in self.clades]
         append("CC", "     Species: %s" % ", ".join(species_names))
 
         append("CC", "     SearchStages: %s" % (self.search_stages or ""))
@@ -304,7 +304,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
         header = ">%s#%s/%s" % (identifier, self.repeat_type, self.repeat_subtype)
 
         for clade_id in self.clades:
-            clade_name = famdb.get_taxon_names(clade_id, 'dfam sanitized name')[0]
+            clade_name = famdb.get_taxon_name(clade_id, 'dfam sanitized name')
             header += " @" + clade_name
 
         if self.search_stages:
@@ -395,7 +395,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
             append("CC", "     Type: %s" % (self.repeat_type or ""))
             append("CC", "     SubType: %s" % (self.repeat_subtype or ""))
 
-            species_names = [famdb.get_taxon_names(c, 'dfam sanitized name')[0]
+            species_names = [famdb.get_taxon_name(c, 'dfam sanitized name')
                              for c in self.clades]
             append("CC", "     Species: %s" % ", ".join(species_names))
 
@@ -667,16 +667,26 @@ class FamDB:
 
         raise Exception("Ambiguous search term '{}' (found {} results)".format(term, len(results)))
 
-    def get_taxon_names(self, tax_id, kind=None):
+    def get_taxon_names(self, tax_id):
         """
         Returns a list of [name_class, name_value] of the taxon given by 'tax_id'.
-        If kind is not 'None' (the default), only names of the given kind will be returned.
         """
 
         names = self.group_nodes[str(tax_id)]["Names"]
-        if kind:
-            return [name[1] for name in names if name[0] == kind]
         return names[:, :]
+
+    def get_taxon_name(self, tax_id, kind='scientific name'):
+        """
+        Returns the first name of the given 'kind' for the taxon given by 'tax_id',
+        or None if no such name was found.
+        """
+
+        names = self.group_nodes[str(tax_id)]["Names"]
+        for name in names:
+            if name[0] == kind:
+                return name[1]
+
+        return None
 
     def get_families_for_taxon(self, tax_id):
         """Returns a list of the accessions for each family directly associated with 'tax_id'."""
@@ -723,7 +733,7 @@ class FamDB:
             node = tree[0]
             tree = tree[1] if len(tree) > 1 else None
 
-            tax_name = self.get_taxon_names(node, 'scientific name')[0]
+            tax_name = self.get_taxon_name(node, 'scientific name')
             lineage += tax_name
             if tree:
                 lineage += ';'
@@ -891,7 +901,7 @@ def print_lineage_tree(file, tree, gutter_self, gutter_children):
 
     tax_id = tree[0]
     children = tree[1:]
-    name = file.get_taxon_names(tax_id, 'scientific name')[0]
+    name = file.get_taxon_name(tax_id, 'scientific name')
     count = len(file.get_families_for_taxon(tax_id))
     print("{}{} {} [{}]".format(gutter_self, tax_id, name, count))
 
@@ -910,7 +920,7 @@ def print_lineage_semicolons(file, tree, parent_name):
 
     tax_id = tree[0]
     children = tree[1:]
-    name = file.get_taxon_names(tax_id, 'scientific name')[0]
+    name = file.get_taxon_name(tax_id, 'scientific name')
     if parent_name:
         name = parent_name + ";" + name
 
