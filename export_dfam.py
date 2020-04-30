@@ -3,10 +3,11 @@
 """
     Export the dfam database to FamDB format.
 
-    Usage: export_dfam.py [-h] [-l LOG_LEVEL] [-t tax_id] [-t tax_id]... connection_string outfile
+    Usage: export_dfam.py [-h] [-l LOG_LEVEL] [-t tax_id] [-t tax_id]... [-r] connection_string outfile
 
     -t, --taxon: Additional taxonomy IDs to include, even if they appear
                  to be unnecessary
+    -r, --raw  : Include raw families (DR*) records, not only DF* (the default)
 
 SEE ALSO:
     famdb.py
@@ -234,6 +235,10 @@ http://creativecommons.org/publicdomain/zero/1.0/legalcode
     args.outfile.set_db_info("Dfam", version, date, copyright_text)
 
     query = session.query(dfam.Family)
+
+    if not args.include_raw:
+        query = query.filter(dfam.Family.accession.like("DF%"))
+
     # TODO: This filter should be re-enabled later
     # .filter(dfam.Family.disabled != 1)
 
@@ -466,6 +471,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-l", "--log-level", default="INFO")
     parser.add_argument("-t", "--taxon", action="append", type=int, default=[])
+    parser.add_argument("-r", "--raw", dest="include_raw")
     parser.add_argument("connection")
     parser.add_argument("outfile", type=famdb_file_type("w"))
 
