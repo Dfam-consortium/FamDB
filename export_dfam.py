@@ -335,6 +335,8 @@ http://creativecommons.org/publicdomain/zero/1.0/legalcode
                 spec_rec.hmm_fdr,
             )]
 
+            tax_db[tax_id].mark_ancestry_used()
+
         if th_values:
             family.taxa_thresholds = "\n".join(th_values)
 
