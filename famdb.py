@@ -743,7 +743,7 @@ class FamDB:
 
     def get_accessions_filtered(self, **kwargs):
         """
-        Yields accessions for the families requested.
+        Returns an iterator that yields accessions for the given search terms.
 
         Filters are specified in kwargs:
             tax_id: int
@@ -943,10 +943,18 @@ def command_lineage(args):
     else:
         raise ValueError("Unimplemented lineage format: %s" % args.format)
 
-def print_families(args, families, species=None):
-    """Prints each family in 'families' in the requested format."""
+def print_families(args, families, header, species=None):
+    """
+    Prints each family in 'families', optionally with a copyright header. The
+    format is determined by 'args.format' and additional data (such as
+    taxonomy) is taken from 'args.file'.
 
-    if len(families) > 1:
+    If 'species' is provided and the format is "hmm_species", it is the id of
+    the taxa whose species-specific thresholds should be substituted into the
+    GA, NC, and TC lines of the HMM.
+    """
+
+    if header:
         db_info = args.file.get_db_info()
         if db_info:
             copyright_text = db_info["copyright"]
@@ -991,9 +999,7 @@ def command_family(args):
         family = args.file.get_family_by_name(args.term)
 
     if family:
-        print_families(args, [family])
-    else:
-        print_families(args, [])
+        print_families(args, [family], False)
 
 
 def command_families(args):
@@ -1001,17 +1007,16 @@ def command_families(args):
     target_id = args.file.resolve_one_species(args.term)
 
     families = []
-    for accession in sorted(args.file.get_accessions_filtered(tax_id=target_id,
-                                                              descendants=args.descendants,
-                                                              ancestors=args.ancestors,
-                                                              stage=args.stage,
-                                                              repeat_type=args.repeat_type,
-                                                              name=args.name)):
-        family = args.file.get_family_by_accession(accession)
+    accessions = sorted(args.file.get_accessions_filtered(tax_id=target_id,
+                                                          descendants=args.descendants,
+                                                          ancestors=args.ancestors,
+                                                          stage=args.stage,
+                                                          repeat_type=args.repeat_type,
+                                                          name=args.name))
 
-        families += [family]
+    families = map(lambda acc: args.file.get_family_by_accession(acc), accessions)
 
-    print_families(args, families, target_id)
+    print_families(args, families, True, target_id)
 
 
 def main():
