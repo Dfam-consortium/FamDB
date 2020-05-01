@@ -112,6 +112,12 @@ def soundex(word):
     return coding[:4]
 
 def sounds_like(first, second):
+    """
+    Returns true if the string 'first' "sounds like" 'second'.
+
+    The comparison is currently implemented by running both strings through the
+    soundex algorithm and checking if the soundex values are equal.
+    """
     soundex_first = soundex(first)
     soundex_second = soundex(second)
 
@@ -515,13 +521,13 @@ class FamDB:
 
         seen = self.seen
         value = getattr(family, key)
-        if key in seen:
-            if value in seen[key]:
-                raise Exception("Family is not unique! Already seen {}: {}".format(key, value))
-            else:
-                seen[key] += [value]
-        else:
-            seen[key] = [value]
+        if key not in seen:
+            seen[key] = []
+
+        if value in seen[key]:
+            raise Exception("Family is not unique! Already seen {}: {}".format(key, value))
+
+        seen[key] += [value]
 
     def add_family(self, family):
         """Adds the family described by 'family' to the database."""
@@ -612,7 +618,8 @@ class FamDB:
                     if text in name[1].lower():
                         yield int(nid)
                         break
-                    elif search_similar and sounds_like(text, name[1].lower()):
+
+                    if search_similar and sounds_like(text, name[1].lower()):
                         yield int(nid)
                         break
 
@@ -788,44 +795,47 @@ class FamDB:
             filter_name = filter_name.lower()
 
         seen = set()
-        for node in walk_tree(self.get_lineage(tax_id, ancestors=ancestors, descendants=descendants)):
+        lineage = self.get_lineage(tax_id, ancestors=ancestors, descendants=descendants)
+        for node in walk_tree(lineage):
             for accession in self.get_families_for_taxon(node):
-                if accession not in seen:
-                    seen.add(accession)
-                    family = self.__get_family_raw_by_accession(accession)
-                    if filter_stage:
-                        match_stage = False
-                        if family.attrs.get("search_stages"):
-                            for sstage in family.attrs["search_stages"].split(","):
-                                if sstage.strip() == filter_stage:
+                if accession in seen:
+                    continue
+
+                seen.add(accession)
+                family = self.__get_family_raw_by_accession(accession)
+                if filter_stage:
+                    match_stage = False
+                    if family.attrs.get("search_stages"):
+                        for sstage in family.attrs["search_stages"].split(","):
+                            if sstage.strip() == filter_stage:
+                                match_stage = True
+                    if family.attrs.get("buffer_stages"):
+                        for bstage in family.attrs["buffer_stages"].split(","):
+                            if bstage == filter_stage:
+                                match_stage = True
+                            elif "[" in bstage:
+                                if bstage.split("[")[0] == filter_stage:
                                     match_stage = True
-                        if family.attrs.get("buffer_stages"):
-                            for bstage in family.attrs["buffer_stages"].split(","):
-                                if bstage == filter_stage:
-                                    match_stage = True
-                                elif "[" in bstage:
-                                    if bstage.split("[")[0] == filter_stage:
-                                        match_stage = True
-                        if not match_stage:
-                            continue
+                    if not match_stage:
+                        continue
 
-                    if filter_repeat_type:
-                        match_class = False
-                        if family.attrs.get("repeat_type"):
-                            if family.attrs["repeat_type"].lower().startswith(filter_repeat_type):
-                                match_class = True
-                        if not match_class:
-                            continue
+                if filter_repeat_type:
+                    match_class = False
+                    if family.attrs.get("repeat_type"):
+                        if family.attrs["repeat_type"].lower().startswith(filter_repeat_type):
+                            match_class = True
+                    if not match_class:
+                        continue
 
-                    if filter_name:
-                        match_name = False
-                        if family.attrs.get("name"):
-                            if family.attrs["name"].lower().startswith(filter_name):
-                                match_name = True
-                        if not match_name:
-                            continue
+                if filter_name:
+                    match_name = False
+                    if family.attrs.get("name"):
+                        if family.attrs["name"].lower().startswith(filter_name):
+                            match_name = True
+                    if not match_name:
+                        continue
 
-                    yield accession
+                yield accession
 
     def get_family_names(self):
         """Returns a list of names of families in the database."""
@@ -1022,7 +1032,7 @@ def command_families(args):
                                                           repeat_type=args.repeat_type,
                                                           name=args.name))
 
-    families = map(lambda acc: args.file.get_family_by_accession(acc), accessions)
+    families = map(args.file.get_family_by_accession, accessions)
 
     print_families(args, families, True, target_id)
 
@@ -1041,42 +1051,42 @@ def main():
 
     p_names = subparsers.add_parser("names", description="List the names and taxonomy identifiers of a clade.")
     p_names.add_argument("-f", "--format", default="pretty", choices=["pretty", "json"],
-        help="choose output format. json is more appropriate for scripts.")
+                         help="choose output format. json is more appropriate for scripts.")
     p_names.add_argument("term", help="search term. Can be an NCBI taxonomy identifier or part of a scientific or common name")
     p_names.set_defaults(func=command_names)
 
     p_lineage = subparsers.add_parser("lineage", description="List the taxonomy tree including counts of families at each clade.")
     p_lineage.add_argument("-a", "--ancestors", action="store_true",
-        help="include all ancestors of the given clade")
+                           help="include all ancestors of the given clade")
     p_lineage.add_argument("-d", "--descendants", action="store_true",
-        help="include all descendants of the given clade")
+                           help="include all descendants of the given clade")
     p_lineage.add_argument("-f", "--format", default="pretty", choices=["pretty", "semicolon"],
-        help="choose output format. semicolon-delimited is more appropriate for scripts")
+                           help="choose output format. semicolon-delimited is more appropriate for scripts")
     p_lineage.add_argument("term", help="search term. Can be an NCBI taxonomy identifier or an unambiguous scientific or common name")
     p_lineage.set_defaults(func=command_lineage)
 
     family_formats = ["summary", "hmm", "hmm_species", "fasta_name", "fasta_acc", "embl", "embl_meta", "embl_seq"]
 
     p_families = subparsers.add_parser("families", description="Retrieve the families associated\
-        with a given clade, optionally filtered by other additional criteria")
+                                       with a given clade, optionally filtered by other additional criteria")
     p_families.add_argument("-a", "--ancestors", action="store_true",
-        help="include all ancestors of the given clade")
+                            help="include all ancestors of the given clade")
     p_families.add_argument("-d", "--descendants", action="store_true",
-        help="include all descendants of the given clade")
+                            help="include all descendants of the given clade")
     p_families.add_argument("--stage", type=int,
-        help="include only families that should be searched in the given stage")
+                            help="include only families that should be searched in the given stage")
     p_families.add_argument("--class", dest="repeat_type", type=str,
-        help="include only families that have the specified repeat type")
+                            help="include only families that have the specified repeat type")
     p_families.add_argument("--name", type=str,
-        help="include only families whose name begins with this search term")
+                            help="include only families whose name begins with this search term")
     p_families.add_argument("-f", "--format", default="summary", choices=family_formats,
-        help="choose output format")
+                            help="choose output format")
     p_families.add_argument("term", help="search term. Can be an NCBI taxonomy identifier or an unambiguous scientific or common name")
     p_families.set_defaults(func=command_families)
 
     p_family = subparsers.add_parser("family", description="Retrieve details of a single family.")
     p_family.add_argument("-f", "--format", default="summary", choices=family_formats,
-        help="choose output format")
+                          help="choose output format")
     p_family.add_argument("term", help="the accession of the family to be retrieved")
     p_family.set_defaults(func=command_family)
 
