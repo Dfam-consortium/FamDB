@@ -180,19 +180,21 @@ class Family:  # pylint: disable=too-many-instance-attributes
         if name not in Family.META_LOOKUP:
             raise AttributeError("Unknown Family metadata attribute '{}'".format(name))
 
+    # Data is converted on setting, so that consumers can rely on the correct types
     def __setattr__(self, name, value):
-        if name in Family.META_LOOKUP:
-            expected_type = self.type_for(name)
-            if value is not None and not isinstance(value, expected_type):
-                try:
-                    value = expected_type(value)
-                except Exception as exc:
-                    raise TypeError("Incompatible type for '{}'. Expected '{}', got '{}'".format(
-                        name, expected_type, type(value))) from exc
-            super().__setattr__(name, value)
-        else:
+        if name not in Family.META_LOOKUP:
             raise AttributeError("Unknown Family metadata attribute '{}'".format(name))
 
+        expected_type = self.type_for(name)
+        if value is not None and not isinstance(value, expected_type):
+            try:
+                value = expected_type(value)
+            except Exception as exc:
+                raise TypeError("Incompatible type for '{}'. Expected '{}', got '{}'".format(
+                    name, expected_type, type(value))) from exc
+        super().__setattr__(name, value)
+
+    # A useful string representation for debugging, but not much else
     def __str__(self):
         return "%s.%d '%s': %s len=%d" % (self.accession, self.version or 0,
                                           self.name, self.classification, self.length or -1)
@@ -200,15 +202,23 @@ class Family:  # pylint: disable=too-many-instance-attributes
     def to_dfam_hmm(self, famdb, species=None):  # pylint: disable=too-many-locals,too-many-branches
         """
         Converts 'self' to Dfam-style HMM format.
-        'famdb' is required for further taxonomy lookups.
-        If 'species' is given, the GA/TC/NC thresholds will be set to the
-        assembly-specific thresholds.
+        'famdb' is used for lookups in the taxonomy database (id -> name).
+
+        If 'species' (a taxonomy id) is given, the assembly-specific GA/TC/NC
+        thresholds will be used instead of the threshold that was in the HMM
+        (usually a generic or strictest threshold).
         """
         if self.model is None:
             return None
 
         out = ""
 
+        # Appends to 'out':
+        # "TAG   Text"
+        #
+        # Or if wrap=True and 'text' has multiple lines:
+        # "TAG   Line 1"
+        # "TAG   Line 2"
         def append(tag, text, wrap=False):
             nonlocal out
             if not text:
@@ -221,6 +231,8 @@ class Family:  # pylint: disable=too-many-instance-attributes
             out += textwrap.indent(text, prefix)
             out += "\n"
 
+        # TODO: Compare to e.g. finditer(). This does a lot of unnecessary
+        # allocation since most of model_lines are appended verbatim.
         model_lines = self.model.split("\n")
 
         i = 0
@@ -334,6 +346,12 @@ class Family:  # pylint: disable=too-many-instance-attributes
 
         out = ""
 
+        # Appends to 'out':
+        # "TAG  Text"
+        #
+        # Or if wrap=True and 'text' has multiple lines:
+        # "TAG  Line 1"
+        # "TAG  Line 2"
         def append(tag, text, wrap=False):
             nonlocal out
             if not text:
@@ -345,12 +363,15 @@ class Family:  # pylint: disable=too-many-instance-attributes
             out += textwrap.indent(str(text), prefix)
             out += "\n"
 
+        # Appends to 'out':
+        # "FT                   line 1"
+        # "FT                   line 2"
         def append_featuredata(text):
             nonlocal out
             prefix = "FT                   "
             if text:
                 out += textwrap.indent(textwrap.fill(str(text), width=72), prefix)
-            out += "\n"
+                out += "\n"
 
         append("ID", "%s; SV %d; linear; DNA; STD; UNC; %d BP." %
                (self.accession, self.version or 0, len(sequence)))
@@ -362,15 +383,12 @@ class Family:  # pylint: disable=too-many-instance-attributes
         out += "XX\n"
 
         if include_meta:
-            repbase_aliases = []
             if self.aliases:
                 for alias_line in self.aliases.splitlines():
                     [db_id, db_link] = map(str.strip, alias_line.split(":"))
                     if db_id == "Repbase":
-                        repbase_aliases += [db_link]
-            for alias in repbase_aliases:
-                append("DR", "Repbase; %s." % alias)
-                out += "XX\n"
+                        append("DR", "Repbase; %s." % db_link)
+                        out += "XX\n"
 
             if self.repeat_type == "LTR":
                 append("KW", "Long terminal repeat of retrovirus-like element; %s." % self.name)
@@ -600,13 +618,14 @@ class FamDB:
 
     def search_taxon_names(self, text, kind=None, search_similar=False):
         """
-        Searches 'self' for taxons with a name containing 'text' and yields the
-        ids of matching nodes.
+        Searches 'self' for taxons with a name containing 'text', returning an
+        iterator that yields the ids of matching nodes.
 
-        If 'similar' is True, names that sound similar will also be considered eligible.
+        If 'similar' is True, names that sound similar will also be considered
+        eligible.
 
-        A list of strings may be passed as 'kind' to
-        restrict what kinds of names will be searched.
+        A list of strings may be passed as 'kind' to restrict what kinds of
+        names will be searched.
         """
 
         text = text.lower()
@@ -630,13 +649,12 @@ class FamDB:
         name fields of all taxa. A list of strings may be passed as 'kind' to
         restrict what kinds of names will be searched.
 
-        If 'search_similar' is True, a "sounds like" search
-        will be tried first. If it is False, a "sounds like"
-        will be performed and printed to the screen but no
-        results will be returned.
+        If 'search_similar' is True, a "sounds like" search will be tried
+        first. If it is False, a "sounds like" search will still be performed
+        if no results were found.
 
-        This function returns a list of taxon ids that match the query. The list
-        will be empty if no matches were found.
+        This function returns a list of taxon ids that match the query. The
+        list will be empty if no matches were found.
         """
 
         # Try as a number
@@ -707,8 +725,9 @@ class FamDB:
         descendant taxa, 'ancestors' to include ancestor taxa.
         IDs are returned as a nested list, for example
         [ 1, [ 2, [3, [4]], [5], [6, [7]] ] ]
-        where '2' may have been the passed in 'tax_id'.
+        where '2' may have been the passed-in 'tax_id'.
         """
+
         if kwargs.get("descendants"):
             def descendants_of(tax_id):
                 descendants = [int(tax_id)]
@@ -730,6 +749,8 @@ class FamDB:
 
         return tree
 
+    # TODO: Change to get_lineage_path returning a list. The only caller of
+    # this function immediately splits on ';' again.
     def get_lineage_name(self, tax_id, cache=True):
         """
         Returns a ';'-separated string of the lineage for 'tax_id'.
@@ -833,6 +854,15 @@ class FamDB:
             filter_name = filter_name.lower()
             filters += [lambda f: self.__filter_name(f, filter_name)]
 
+        # Recursive iterator flattener
+        def walk_tree(tree):
+            """Returns all elements in 'tree' with all levels flattened."""
+            if hasattr(tree, "__iter__"):
+                for elem in tree:
+                    yield from walk_tree(elem)
+            else:
+                yield tree
+
         seen = set()
         lineage = self.get_lineage(tax_id, ancestors=ancestors, descendants=descendants)
         for node in walk_tree(lineage):
@@ -841,7 +871,7 @@ class FamDB:
                     continue
 
                 seen.add(accession)
-                family = self.__get_family_raw_by_accession(accession)
+                family = self.file["Families"].get(accession)
                 match = True
                 for filt in filters:
                     if not filt(family):
@@ -871,10 +901,6 @@ class FamDB:
 
         return family
 
-    def __get_family_raw_by_accession(self, accession):
-        """Returns a handle to the data fo the family with the given accession."""
-        return self.file["Families"].get(accession)
-
     def get_family_by_accession(self, accession):
         """Returns the family with the given accession."""
         entry = self.file["Families"].get(accession)
@@ -884,15 +910,6 @@ class FamDB:
         """Returns the family with the given name."""
         entry = self.file["Families/ByName"].get(name)
         return self.__get_family(entry)
-
-
-def walk_tree(tree):
-    """Returns all elements in 'tree' with all levels flattened."""
-    if hasattr(tree, "__iter__"):
-        for elem in tree:
-            yield from walk_tree(elem)
-    else:
-        yield tree
 
 
 # Command-line utilities
@@ -935,6 +952,8 @@ def print_lineage_tree(file, tree, gutter_self, gutter_children):
     count = len(file.get_families_for_taxon(tax_id))
     print("{}{} {} [{}]".format(gutter_self, tax_id, name, count))
 
+    # All but the last child need a downward-pointing line that will link up
+    # to the next child, so this is split into two cases
     if len(children) > 1:
         for child in children[:-1]:
             print_lineage_tree(file, child, gutter_children + "├─", gutter_children + "│ ")
@@ -944,7 +963,7 @@ def print_lineage_tree(file, tree, gutter_self, gutter_children):
 
 
 def print_lineage_semicolons(file, tree, parent_name):
-    """Prints a lineage tree as a list of semicolon-delimited names."""
+    """Prints a lineage tree as a flat list of semicolon-delimited names."""
     if not tree:
         return
 
