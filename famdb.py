@@ -397,10 +397,11 @@ class Family:  # pylint: disable=too-many-instance-attributes
             out += "XX\n"
 
             for clade_id in self.clades:
-                lineage = famdb.get_lineage_name(clade_id).replace("root;", "")
-                last_semi = lineage.rfind(';')
-                append("OS", lineage[last_semi+1:])
-                append("OC", lineage[:last_semi].replace(";", "; ") + ".", True)
+                lineage = famdb.get_lineage_path(clade_id)
+                if lineage[0] == "root":
+                    del lineage[0]
+                append("OS", lineage[-1])
+                append("OC", "; ".join(lineage[:-1]) + ".", True)
             out += "XX\n"
 
             if self.citations:
@@ -749,27 +750,23 @@ class FamDB:
 
         return tree
 
-    # TODO: Change to get_lineage_path returning a list. The only caller of
-    # this function immediately splits on ';' again.
-    def get_lineage_name(self, tax_id, cache=True):
+    def get_lineage_path(self, tax_id, cache=True):
         """
-        Returns a ';'-separated string of the lineage for 'tax_id'.
+        Returns a list of strings encoding the lineage for 'tax_id'.
         """
 
         if cache and tax_id in self.__lineage_cache:
             return self.__lineage_cache[tax_id]
 
         tree = self.get_lineage(tax_id, ancestors=True)
-        lineage = ""
+        lineage = []
 
         while tree:
             node = tree[0]
             tree = tree[1] if len(tree) > 1 else None
 
             tax_name = self.get_taxon_name(node, 'scientific name')
-            lineage += tax_name
-            if tree:
-                lineage += ';'
+            lineage += [tax_name]
 
         if cache:
             self.__lineage_cache[tax_id] = lineage
