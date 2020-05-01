@@ -755,6 +755,39 @@ class FamDB:
 
         return lineage
 
+    @staticmethod
+    def __filter_name(family, name):
+        """Returns True if the family's name begins with 'name'."""
+
+        if family.attrs.get("name"):
+            if family.attrs["name"].lower().startswith(name):
+                return True
+
+        return False
+
+    @staticmethod
+    def __filter_stage(family, stage):
+        """Returns True if the family belongs to a search or buffer stage equal to 'stage'."""
+        if family.attrs.get("search_stages"):
+            sstages = (ss.strip() for ss in family.attrs["search_stages"].split(","))
+            if stage in sstages:
+                return True
+
+        if family.attrs.get("buffer_stages"):
+            bstages = (bs.split("[")[0].strip() for bs in family.attrs["buffer_stages"].split(","))
+            if stage in bstages:
+                return True
+
+        return False
+
+    @staticmethod
+    def __filter_repeat_type(family, rtype):
+        """Returns True if the family's RepeatMasker Type starts with 'rtype'."""
+        if family.attrs.get("repeat_type"):
+            if family.attrs["repeat_type"].lower().startswith(rtype):
+                return True
+
+        return False
 
     def get_accessions_filtered(self, **kwargs):
         """
@@ -782,17 +815,23 @@ class FamDB:
             ancestors = kwargs["ancestors"] or False
             descendants = kwargs["descendants"] or False
 
+        # Define family filters (logically ANDed together)
+        filters = []
+
         filter_stage = kwargs.get("stage")
         if filter_stage:
             filter_stage = str(filter_stage)
+            filters += [lambda f: self.__filter_stage(f, filter_stage)]
 
         filter_repeat_type = kwargs.get("repeat_type")
         if filter_repeat_type:
             filter_repeat_type = filter_repeat_type.lower()
+            filters += [lambda f: self.__filter_repeat_type(f, filter_repeat_type)]
 
         filter_name = kwargs.get("name")
         if filter_name:
             filter_name = filter_name.lower()
+            filters += [lambda f: self.__filter_name(f, filter_name)]
 
         seen = set()
         lineage = self.get_lineage(tax_id, ancestors=ancestors, descendants=descendants)
@@ -803,39 +842,12 @@ class FamDB:
 
                 seen.add(accession)
                 family = self.__get_family_raw_by_accession(accession)
-                if filter_stage:
-                    match_stage = False
-                    if family.attrs.get("search_stages"):
-                        for sstage in family.attrs["search_stages"].split(","):
-                            if sstage.strip() == filter_stage:
-                                match_stage = True
-                    if family.attrs.get("buffer_stages"):
-                        for bstage in family.attrs["buffer_stages"].split(","):
-                            if bstage == filter_stage:
-                                match_stage = True
-                            elif "[" in bstage:
-                                if bstage.split("[")[0] == filter_stage:
-                                    match_stage = True
-                    if not match_stage:
-                        continue
-
-                if filter_repeat_type:
-                    match_class = False
-                    if family.attrs.get("repeat_type"):
-                        if family.attrs["repeat_type"].lower().startswith(filter_repeat_type):
-                            match_class = True
-                    if not match_class:
-                        continue
-
-                if filter_name:
-                    match_name = False
-                    if family.attrs.get("name"):
-                        if family.attrs["name"].lower().startswith(filter_name):
-                            match_name = True
-                    if not match_name:
-                        continue
-
-                yield accession
+                match = True
+                for filt in filters:
+                    if not filt(family):
+                        match = False
+                if match:
+                    yield accession
 
     def get_family_names(self):
         """Returns a list of names of families in the database."""
