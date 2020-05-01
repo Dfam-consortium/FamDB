@@ -1037,6 +1037,11 @@ def command_families(args):
     target_id = args.file.resolve_one_species(args.term)
 
     families = []
+
+    # NB: This is speed-inefficient, because get_accessions_filtered needs to
+    # read the whole family data even though we read it again right after.
+    # However it is *much* more memory-efficient than loading all the family
+    # data at once and then sorting by accession.
     accessions = sorted(args.file.get_accessions_filtered(tax_id=target_id,
                                                           descendants=args.descendants,
                                                           ancestors=args.ancestors,
