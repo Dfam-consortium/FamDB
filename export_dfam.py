@@ -471,7 +471,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-l", "--log-level", default="INFO")
     parser.add_argument("-t", "--taxon", action="append", type=int, default=[])
-    parser.add_argument("-r", "--raw", dest="include_raw")
+    parser.add_argument("-r", "--include-raw", action="store_true")
     parser.add_argument("connection")
     parser.add_argument("outfile", type=famdb_file_type("w"))
 
