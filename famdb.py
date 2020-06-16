@@ -44,6 +44,7 @@ import datetime
 import json
 import logging
 import re
+import sys
 import textwrap
 import time
 
@@ -675,10 +676,10 @@ class FamDB:
             # Try a sounds-like search (currently soundex)
             similar_results = self.resolve_species(term, kind, True)
             if similar_results:
-                print("No results found by that name, but some names sound similar:")
+                print("No results were found for that name, but some names sound similar:", file=sys.stderr)
                 for tax_id in similar_results:
                     names = self.get_taxon_names(tax_id)
-                    print(tax_id, ", ".join(["{1}".format(*n) for n in names]))
+                    print(tax_id, ", ".join(["{1}".format(*n) for n in names]), file=sys.stderr)
 
         return results
 
@@ -686,14 +687,21 @@ class FamDB:
         """
         Resolves 'term' in 'dbfile' as a taxon id or search term unambiguously.
         Parameters are as in the 'resolve_species' method.
-        Raises an exception if not exactly one result is found.
+        Returns None if not exactly one result is found,
+        and prints details to the screen.
         """
 
         results = self.resolve_species(term, kind)
-        if len(results) == 1:
-            return results[0]
 
-        raise Exception("Ambiguous search term '{}' (found {} results)".format(term, len(results)))
+        if len(results) == 0:
+            print("No species found for search term '{}'".format(term), file=sys.stderr)
+        elif len(results) == 1:
+            return results[0]
+        else:
+            print("""Ambiguous search term '{}' (found {} results).
+Please use a more specific name or taxa ID, which can be looked
+up with the 'names' command."""
+                .format(term, len(results)), file=sys.stderr)
 
     def get_taxon_names(self, tax_id):
         """
@@ -980,6 +988,8 @@ def command_lineage(args):
     """The 'lineage' command outputs ancestors and/or descendants of the given taxon."""
 
     target_id = args.file.resolve_one_species(args.term)
+    if not target_id:
+        return
     tree = args.file.get_lineage(target_id, descendants=args.descendants, ancestors=args.ancestors)
 
     if args.format == "pretty":
@@ -1051,6 +1061,8 @@ def command_family(args):
 def command_families(args):
     """The 'families' command outputs all families associated with the given taxon."""
     target_id = args.file.resolve_one_species(args.term)
+    if not target_id:
+        return
 
     families = []
 
