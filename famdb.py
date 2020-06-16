@@ -317,7 +317,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
         if use_accession:
             identifier = "%s.%d" % (self.accession, self.version)
         else:
-            identifier = self.name
+            identifier = self.name or self.accession
 
         header = ">%s#%s/%s" % (identifier, self.repeat_type, self.repeat_subtype)
 
