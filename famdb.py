@@ -239,7 +239,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
         for i, line in enumerate(model_lines):
             if line.startswith("HMMER3"):
                 out += line + "\n"
-                append("NAME", self.name)
+                append("NAME", self.name or self.accession)
                 append("ACC", "%s.%d" % (self.accession, self.version or 0))
                 append("DESC", self.title)
             elif any(map(line.startswith, ["NAME", "ACC", "DESC"])):
