@@ -969,8 +969,15 @@ def print_lineage_tree(file, tree, gutter_self, gutter_children):
         print_lineage_tree(file, children[-1], gutter_children + "└─", gutter_children + "  ")
 
 
-def print_lineage_semicolons(file, tree, parent_name):
-    """Prints a lineage tree as a flat list of semicolon-delimited names."""
+def print_lineage_semicolons(file, tree, parent_name, starting_at):
+    """
+    Prints a lineage tree as a flat list of semicolon-delimited names.
+
+    In order to print the correct lineage string, the available tree must
+    be "complete" even if ancestors were not specified to build up the
+    string starting from "root". 'starting_at' specifies the first taxa
+    (in the descending direction) to actually be output.
+    """
     if not tree:
         return
 
@@ -980,11 +987,15 @@ def print_lineage_semicolons(file, tree, parent_name):
     if parent_name:
         name = parent_name + ";" + name
 
-    count = len(file.get_families_for_taxon(tax_id))
-    print("{}: {} [{}]".format(tax_id, name, count))
+    if starting_at == tax_id:
+        starting_at = None
+
+    if not starting_at:
+        count = len(file.get_families_for_taxon(tax_id))
+        print("{}: {} [{}]".format(tax_id, name, count))
 
     for child in children:
-        print_lineage_semicolons(file, child, name)
+        print_lineage_semicolons(file, child, name, starting_at)
 
 def command_lineage(args):
     """The 'lineage' command outputs ancestors and/or descendants of the given taxon."""
@@ -992,12 +1003,12 @@ def command_lineage(args):
     target_id = args.file.resolve_one_species(args.term)
     if not target_id:
         return
-    tree = args.file.get_lineage(target_id, descendants=args.descendants, ancestors=args.ancestors)
+    tree = args.file.get_lineage(target_id, descendants=args.descendants, ancestors=args.ancestors or args.format == "semicolon")
 
     if args.format == "pretty":
         print_lineage_tree(args.file, tree, "", "")
     elif args.format == "semicolon":
-        print_lineage_semicolons(args.file, tree, "")
+        print_lineage_semicolons(args.file, tree, "", target_id)
     else:
         raise ValueError("Unimplemented lineage format: %s" % args.format)
 
