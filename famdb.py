@@ -320,7 +320,9 @@ class Family:  # pylint: disable=too-many-instance-attributes
         else:
             identifier = self.name or self.accession
 
-        header = ">%s#%s/%s" % (identifier, self.repeat_type, self.repeat_subtype)
+        header = ">%s#%s" % (identifier, self.repeat_type)
+        if self.repeat_subtype:
+            header += "/" + self.repeat_subtype
 
         for clade_id in self.clades:
             clade_name = famdb.get_taxon_name(clade_id, 'dfam sanitized name')
