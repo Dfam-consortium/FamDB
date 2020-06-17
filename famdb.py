@@ -997,6 +997,47 @@ def print_lineage_semicolons(file, tree, parent_name, starting_at):
     for child in children:
         print_lineage_semicolons(file, child, name, starting_at)
 
+def get_lineage_totals(file, tree, target_id, seen=None):
+    """
+    Recursively calculates the total number of families
+    on ancestors and descendants of 'target_id' in the given 'tree'.
+
+    'seen' is required to track families that are present on multiple
+    lineages due to horizontal transfer and ensure each family
+    is only counted one time, either as an ancestor or a descendant.
+    """
+    if not tree:
+        return
+
+    if not seen:
+        seen = set()
+
+    tax_id = tree[0]
+    children = tree[1:]
+    accessions = file.get_families_for_taxon(tax_id)
+
+    count_here = 0
+    for acc in accessions:
+        if acc not in seen:
+            seen.add(acc)
+            count_here += 1
+
+    if target_id == tax_id:
+        target_id = None
+
+    counts = [0, 0]
+    for child in children:
+        anc, desc = get_lineage_totals(file, child, target_id, seen)
+        counts[0] += anc
+        counts[1] += desc
+
+    if target_id is None:
+        counts[1] += count_here
+    else:
+        counts[0] += count_here
+
+    return counts
+
 def command_lineage(args):
     """The 'lineage' command outputs ancestors and/or descendants of the given taxon."""
 
@@ -1009,6 +1050,10 @@ def command_lineage(args):
         print_lineage_tree(args.file, tree, "", "")
     elif args.format == "semicolon":
         print_lineage_semicolons(args.file, tree, "", target_id)
+    elif args.format == "totals":
+        totals = get_lineage_totals(args.file, tree, target_id)
+        print("{} entries in ancestors; {} lineage-specific entries"
+            .format(totals[0], totals[1]))
     else:
         raise ValueError("Unimplemented lineage format: %s" % args.format)
 
@@ -1118,7 +1163,7 @@ def main():
                            help="include all ancestors of the given clade")
     p_lineage.add_argument("-d", "--descendants", action="store_true",
                            help="include all descendants of the given clade")
-    p_lineage.add_argument("-f", "--format", default="pretty", choices=["pretty", "semicolon"],
+    p_lineage.add_argument("-f", "--format", default="pretty", choices=["pretty", "semicolon", "totals"],
                            help="choose output format. semicolon-delimited is more appropriate for scripts")
     p_lineage.add_argument("term", help="search term. Can be an NCBI taxonomy identifier or an unambiguous scientific or common name")
     p_lineage.set_defaults(func=command_lineage)
