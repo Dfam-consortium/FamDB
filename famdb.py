@@ -721,7 +721,8 @@ class FamDB:
             # Try a sounds-like search (currently soundex)
             similar_results = self.resolve_species(term, kind, True)
             if similar_results:
-                print("No results were found for that name, but some names sound similar:", file=sys.stderr)
+                print("No results were found for that name, but some names sound similar:",
+                      file=sys.stderr)
                 for tax_id in similar_results:
                     names = self.get_taxon_names(tax_id)
                     print(tax_id, ", ".join(["{1}".format(*n) for n in names]), file=sys.stderr)
@@ -746,7 +747,9 @@ class FamDB:
             print("""Ambiguous search term '{}' (found {} results).
 Please use a more specific name or taxa ID, which can be looked
 up with the 'names' command."""
-                .format(term, len(results)), file=sys.stderr)
+                  .format(term, len(results)), file=sys.stderr)
+
+        return None
 
     def get_taxon_names(self, tax_id):
         """
@@ -915,7 +918,6 @@ up with the 'names' command."""
             stage_group = self.group_bystage.get(filter_stage)
             if stage_group:
                 yield from stage_group.keys()
-            return
         else:
             lineage = self.get_lineage(tax_id, ancestors=ancestors, descendants=descendants)
             for node in walk_tree(lineage):
@@ -991,8 +993,7 @@ Total HMMs: {}
 """.format(
     db_info["name"], db_info["version"],
     db_info["date"], db_info["description"],
-    counts["consensus"], counts["hmm"])
-)
+    counts["consensus"], counts["hmm"]))
 
 def command_names(args):
     """The 'names' command displays all names of all taxa that match the search term."""
@@ -1073,9 +1074,6 @@ def get_lineage_totals(file, tree, target_id, seen=None):
     lineages due to horizontal transfer and ensure each family
     is only counted one time, either as an ancestor or a descendant.
     """
-    if not tree:
-        return
-
     if not seen:
         seen = set()
 
@@ -1111,7 +1109,9 @@ def command_lineage(args):
     target_id = args.file.resolve_one_species(args.term)
     if not target_id:
         return
-    tree = args.file.get_lineage(target_id, descendants=args.descendants, ancestors=args.ancestors or args.format == "semicolon")
+    tree = args.file.get_lineage(target_id,
+                                 descendants=args.descendants,
+                                 ancestors=args.ancestors or args.format == "semicolon")
 
     if args.format == "pretty":
         print_lineage_tree(args.file, tree, "", "")
@@ -1120,7 +1120,7 @@ def command_lineage(args):
     elif args.format == "totals":
         totals = get_lineage_totals(args.file, tree, target_id)
         print("{} entries in ancestors; {} lineage-specific entries"
-            .format(totals[0], totals[1]))
+              .format(totals[0], totals[1]))
     else:
         raise ValueError("Unimplemented lineage format: %s" % args.format)
 
