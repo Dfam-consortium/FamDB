@@ -839,11 +839,11 @@ up with the 'names' command."""
 
         return False
 
-    def __filter_stage(self, accession, stage):
-        """Returns True if the family belongs to a search or buffer stage equal to 'stage'."""
-        stage_group = self.group_bystage.get(stage)
-        if stage_group:
-            if accession in stage_group:
+    def __filter_stages(self, accession, stages):
+        """Returns True if the family belongs to a search or buffer stage in 'stages'."""
+        for stage in stages:
+            grp = self.group_bystage.get(stage)
+            if grp and accession in grp:
                 return True
 
         return False
@@ -888,8 +888,16 @@ up with the 'names' command."""
 
         filter_stage = kwargs.get("stage")
         if filter_stage:
-            filter_stage = str(filter_stage)
-            filters += [lambda a, f: self.__filter_stage(a, filter_stage)]
+            if filter_stage == 80:
+                # "stage 80" = "all stages", so skip filtering
+                filter_stages = None
+            elif filter_stage == 95:
+                # "stage 95" = this specific stage list:
+                filter_stages = ["35", "50", "55", "60", "65", "70", "75"]
+                filters += [lambda a, f: self.__filter_stages(a, filter_stages)]
+            else:
+                filter_stages = [str(filter_stage)]
+                filters += [lambda a, f: self.__filter_stages(a, filter_stages)]
 
         filter_repeat_type = kwargs.get("repeat_type")
         if filter_repeat_type:
@@ -913,11 +921,21 @@ up with the 'names' command."""
         seen = set()
 
         # special case: Searching the whole database in a specific
-        # stage is a particularly common and optimizable pattern
-        if tax_id == 1 and descendants and filter_stage:
-            stage_group = self.group_bystage.get(filter_stage)
-            if stage_group:
-                yield from stage_group.keys()
+        # stage only is a common usage pattern in RepeatMasker.
+        # When searching the whole database instead of a species,
+        # the number of accessions to read through is shorter
+        # when going off of only the stage indexes.
+        if tax_id == 1 and descendants and filter_stages \
+                and not filter_repeat_type and not filter_name:
+            for stage in filter_stages:
+                grp = self.group_bystage.get(stage)
+                if grp:
+                    for accession in grp.keys():
+                        if accession in seen:
+                            continue
+                        seen.add(accession)
+
+                        yield accession
         else:
             lineage = self.get_lineage(tax_id, ancestors=ancestors, descendants=descendants)
             for node in walk_tree(lineage):
