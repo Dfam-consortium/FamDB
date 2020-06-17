@@ -494,6 +494,7 @@ class FamDB:
         self.group_families = self.file.require_group("Families")
         self.group_byname = self.file.require_group("Families/ByName")
         self.group_byaccession = self.file.require_group("Families/ByAccession")
+        self.group_bystage = self.file.require_group("Families/ByStage")
 
         self.__lineage_cache = {}
 
@@ -572,6 +573,20 @@ class FamDB:
         if family.name:
             self.group_byname[family.name] = h5py.SoftLink("/Families/" + family.accession)
         self.group_byaccession[family.accession] = h5py.SoftLink("/Families/" + family.accession)
+
+        def add_stage_link(stage, accession):
+            stage_group = self.group_bystage.require_group(stage.strip())
+            if accession not in stage_group:
+                stage_group[accession] = h5py.SoftLink("/Families/" + accession)
+
+        if family.search_stages:
+            for stage in family.search_stages.split(","):
+                add_stage_link(stage, family.accession)
+
+        if family.buffer_stages:
+            for stage in family.buffer_stages.split(","):
+                stage = stage.split("[")[0]
+                add_stage_link(stage, family.accession)
 
         LOGGER.debug("Added family %s (%s)", family.name, family.accession)
 
@@ -793,17 +808,11 @@ up with the 'names' command."""
 
         return False
 
-    @staticmethod
-    def __filter_stage(family, stage):
+    def __filter_stage(self, accession, stage):
         """Returns True if the family belongs to a search or buffer stage equal to 'stage'."""
-        if family.attrs.get("search_stages"):
-            sstages = (ss.strip() for ss in family.attrs["search_stages"].split(","))
-            if stage in sstages:
-                return True
-
-        if family.attrs.get("buffer_stages"):
-            bstages = (bs.split("[")[0].strip() for bs in family.attrs["buffer_stages"].split(","))
-            if stage in bstages:
+        stage_group = self.group_bystage.get(stage)
+        if stage_group:
+            if accession in stage_group:
                 return True
 
         return False
@@ -849,17 +858,17 @@ up with the 'names' command."""
         filter_stage = kwargs.get("stage")
         if filter_stage:
             filter_stage = str(filter_stage)
-            filters += [lambda f: self.__filter_stage(f, filter_stage)]
+            filters += [lambda a, f: self.__filter_stage(a, filter_stage)]
 
         filter_repeat_type = kwargs.get("repeat_type")
         if filter_repeat_type:
             filter_repeat_type = filter_repeat_type.lower()
-            filters += [lambda f: self.__filter_repeat_type(f, filter_repeat_type)]
+            filters += [lambda a, f: self.__filter_repeat_type(f, filter_repeat_type)]
 
         filter_name = kwargs.get("name")
         if filter_name:
             filter_name = filter_name.lower()
-            filters += [lambda f: self.__filter_name(f, filter_name)]
+            filters += [lambda a, f: self.__filter_name(f, filter_name)]
 
         # Recursive iterator flattener
         def walk_tree(tree):
@@ -871,20 +880,29 @@ up with the 'names' command."""
                 yield tree
 
         seen = set()
-        lineage = self.get_lineage(tax_id, ancestors=ancestors, descendants=descendants)
-        for node in walk_tree(lineage):
-            for accession in self.get_families_for_taxon(node):
-                if accession in seen:
-                    continue
 
-                seen.add(accession)
-                family = self.file["Families"].get(accession)
-                match = True
-                for filt in filters:
-                    if not filt(family):
-                        match = False
-                if match:
-                    yield accession
+        # special case: Searching the whole database in a specific
+        # stage is a particularly common and optimizable pattern
+        if tax_id == 1 and descendants and filter_stage:
+            stage_group = self.group_bystage.get(filter_stage)
+            if stage_group:
+                yield from stage_group.keys()
+            return
+        else:
+            lineage = self.get_lineage(tax_id, ancestors=ancestors, descendants=descendants)
+            for node in walk_tree(lineage):
+                for accession in self.get_families_for_taxon(node):
+                    if accession in seen:
+                        continue
+
+                    seen.add(accession)
+                    family = self.file["Families"].get(accession)
+                    match = True
+                    for filt in filters:
+                        if not filt(accession, family):
+                            match = False
+                    if match:
+                        yield accession
 
     def get_family_names(self):
         """Returns a list of names of families in the database."""
