@@ -200,6 +200,7 @@ def run_export(args):  # pylint: disable=too-many-locals,too-many-branches,too-m
     db_version = session.query(dfam.DbVersion).one()
     version = db_version.dfam_version
     date = db_version.dfam_release_date.strftime("%Y-%m-%d")
+    description = "Dfam - A database of transposable element (TE) sequence alignments and HMMs."
     copyright_text = \
 """Dfam - A database of transposable element (TE) sequence alignments and HMMs
 Copyright (C) %d The Dfam consortium.
@@ -232,7 +233,7 @@ o When using or citing the work, you should not imply endorsement by the Dfam co
 You may also obtain a copy of the CC0 license here:
 http://creativecommons.org/publicdomain/zero/1.0/legalcode
 """ % (db_version.dfam_release_date.year, version, date)
-    args.outfile.set_db_info("Dfam", version, date, copyright_text)
+    args.outfile.set_db_info("Dfam", version, date, description, copyright_text)
 
     query = session.query(dfam.Family)
 
@@ -459,6 +460,7 @@ http://creativecommons.org/publicdomain/zero/1.0/legalcode
 
     load_used_taxonomy_names(tax_db, session)
     args.outfile.write_taxonomy(tax_db)
+    args.outfile.finalize()
 
     LOGGER.info("Finished import")
 

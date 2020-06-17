@@ -500,6 +500,7 @@ class FamDB:
 
         if self.mode == "w":
             self.seen = {}
+            self.added = {'consensus': 0, 'hmm': 0}
             self.__write_metadata()
 
     def __write_metadata(self):
@@ -507,17 +508,22 @@ class FamDB:
         self.file.attrs["version"] = "0.1"
         self.file.attrs["created"] = str(datetime.datetime.now())
 
-    def set_db_info(self, name, version, date, copyright_text):
+    def __write_counts(self):
+        self.file.attrs["count_consensus"] = self.added['consensus']
+        self.file.attrs["count_hmm"] = self.added['hmm']
+
+    def set_db_info(self, name, version, date, desc, copyright_text):
         """Sets database metadata for the current file"""
         self.file.attrs["db_name"] = name
         self.file.attrs["db_version"] = version
         self.file.attrs["db_date"] = date
+        self.file.attrs["db_description"] = desc
         self.file.attrs["db_copyright"] = copyright_text
 
     def get_db_info(self):
         """
         Gets database metadata for the current file as a dict with keys
-        'name', 'version', 'date', 'copyright'
+        'name', 'version', 'date', 'description', 'copyright'
         """
         if "db_name" not in self.file.attrs:
             return None
@@ -526,7 +532,18 @@ class FamDB:
             "name": self.file.attrs["db_name"],
             "version": self.file.attrs["db_version"],
             "date": self.file.attrs["db_date"],
+            "description": self.file.attrs["db_description"],
             "copyright": self.file.attrs["db_copyright"],
+        }
+
+    def get_counts(self):
+        """
+        Gets counts of entries in the current file as a dict
+        with 'consensus', 'hmm'
+        """
+        return {
+            "consensus": self.file.attrs["count_consensus"],
+            "hmm": self.file.attrs["count_hmm"],
         }
 
     def close(self):
@@ -559,6 +576,12 @@ class FamDB:
         if family.name:
             self.__check_unique(family, "name")
         self.__check_unique(family, "accession")
+
+        # Increment counts
+        if family.consensus:
+            self.added['consensus'] += 1
+        if family.model:
+            self.added['hmm'] += 1
 
         # Create the family data
         dset = self.group_families.create_dataset(family.accession, (0,))
@@ -630,6 +653,11 @@ class FamDB:
 
         delta = time.perf_counter() - start
         LOGGER.info("Wrote %d taxonomy nodes in %f", count, delta)
+
+    def finalize(self):
+        """Writes some collected metadata, such as counts, to the database"""
+
+        self.__write_counts()
 
     def has_taxon(self, tax_id):
         """Returns True if 'self' has a taxonomy entry for 'tax_id'"""
@@ -945,6 +973,27 @@ def famdb_file_type(mode):
     return lambda filename: FamDB(filename, mode)
 
 
+def command_info(args):
+    """The 'info' command displays some of the stored metadata."""
+
+    db_info = args.file.get_db_info()
+    counts = args.file.get_counts()
+
+    print("""\
+Database: {}
+Version: {}
+Date: {}
+
+{}
+
+Total consensus sequences: {}
+Total HMMs: {}
+""".format(
+    db_info["name"], db_info["version"],
+    db_info["date"], db_info["description"],
+    counts["consensus"], counts["hmm"])
+)
+
 def command_names(args):
     """The 'names' command displays all names of all taxa that match the search term."""
 
@@ -1169,6 +1218,9 @@ def main():
     parser.add_argument("-i", "--file", type=famdb_file_type("r"), help="specifies the file to query")
 
     subparsers = parser.add_subparsers(help="Specifies the kind of query to perform. For more information, run e.g. famdb.py lineage --help")
+
+    p_info = subparsers.add_parser("info", description="List general information about the file.")
+    p_info.set_defaults(func=command_info)
 
     p_names = subparsers.add_parser("names", description="List the names and taxonomy identifiers of a clade.")
     p_names.add_argument("-f", "--format", default="pretty", choices=["pretty", "json"],
