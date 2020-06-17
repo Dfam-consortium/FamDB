@@ -309,11 +309,20 @@ class Family:  # pylint: disable=too-many-instance-attributes
 
         return out
 
-    def to_fasta(self, famdb, use_accession=False):
+    __COMPLEMENT_TABLE = str.maketrans(
+        "ACGTRYWSKMNXBDHV",
+        "TGCAYRSWMKNXVHDB"
+    )
+
+    def to_fasta(self, famdb, use_accession=False, do_reverse_complement=False):
         """Converts 'self' to FASTA format."""
         sequence = self.consensus
         if sequence is None:
             return None
+
+        if do_reverse_complement:
+            sequence = sequence.translate(self.__COMPLEMENT_TABLE)
+            sequence = sequence[::-1]
 
         if use_accession:
             identifier = "%s.%d" % (self.accession, self.version)
@@ -323,6 +332,9 @@ class Family:  # pylint: disable=too-many-instance-attributes
         header = ">%s#%s" % (identifier, self.repeat_type)
         if self.repeat_subtype:
             header += "/" + self.repeat_subtype
+
+        if do_reverse_complement:
+            header += " (anti)"
 
         for clade_id in self.clades:
             clade_name = famdb.get_taxon_name(clade_id, 'dfam sanitized name')
@@ -1176,8 +1188,12 @@ def print_families(args, families, header, species=None):
             entry = family.to_dfam_hmm(args.file, species)
         elif args.format == "fasta" or args.format == "fasta_name":
             entry = family.to_fasta(args.file)
+            if args.add_reverse_complement:
+                entry += family.to_fasta(args.file, do_reverse_complement=True)
         elif args.format == "fasta_acc":
             entry = family.to_fasta(args.file, use_accession=True)
+            if args.add_reverse_complement:
+                entry += family.to_fasta(args.file, use_accession=True, do_reverse_complement=True)
         elif args.format == "embl":
             entry = family.to_embl(args.file)
         elif args.format == "embl_meta":
@@ -1272,6 +1288,7 @@ def main():
                             help="include only families whose name begins with this search term")
     p_families.add_argument("-f", "--format", default="summary", choices=family_formats,
                             help="choose output format")
+    p_families.add_argument("--add-reverse-complement", action="store_true", help=argparse.SUPPRESS)
     p_families.add_argument("term", help="search term. Can be an NCBI taxonomy identifier or an unambiguous scientific or common name")
     p_families.set_defaults(func=command_families)
 
