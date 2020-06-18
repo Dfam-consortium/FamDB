@@ -861,6 +861,17 @@ up with the 'names' command."""
         return False
 
     @staticmethod
+    def __filter_search_stages(family, stages):
+        """Returns True if the family belongs to a search stage in 'stages'."""
+        if family.attrs.get("search_stages"):
+            sstages = (ss.strip() for ss in family.attrs["search_stages"].split(","))
+            for family_ss in sstages:
+                if family_ss in stages:
+                    return True
+
+        return False
+
+    @staticmethod
     def __filter_repeat_type(family, rtype):
         """Returns True if the family's RepeatMasker Type starts with 'rtype'."""
         if family.attrs.get("repeat_type"):
@@ -880,10 +891,15 @@ up with the 'names' command."""
                 If none of (tax_id, ancestors, descendants) are
                 specified, *all* families will be checked.
             stage = int
+            is_hmm = boolean
             repeat_type = string (prefix)
             name = string (prefix)
                 If any of stage, repeat_type, or name are
                 omitted (or None), they will not be used to filter.
+
+                The behavior of 'stage' depends on 'is_hmm': if is_hmm is True,
+                stage must match in SearchStages (a match in BufferStages is not
+                enough).
         """
 
         if not ("tax_id" in kwargs or "ancestors" in kwargs or "descendants" in kwargs):
@@ -899,10 +915,11 @@ up with the 'names' command."""
         filters = []
 
         filter_stage = kwargs.get("stage")
+        filter_stages = None
         if filter_stage:
             if filter_stage == 80:
                 # "stage 80" = "all stages", so skip filtering
-                filter_stages = None
+                pass
             elif filter_stage == 95:
                 # "stage 95" = this specific stage list:
                 filter_stages = ["35", "50", "55", "60", "65", "70", "75"]
@@ -910,6 +927,11 @@ up with the 'names' command."""
             else:
                 filter_stages = [str(filter_stage)]
                 filters += [lambda a, f: self.__filter_stages(a, filter_stages)]
+
+        # HMM only: add a search stage filter to "un-list" families that were
+        # allowed through only because they match in buffer stage
+        if kwargs.get("is_hmm") and filter_stages:
+            filters += [lambda a, f: self.__filter_search_stages(f, filter_stages)]
 
         filter_repeat_type = kwargs.get("repeat_type")
         if filter_repeat_type:
@@ -1225,6 +1247,8 @@ def command_families(args):
 
     families = []
 
+    is_hmm = args.format.startswith("hmm")
+
     # NB: This is speed-inefficient, because get_accessions_filtered needs to
     # read the whole family data even though we read it again right after.
     # However it is *much* more memory-efficient than loading all the family
@@ -1232,6 +1256,7 @@ def command_families(args):
     accessions = sorted(args.file.get_accessions_filtered(tax_id=target_id,
                                                           descendants=args.descendants,
                                                           ancestors=args.ancestors,
+                                                          is_hmm=is_hmm,
                                                           stage=args.stage,
                                                           repeat_type=args.repeat_type,
                                                           name=args.name))
