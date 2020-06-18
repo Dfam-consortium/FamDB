@@ -314,24 +314,38 @@ class Family:  # pylint: disable=too-many-instance-attributes
         "TGCAYRSWMKNXVHDB"
     )
 
-    def to_fasta(self, famdb, use_accession=False, do_reverse_complement=False):
+    def to_fasta(self, famdb, use_accession=False, do_reverse_complement=False, buffer=None):
         """Converts 'self' to FASTA format."""
         sequence = self.consensus
         if sequence is None:
             return None
-
-        if do_reverse_complement:
-            sequence = sequence.translate(self.__COMPLEMENT_TABLE)
-            sequence = sequence[::-1]
 
         if use_accession:
             identifier = "%s.%d" % (self.accession, self.version)
         else:
             identifier = self.name or self.accession
 
-        header = ">%s#%s" % (identifier, self.repeat_type)
+        rm_class = self.repeat_type
         if self.repeat_subtype:
-            header += "/" + self.repeat_subtype
+            rm_class += "/" + self.repeat_subtype
+
+        if buffer:
+            rm_class = "buffer"
+            if buffer is True:
+                # range-less specification: leave identifier unchanged, and use
+                # the whole sequence as the buffer
+                buffer = [1, len(sequence)]
+            else:
+                # range specification: append _START_END to the identifier
+                identifier += "_%d_%d" % (buffer[0], buffer[1])
+
+            sequence = sequence[buffer[0]-1:buffer[1]]
+
+        if do_reverse_complement:
+            sequence = sequence.translate(self.__COMPLEMENT_TABLE)
+            sequence = sequence[::-1]
+
+        header = ">%s#%s" % (identifier, rm_class)
 
         if do_reverse_complement:
             header += " (anti)"
@@ -1208,14 +1222,34 @@ def print_families(args, families, header, species=None):
             entry = family.to_dfam_hmm(args.file)
         elif args.format == "hmm_species":
             entry = family.to_dfam_hmm(args.file, species)
-        elif args.format == "fasta" or args.format == "fasta_name":
-            entry = family.to_fasta(args.file)
-            if args.add_reverse_complement:
-                entry += family.to_fasta(args.file, do_reverse_complement=True)
-        elif args.format == "fasta_acc":
-            entry = family.to_fasta(args.file, use_accession=True)
-            if args.add_reverse_complement:
-                entry += family.to_fasta(args.file, use_accession=True, do_reverse_complement=True)
+        elif args.format == "fasta" or args.format == "fasta_name" or args.format == "fasta_acc":
+            use_accession = (args.format == "fasta_acc")
+
+            buffers = []
+            if args.stage and family.buffer_stages:
+                for spec in family.buffer_stages.split(","):
+                    if "[" in spec:
+                        matches = re.match(r'(\d+)\[(\d+)-(\d+)\]', spec.strip())
+                        if matches:
+                            if args.stage == int(matches.group(1)):
+                                buffers += [[int(matches.group(2)), int(matches.group(3))]]
+                        else:
+                            LOGGER.warning("Ingored invalid buffer specification: '%s'",
+                                           spec.strip())
+                    else:
+                        buffers += [args.stage == int(spec)]
+
+            if not buffers:
+                buffers += [None]
+
+            entry = ""
+            for buffer_spec in buffers:
+                entry += family.to_fasta(args.file, use_accession=use_accession, buffer=buffer_spec)
+                if args.add_reverse_complement:
+                    entry += family.to_fasta(args.file,
+                                             use_accession=use_accession,
+                                             do_reverse_complement=True,
+                                             buffer=buffer_spec)
         elif args.format == "embl":
             entry = family.to_embl(args.file)
         elif args.format == "embl_meta":
