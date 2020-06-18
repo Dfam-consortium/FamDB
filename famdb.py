@@ -504,6 +504,8 @@ class Family:  # pylint: disable=too-many-instance-attributes
         return out
 
 
+FILE_VERSION = "0.2"
+
 class FamDB:
     """Transposable Element Family and taxonomy database."""
 
@@ -515,6 +517,16 @@ class FamDB:
 
         self.file = h5py.File(filename, mode)
         self.mode = mode
+
+        try:
+            if mode == "r" and self.file.attrs["version"] != FILE_VERSION:
+                raise Exception("File version is {}, but this is version {}".format(
+                    self.file.attrs["version"], FILE_VERSION,
+                ))
+        except:
+            # This 'except' catches both "version" missing from attrs, or the
+            # value not matching if it is present.
+            raise Exception("This file cannot be read by this version of famdb.py.")
 
         self.group_nodes = self.file.require_group("Taxonomy/Nodes")
         self.group_families = self.file.require_group("Families")
@@ -531,7 +543,7 @@ class FamDB:
 
     def __write_metadata(self):
         self.file.attrs["generator"] = "famdb.py v0.1"
-        self.file.attrs["version"] = "0.1"
+        self.file.attrs["version"] = FILE_VERSION
         self.file.attrs["created"] = str(datetime.datetime.now())
 
     def __write_counts(self):
@@ -1035,12 +1047,6 @@ up with the 'names' command."""
 
 # Command-line utilities
 
-
-def famdb_file_type(mode):
-    """Returns a type suitable for use with argparse, opening a FamDB file when active."""
-    return lambda filename: FamDB(filename, mode)
-
-
 def command_info(args):
     """The 'info' command displays some of the stored metadata."""
 
@@ -1308,7 +1314,7 @@ def main():
     parser = argparse.ArgumentParser(description="Queries the contents of a famdb file.")
     parser.add_argument("-l", "--log-level", default="INFO")
 
-    parser.add_argument("-i", "--file", type=famdb_file_type("r"), help="specifies the file to query")
+    parser.add_argument("-i", "--file", help="specifies the file to query")
 
     subparsers = parser.add_subparsers(help="Specifies the kind of query to perform. For more information, run e.g. famdb.py lineage --help")
 
@@ -1359,6 +1365,23 @@ def main():
 
     args = parser.parse_args()
     logging.getLogger().setLevel(getattr(logging, args.log_level.upper()))
+
+    if args.file:
+        try:
+            args.file = FamDB(args.file)
+        except:
+            args.file = None
+
+            exc_value = sys.exc_info()[1]
+            LOGGER.error("Error reading file: %s", exc_value)
+            if LOGGER.getEffectiveLevel() <= logging.DEBUG:
+                raise
+    else:
+        LOGGER.error("Please specify a file to operate on with the -i/--file option.")
+
+    if not args.file:
+        return
+
     if "func" in args:
         args.func(args)
     else:
