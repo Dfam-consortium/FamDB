@@ -704,7 +704,7 @@ class FamDB:
     def search_taxon_names(self, text, kind=None, search_similar=False):
         """
         Searches 'self' for taxons with a name containing 'text', returning an
-        iterator that yields the ids of matching nodes.
+        iterator that yields a tuple of (id, is_exact) for each matching node.
 
         If 'similar' is True, names that sound similar will also be considered
         eligible.
@@ -719,13 +719,20 @@ class FamDB:
             names = self.group_nodes[nid]["Names"]
             for name in names:
                 if kind is None or kind == name[0]:
-                    if text in name[1].lower():
-                        yield int(nid)
-                        break
+                    matches = False
+                    exact = False
+                    if text == name[1].lower():
+                        matches = True
+                        exact = True
+                    elif text in name[1].lower():
+                        matches = True
+                        exact = False
+                    elif search_similar and sounds_like(text, name[1].lower()):
+                        matches = True
+                        exact = False
 
-                    if search_similar and sounds_like(text, name[1].lower()):
-                        yield int(nid)
-                        break
+                    if matches:
+                        yield [int(nid), exact]
 
     def resolve_species(self, term, kind=None, search_similar=False):
         """
@@ -738,15 +745,15 @@ class FamDB:
         first. If it is False, a "sounds like" search will still be performed
         if no results were found.
 
-        This function returns a list of taxon ids that match the query. The
-        list will be empty if no matches were found.
+        This function returns a list of tuples (taxon_id, is_exact) that match
+        the query. The list will be empty if no matches were found.
         """
 
         # Try as a number
         try:
             tax_id = int(term)
             if self.has_taxon(tax_id):
-                return [tax_id]
+                return [(tax_id, True)]
 
             return []
         except ValueError:
@@ -761,7 +768,7 @@ class FamDB:
             if similar_results:
                 print("No results were found for that name, but some names sound similar:",
                       file=sys.stderr)
-                for tax_id in similar_results:
+                for tax_id, _ in similar_results:
                     names = self.get_taxon_names(tax_id)
                     print(tax_id, ", ".join(["{1}".format(*n) for n in names]), file=sys.stderr)
 
@@ -776,6 +783,14 @@ class FamDB:
         """
 
         results = self.resolve_species(term, kind)
+
+        # Check for a single exact match first, to any field
+        exact_matches = []
+        for nid, is_exact in results:
+            if is_exact:
+                exact_matches += [nid]
+        if len(exact_matches) == 1:
+            return exact_matches[0]
 
         if len(results) == 0:
             print("No species found for search term '{}'".format(term), file=sys.stderr)
@@ -1071,7 +1086,7 @@ def command_names(args):
     """The 'names' command displays all names of all taxa that match the search term."""
 
     entries = []
-    for tax_id in args.file.resolve_species(args.term):
+    for tax_id, _ in args.file.resolve_species(args.term):
         names = args.file.get_taxon_names(tax_id)
         entries += [[tax_id, names]]
 
