@@ -124,6 +124,15 @@ def sounds_like(first, second):
 
     return soundex_first == soundex_second
 
+def sanitize_name(name):
+    """
+    Returns the "sanitized" version of the given 'name'.
+    This must be kept in sync with Dfam's algorithm.
+    """
+    name = re.sub(r"[\s\,\_]+", "_", name)
+    name = re.sub(r"[\(\)\<\>\']+", "", name)
+    return name
+
 class Family:  # pylint: disable=too-many-instance-attributes
     """A Transposable Element family, made up of metadata and a model."""
 
@@ -287,7 +296,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
         append("CT", self.classification.replace("root;", ""))
 
         for clade_id in self.clades:
-            tax_name = famdb.get_taxon_name(clade_id, 'dfam sanitized name')
+            tax_name = famdb.get_sanitized_name(clade_id)
             append("MS", "TaxId:%d TaxName:%s" % (clade_id, tax_name))
 
         append("CC", self.description, True)
@@ -295,7 +304,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
         append("CC", "     Type: %s" % (self.repeat_type or ""))
         append("CC", "     SubType: %s" % (self.repeat_subtype or ""))
 
-        species_names = [famdb.get_taxon_name(c, 'dfam sanitized name') for c in self.clades]
+        species_names = [famdb.get_sanitized_name(c) for c in self.clades]
         append("CC", "     Species: %s" % ", ".join(species_names))
 
         append("CC", "     SearchStages: %s" % (self.search_stages or ""))
@@ -351,7 +360,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
             header += " (anti)"
 
         for clade_id in self.clades:
-            clade_name = famdb.get_taxon_name(clade_id, 'dfam sanitized name')
+            clade_name = famdb.get_sanitized_name(clade_id)
             header += " @" + clade_name
 
         if self.search_stages:
@@ -449,7 +458,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
             append("CC", "     Type: %s" % (self.repeat_type or ""))
             append("CC", "     SubType: %s" % (self.repeat_subtype or ""))
 
-            species_names = [famdb.get_taxon_name(c, 'dfam sanitized name')
+            species_names = [famdb.get_sanitized_name(c)
                              for c in self.clades]
             append("CC", "     Species: %s" % ", ".join(species_names))
 
@@ -825,6 +834,17 @@ up with the 'names' command."""
                 return name[1]
 
         return None
+
+    def get_sanitized_name(self, tax_id):
+        """
+        Returns the "sanitized name" of tax_id, which is the sanitized version
+        of the scientific name.
+        """
+
+        name = self.get_taxon_name(tax_id, 'scientific name')
+        if name:
+            name = sanitize_name(name)
+        return name
 
     def get_families_for_taxon(self, tax_id):
         """Returns a list of the accessions for each family directly associated with 'tax_id'."""

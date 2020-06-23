@@ -129,12 +129,6 @@ def load_used_taxonomy_names(nodes, session):
     ):
         nodes[entry.tax_id].names += [[entry.name_class, entry.name_txt]]
 
-    for dfam_tax_rec in session.query(
-            dfam.DfamTaxdb.tax_id,
-            dfam.DfamTaxdb.sanitized_name,
-    ):
-        nodes[dfam_tax_rec.tax_id].names += [["dfam sanitized name", dfam_tax_rec.sanitized_name]]
-
     delta = time.perf_counter() - start
     LOGGER.info("Loaded taxonomy names in %f", delta)
 
