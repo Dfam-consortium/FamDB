@@ -504,7 +504,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
         return out
 
 
-FILE_VERSION = "0.2"
+FILE_VERSION = "0.3"
 
 class FamDB:
     """Transposable Element Family and taxonomy database."""
@@ -668,9 +668,10 @@ class FamDB:
                                                   dtype=FamDB.dtype_str)
                 dset[:] = data
 
-                families_group = taxon_group.require_group("Families")
-                for family in taxon.families:
-                    families_group[family] = h5py.SoftLink("/Families/" + family)
+                if taxon.families:
+                    families_group = taxon_group.require_group("Families")
+                    for family in taxon.families:
+                        families_group[family] = h5py.SoftLink("/Families/" + family)
 
         def store_tree_links(taxon, parent_id):
             group = self.group_nodes[str(taxon.tax_id)]
@@ -827,7 +828,11 @@ up with the 'names' command."""
 
     def get_families_for_taxon(self, tax_id):
         """Returns a list of the accessions for each family directly associated with 'tax_id'."""
-        return self.group_nodes[str(tax_id)]["Families"].keys()
+        group = self.group_nodes[str(tax_id)].get("Families")
+        if group:
+            return group.keys()
+        else:
+            return []
 
     def get_lineage(self, tax_id, **kwargs):
         """
