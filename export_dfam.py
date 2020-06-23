@@ -60,6 +60,7 @@ class TaxNode:  # pylint: disable=too-few-public-methods
         self.families = []
         self.children = []
         self.used = False
+        self.ancestral = 0
 
     def mark_ancestry_used(self):
         """Marks 'self' and all of its ancestors as 'used', up until the first 'used' ancestor."""
@@ -69,6 +70,18 @@ class TaxNode:  # pylint: disable=too-few-public-methods
                 break
             node.used = True
             node = node.parent_node
+
+    def add_ancestral_total(self, count):
+        """Add 'count' to the value of 'ancestral' for 'self' and all descendants"""
+        self.ancestral += count
+        for child in self.children:
+            child.add_ancestral_total(count)
+
+    def mark_descendants_used(self):
+        """Marks 'self' and all of its descendants as 'used'."""
+        self.used = True
+        for child in self.children:
+            child.mark_descendants_used()
 
 
 def famdb_file_type(mode):
@@ -106,25 +119,38 @@ def load_used_taxonomy_names(nodes, session):
     LOGGER.info("Reading taxonomy names")
     start = time.perf_counter()
 
-    count = 0
-    for node in nodes.values():
-        if node.used:
-            count += 1
-            for tax_name in session.query(
-                    dfam.NcbiTaxdbName.name_txt,
-                    dfam.NcbiTaxdbName.name_class,
-                ).filter(dfam.NcbiTaxdbName.tax_id == node.tax_id):
-                node.names += [[tax_name.name_class, tax_name.name_txt]]
+    # Load *all* names. As the number of included names grows large this
+    # is actually faster than loading only the needed ones from the
+    # database, at the cost of memory usage
+    for entry in session.query(
+            dfam.NcbiTaxdbName.tax_id,
+            dfam.NcbiTaxdbName.name_txt,
+            dfam.NcbiTaxdbName.name_class,
+    ):
+        nodes[entry.tax_id].names += [[entry.name_class, entry.name_txt]]
 
-            dfam_rec = session.query(dfam.DfamTaxdb)\
-                .filter(dfam.DfamTaxdb.tax_id == node.tax_id)\
-                .one_or_none()
-            if dfam_rec:
-                node.names += [["dfam sanitized name", dfam_rec.sanitized_name]]
+    for dfam_tax_rec in session.query(
+            dfam.DfamTaxdb.tax_id,
+            dfam.DfamTaxdb.sanitized_name,
+    ):
+        nodes[dfam_tax_rec.tax_id].names += [["dfam sanitized name", dfam_tax_rec.sanitized_name]]
 
     delta = time.perf_counter() - start
-    LOGGER.info("Loaded names for %d used taxonomy nodes in %f", count, delta)
+    LOGGER.info("Loaded taxonomy names in %f", delta)
 
+
+def calculate_ancestral_totals(nodes):
+    """Calculates the count of 'ancestral' entries for all nodes."""
+    for node in nodes.values():
+        count = len(node.families)
+        node.add_ancestral_total(count)
+
+
+def mark_used_threshold(nodes, thresh):
+    """Marks as used all nodes with at least 'thresh' ancestral families."""
+    for node in nodes.values():
+        if node.ancestral >= thresh:
+            node.mark_descendants_used()
 
 class ClassificationNode:  # pylint: disable=too-few-public-methods
     """A Dfam Classification node linked to its parent and children."""
@@ -458,6 +484,8 @@ http://creativecommons.org/publicdomain/zero/1.0/legalcode
     delta = time.perf_counter() - start
     LOGGER.info("Imported %d families in %f", count, delta)
 
+    calculate_ancestral_totals(tax_db)
+    mark_used_threshold(tax_db, 200)
     load_used_taxonomy_names(tax_db, session)
     args.outfile.write_taxonomy(tax_db)
     args.outfile.finalize()
