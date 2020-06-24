@@ -113,11 +113,17 @@ def load_taxonomy(session):
     return nodes
 
 
-def load_used_taxonomy_names(nodes, session):
-    """Loads the names of used taxonomy nodes from the database."""
+def load_taxonomy_names(nodes, session):
+    """
+    Loads the names of all taxonomy nodes in the database into 'nodes'.
+    Returns a reverse lookup of sanitized name to ID
+        (primarily for reading species names in existing EMBL files).
+    """
 
     LOGGER.info("Reading taxonomy names")
     start = time.perf_counter()
+
+    lookup = {}
 
     # Load *all* names. As the number of included names grows large this
     # is actually faster than loading only the needed ones from the
@@ -125,12 +131,19 @@ def load_used_taxonomy_names(nodes, session):
     for entry in session.query(
             dfam.NcbiTaxdbName.tax_id,
             dfam.NcbiTaxdbName.name_txt,
+            dfam.NcbiTaxdbName.unique_name,
             dfam.NcbiTaxdbName.name_class,
     ):
-        nodes[entry.tax_id].names += [[entry.name_class, entry.name_txt]]
+        name = entry.unique_name or entry.name_txt
+        nodes[entry.tax_id].names += [[entry.name_class, name]]
+        if entry.name_class == "scientific name":
+            sanitized_name = famdb.sanitize_name(name).lower()
+            lookup[sanitized_name] = entry.tax_id
 
     delta = time.perf_counter() - start
     LOGGER.info("Loaded taxonomy names in %f", delta)
+
+    return lookup
 
 
 def calculate_ancestral_totals(nodes):
@@ -145,6 +158,28 @@ def mark_used_threshold(nodes, thresh):
     for node in nodes.values():
         if node.ancestral >= thresh:
             node.mark_descendants_used()
+
+
+def count_extra_taxa(nodes, lookup, filename):
+    """
+    Counts species assignments from the "Species:" lines of a
+    RepeatMasker-formatted EMBL file, to ensure that the necessary taxa are
+    included in the famdb file ahead of time to support merging and queries for
+    that dataset.
+    """
+    with open(filename) as embl_file:
+        for line in embl_file:
+            fields = line.lower().split(maxsplit=2)
+            if len(fields) > 2:
+                names = fields[2].split(",")
+                for name in names:
+                    name = name.strip()
+                    tax_id = lookup.get(name.strip())
+                    if tax_id:
+                        nodes[tax_id].add_ancestral_total(1)
+                    else:
+                        LOGGER.warning("Could not find taxon for '%s'", name)
+
 
 class ClassificationNode:  # pylint: disable=too-few-public-methods
     """A Dfam Classification node linked to its parent and children."""
@@ -478,9 +513,13 @@ http://creativecommons.org/publicdomain/zero/1.0/legalcode
     delta = time.perf_counter() - start
     LOGGER.info("Imported %d families in %f", count, delta)
 
+    lookup = load_taxonomy_names(tax_db, session)
+
+    if args.extra_taxa_file:
+        count_extra_taxa(tax_db, lookup, args.extra_taxa_file)
     calculate_ancestral_totals(tax_db)
     mark_used_threshold(tax_db, 200)
-    load_used_taxonomy_names(tax_db, session)
+
     args.outfile.write_taxonomy(tax_db)
     args.outfile.finalize()
 
@@ -495,6 +534,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-l", "--log-level", default="INFO")
     parser.add_argument("-t", "--taxon", action="append", type=int, default=[])
+    parser.add_argument("--extra-taxa-file")
     parser.add_argument("-r", "--include-raw", action="store_true")
     parser.add_argument("connection")
     parser.add_argument("outfile", type=famdb_file_type("w"))
