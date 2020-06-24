@@ -513,7 +513,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
         return out
 
 
-FILE_VERSION = "0.3"
+FILE_VERSION = "0.4"
 
 class FamDB:
     """Transposable Element Family and taxonomy database."""
@@ -549,6 +549,8 @@ class FamDB:
             self.seen = {}
             self.added = {'consensus': 0, 'hmm': 0}
             self.__write_metadata()
+        elif mode == "r":
+            self.names_dump = json.loads(self.file["TaxaNames"][0])
 
     def __write_metadata(self):
         self.file.attrs["generator"] = "famdb.py v0.1"
@@ -665,18 +667,16 @@ class FamDB:
         LOGGER.info("Writing taxonomy nodes to database")
         start = time.perf_counter()
 
+        self.names_dump = {}
+
         count = 0
         for taxon in tax_db.values():
             if taxon.used:
                 count += 1
 
+                self.names_dump[taxon.tax_id] = taxon.names
+
                 taxon_group = self.group_nodes.require_group(str(taxon.tax_id))
-
-                data = numpy.array(taxon.names)
-                dset = taxon_group.create_dataset("Names", shape=data.shape,
-                                                  dtype=FamDB.dtype_str)
-                dset[:] = data
-
                 if taxon.families:
                     families_group = taxon_group.require_group("Families")
                     for family in taxon.families:
@@ -694,6 +694,11 @@ class FamDB:
                     store_tree_links(child, taxon.tax_id)
 
             group.create_dataset("Children", data=child_ids)
+
+        names_data = numpy.array([json.dumps(self.names_dump)])
+        names_dset = self.file.create_dataset("TaxaNames", shape=names_data.shape,
+                                              dtype=FamDB.dtype_str)
+        names_dset[:] = names_data
 
         LOGGER.info("Writing taxonomy tree")
         # 1 is the "root" taxon
@@ -725,8 +730,7 @@ class FamDB:
 
         text = text.lower()
 
-        for nid in self.group_nodes:
-            names = self.group_nodes[nid]["Names"]
+        for tax_id, names in self.names_dump.items():
             for name in names:
                 if kind is None or kind == name[0]:
                     matches = False
@@ -742,7 +746,7 @@ class FamDB:
                         exact = False
 
                     if matches:
-                        yield [int(nid), exact]
+                        yield [int(tax_id), exact]
 
     def resolve_species(self, term, kind=None, search_similar=False):
         """
@@ -753,6 +757,7 @@ class FamDB:
 
         If 'search_similar' is True, a "sounds like" search will be tried
         first. If it is False, a "sounds like" search will still be performed
+
         if no results were found.
 
         This function returns a list of tuples (taxon_id, is_exact) that match
@@ -819,8 +824,7 @@ up with the 'names' command."""
         Returns a list of [name_class, name_value] of the taxon given by 'tax_id'.
         """
 
-        names = self.group_nodes[str(tax_id)]["Names"]
-        return names[:, :]
+        return self.names_dump[str(tax_id)]
 
     def get_taxon_name(self, tax_id, kind='scientific name'):
         """
@@ -828,7 +832,7 @@ up with the 'names' command."""
         or None if no such name was found.
         """
 
-        names = self.group_nodes[str(tax_id)]["Names"]
+        names = self.names_dump[str(tax_id)]
         for name in names:
             if name[0] == kind:
                 return name[1]
