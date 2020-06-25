@@ -330,7 +330,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
             return None
 
         if use_accession:
-            identifier = "%s.%d" % (self.accession, self.version)
+            identifier = "%s.%d" % (self.accession, self.version or 0)
         else:
             identifier = self.name or self.accession
 
@@ -511,6 +511,117 @@ class Family:  # pylint: disable=too-many-instance-attributes
         out += "//\n"
 
         return out
+
+    @staticmethod
+    def read_embl_families(filename, lookup, header_cb=None):
+        """
+        Iterates over Family objects from the .embl file 'filename'. The format
+        should match the output format of to_embl(), but this is not thoroughly
+        tested.
+
+        'lookup' should be a dictionary of Species names (in the EMBL file) to
+        taxonomy IDs.
+
+        If specified, 'header_cb' will be invoked with the contents of the
+        header text at the top of the file before the last iteration.
+
+        TODO: This mechanism is a bit awkward and should perhaps be reworked.
+        """
+
+        def set_family_code(family, code, value):
+            """
+            Sets an attribute on 'family' based on the hmm shortcode 'code'.
+            For codes corresponding to list attributes, values are appended.
+            """
+            if code == "ID":
+                match = re.match(r'(\S*)', value)
+                acc = match.group(1)
+                acc = acc.rstrip(";")
+                family.accession = acc
+            elif code == "NM":
+                family.name = value
+            elif code == "DE":
+                family.description = value
+            elif code == "CC":
+                matches = re.match(r'\s*Type:\s*(\S+)', value)
+                if matches:
+                    family.repeat_type = matches.group(1).strip()
+
+                matches = re.match(r'\s*SubType:\s*(\S+)', value)
+                if matches:
+                    family.repeat_subtype = matches.group(1).strip()
+
+                matches = re.search(r'Species:\s*(.+)', value)
+                if matches:
+                    for spec in matches.group(1).split(","):
+                        name = spec.strip().lower()
+                        if name:
+                            tax_id = lookup.get(name)
+                            if tax_id:
+                                family.clades += [tax_id]
+                            else:
+                                LOGGER.warning("Could not find taxon for '%s'", name)
+
+                matches = re.search(r'SearchStages:\s*(\S+)', value)
+                if matches:
+                    family.search_stages = matches.group(1).strip()
+
+                matches = re.search(r'BufferStages:\s*(\S+)', value)
+                if matches:
+                    family.buffer_stages = matches.group(1).strip()
+
+        header = ""
+        family = None
+        in_header = True
+        in_metadata = False
+
+        with open(filename) as file:
+            for line in file:
+                if family is None:
+                    # ID indicates start of metadata
+                    if line.startswith("ID"):
+                        family = Family()
+                        family.clades = []
+                        in_header = False
+                        in_metadata = True
+                    elif in_header:
+                        matches = re.match(r"(CC)?\s*(.*)", line)
+                        if line.startswith("XX"):
+                            in_header = False
+                        elif matches:
+                            header_line = matches.group(2).rstrip('*').strip()
+                            header += header_line + "\n"
+                        else:
+                            header += line
+
+                if family is not None:
+                    if in_metadata:
+                        # SQ line indicates start of sequence
+                        if line.startswith("SQ"):
+                            in_metadata = False
+                            family.consensus = ""
+
+                        # Continuing metadata
+                        else:
+                            split = line.rstrip("\n").split(None, maxsplit=1)
+                            if len(split) > 1:
+                                code = split[0].strip()
+                                value = split[1].strip()
+                                set_family_code(family, code, value)
+
+                    # '//' line indicates end of the sequence area
+                    elif line.startswith("//"):
+                        family.length = len(family.consensus)
+
+                        yield family
+                        family = None
+
+                    # Part of the sequence area
+                    else:
+                        family.consensus += re.sub(r'[^A-Za-z]', '', line)
+
+        if header_cb:
+            header_cb(header)
 
 
 FILE_VERSION = "0.4"

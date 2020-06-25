@@ -37,8 +37,10 @@ DISCLAIMER:
 
 import argparse
 import gzip
+import itertools
 import json
 import logging
+import re
 import time
 
 import sqlalchemy
@@ -445,6 +447,7 @@ def run_export(args):  # pylint: disable=too-many-locals,too-many-branches,too-m
     session = sqlalchemy.orm.Session(bind=engine)
 
     tax_db = load_taxonomy(session)
+    lookup = load_taxonomy_names(tax_db, session)
 
     for tid in args.taxon:
         tax_db[tid].mark_ancestry_used()
@@ -504,7 +507,12 @@ http://creativecommons.org/publicdomain/zero/1.0/legalcode
     batch_size = target_count // batches
 
     count = 0
-    for family in iterate_db_families(session, tax_db, query):
+    to_import = iterate_db_families(session, tax_db, query)
+
+    for embl_file in args.extra_embl_file:
+        to_import = itertools.chain(to_import, famdb.Family.read_embl_families(embl_file, lookup))
+
+    for family in to_import:
         count += 1
 
         for clade_id in family.clades:
@@ -520,8 +528,6 @@ http://creativecommons.org/publicdomain/zero/1.0/legalcode
 
     delta = time.perf_counter() - start
     LOGGER.info("Imported %d families in %f", count, delta)
-
-    lookup = load_taxonomy_names(tax_db, session)
 
     if args.extra_taxa_file:
         count_extra_taxa(tax_db, lookup, args.extra_taxa_file)
@@ -543,6 +549,7 @@ def main():
     parser.add_argument("-l", "--log-level", default="INFO")
     parser.add_argument("-t", "--taxon", action="append", type=int, default=[])
     parser.add_argument("--extra-taxa-file")
+    parser.add_argument("--extra-embl-file", action="append", default=[])
     parser.add_argument("-r", "--include-raw", action="store_true")
     parser.add_argument("connection")
     parser.add_argument("outfile", type=famdb_file_type("w"))
