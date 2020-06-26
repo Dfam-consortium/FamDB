@@ -632,14 +632,19 @@ class FamDB:
     dtype_str = h5py.special_dtype(vlen=str)
 
     def __init__(self, filename, mode="r"):
-        if mode not in ["r", "w"]:
-            raise ValueError("Invalid file mode. Expected 'r' or 'w', got '{}'".format(mode))
+        if mode not in ["r", "w", "a"]:
+            raise ValueError("Invalid file mode. Expected 'r' or 'w' or 'a', got '{}'".format(mode))
+
+        reading = True
+        if mode == "w":
+            reading = False
+
 
         self.file = h5py.File(filename, mode)
         self.mode = mode
 
         try:
-            if mode == "r" and self.file.attrs["version"] != FILE_VERSION:
+            if reading and self.file.attrs["version"] != FILE_VERSION:
                 raise Exception("File version is {}, but this is version {}".format(
                     self.file.attrs["version"], FILE_VERSION,
                 ))
@@ -660,7 +665,14 @@ class FamDB:
             self.seen = {}
             self.added = {'consensus': 0, 'hmm': 0}
             self.__write_metadata()
-        elif mode == "r":
+        elif self.mode == "a":
+            self.seen = {}
+            self.seen["name"] = list(self.group_byname.keys())
+            self.seen["accession"] = list(self.group_byaccession.keys())
+
+            self.added = self.get_counts()
+
+        if reading:
             self.names_dump = json.loads(self.file["TaxaNames"][0])
 
     def __write_metadata(self):
@@ -757,6 +769,11 @@ class FamDB:
             self.group_byname[family.name] = h5py.SoftLink("/Families/" + family.accession)
         self.group_byaccession[family.accession] = h5py.SoftLink("/Families/" + family.accession)
 
+        for clade_id in family.clades:
+            taxon_group = self.group_nodes.require_group(str(clade_id))
+            families_group = taxon_group.require_group("Families")
+            families_group[family.accession] = h5py.SoftLink("/Families/" + family.accession)
+
         def add_stage_link(stage, accession):
             stage_group = self.group_bystage.require_group(stage.strip())
             if accession not in stage_group:
@@ -787,14 +804,8 @@ class FamDB:
 
                 self.names_dump[taxon.tax_id] = taxon.names
 
-                taxon_group = self.group_nodes.require_group(str(taxon.tax_id))
-                if taxon.families:
-                    families_group = taxon_group.require_group("Families")
-                    for family in taxon.families:
-                        families_group[family] = h5py.SoftLink("/Families/" + family)
-
         def store_tree_links(taxon, parent_id):
-            group = self.group_nodes[str(taxon.tax_id)]
+            group = self.group_nodes.require_group(str(taxon.tax_id))
             if parent_id:
                 group.create_dataset("Parent", data=[parent_id])
 
@@ -1460,6 +1471,52 @@ def command_families(args):
 
     print_families(args, families, True, target_id)
 
+def command_append(args):
+    """
+    The 'append' command reads an EMBL file and appends its entries to an
+    existing famdb file.
+    """
+
+    lookup = {}
+    for tax_id, names in args.file.names_dump.items():
+        for name in names:
+            if name[0] == "scientific name":
+                sanitized_name = sanitize_name(name[1]).lower()
+                lookup[sanitized_name] = int(tax_id)
+
+    header = None
+    def set_header(val):
+        nonlocal header
+        header = val
+
+    embl_iter = Family.read_embl_families(args.infile, lookup, set_header)
+
+    seen_accs = args.file.seen["accession"]
+    seen_names = args.file.seen["name"]
+
+    for entry in embl_iter:
+        acc = entry.accession
+        # TODO: This is awkward. The EMBL files being appended may only have an
+        # "accession", but that accession may match the *name* of a family
+        # already in Dfam. The accession may also match a family already in
+        # Dfam, but with a "v" added.
+        if acc in seen_accs or acc in seen_names \
+            or acc + "v" in seen_accs or acc + "v" in seen_names:
+            LOGGER.debug("Ignoring duplicate entry %s", entry.accession)
+        else:
+            args.file.add_family(entry)
+
+    db_info = args.file.get_db_info()
+    db_info["name"] += " (with additions)"
+    db_info["copyright"] += "\n\n" + header
+
+    args.file.set_db_info(
+                          db_info["name"], db_info["version"], db_info["date"],
+                          db_info["description"], db_info["copyright"]
+    )
+
+    # Write the updated counts and metadata
+    args.file.finalize()
 
 def main():
     """Parses command-line arguments and runs the requested command."""
@@ -1518,12 +1575,21 @@ def main():
     p_family.add_argument("term", help="the accession of the family to be retrieved")
     p_family.set_defaults(func=command_family)
 
+    p_append = subparsers.add_parser("append", help=argparse.SUPPRESS)
+    p_append.add_argument("infile", help="the name of the input file to be appended")
+    p_append.set_defaults(func=command_append)
+
     args = parser.parse_args()
     logging.getLogger().setLevel(getattr(logging, args.log_level.upper()))
 
     if args.file:
         try:
-            args.file = FamDB(args.file)
+            if "func" in args and args.func is command_append:
+                mode = "a"
+            else:
+                mode = "r"
+
+            args.file = FamDB(args.file, mode)
         except:
             args.file = None
 
