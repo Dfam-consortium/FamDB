@@ -178,6 +178,7 @@ def count_extra_taxa(nodes, lookup, filename):
                     name = name.strip()
                     tax_id = lookup.get(name.strip())
                     if tax_id:
+                        nodes[tax_id].mark_ancestry_used()
                         nodes[tax_id].add_ancestral_total(1)
                     else:
                         LOGGER.warning("Could not find taxon for '%s'", name)
