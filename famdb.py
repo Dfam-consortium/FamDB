@@ -842,6 +842,8 @@ class FamDB:
         """
         Searches 'self' for taxons with a name containing 'text', returning an
         iterator that yields a tuple of (id, is_exact) for each matching node.
+        The same id can be returned more than once, and can furthermore be
+        returned both as an exact and a non-exact match.
 
         If 'similar' is True, names that sound similar will also be considered
         eligible.
@@ -853,17 +855,21 @@ class FamDB:
         text = text.lower()
 
         for tax_id, names in self.names_dump.items():
-            for name in names:
-                if kind is None or kind == name[0]:
+            for name_cls, name_txt in names:
+                name_txt = name_txt.lower()
+                if kind is None or kind == name_cls:
                     matches = False
                     exact = False
-                    if text == name[1].lower():
+                    if text == name_txt:
                         matches = True
                         exact = True
-                    elif text in name[1].lower():
+                    elif name_txt.startswith(text + " <"):
+                        matches = True
+                        exact = True
+                    elif text in name_txt:
                         matches = True
                         exact = False
-                    elif search_similar and sounds_like(text, name[1].lower()):
+                    elif search_similar and sounds_like(text, name_txt):
                         matches = True
                         exact = False
 
@@ -896,8 +902,23 @@ class FamDB:
         except ValueError:
             pass
 
-        # Perform a search by name
-        results = list(self.search_taxon_names(term, kind, search_similar))
+        # Perform a search by name, deduplicating with 'seen' and splitting
+        # between exact and inexact matches for sorting
+        seen = set()
+        exact = []
+        inexact = []
+        for tax_id, is_exact in self.search_taxon_names(term, kind, search_similar):
+            if tax_id not in seen:
+                seen.add(tax_id)
+                if is_exact:
+                    exact += [tax_id]
+                else:
+                    inexact += [tax_id]
+
+        # Combine back into one list, with exact matches first
+        results = [[tax_id, True] for tax_id in exact]
+        for tax_id in inexact:
+            results += [[tax_id, False]]
 
         if len(results) == 0 and not search_similar:
             # Try a sounds-like search (currently soundex)
