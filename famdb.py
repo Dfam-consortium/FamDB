@@ -209,7 +209,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
         return "%s.%d '%s': %s len=%d" % (self.accession, self.version or 0,
                                           self.name, self.classification, self.length or -1)
 
-    def to_dfam_hmm(self, famdb, species=None):  # pylint: disable=too-many-locals,too-many-branches
+    def to_dfam_hmm(self, famdb, species=None, include_class_in_name=False):  # pylint: disable=too-many-locals,too-many-branches
         """
         Converts 'self' to Dfam-style HMM format.
         'famdb' is used for lookups in the taxonomy database (id -> name).
@@ -249,7 +249,15 @@ class Family:  # pylint: disable=too-many-instance-attributes
         for i, line in enumerate(model_lines):
             if line.startswith("HMMER3"):
                 out += line + "\n"
-                append("NAME", self.name or self.accession)
+
+                name = self.name or self.accession
+                if include_class_in_name:
+                    rm_class = self.repeat_type
+                    if self.repeat_subtype:
+                        rm_class += "/" + self.repeat_subtype
+                    name = name + "#" + rm_class
+
+                append("NAME", name)
                 append("ACC", "%s.%d" % (self.accession, self.version or 0))
                 append("DESC", self.title)
             elif any(map(line.startswith, ["NAME", "ACC", "DESC"])):
@@ -323,7 +331,14 @@ class Family:  # pylint: disable=too-many-instance-attributes
         "TGCAYRSWMKNXVHDB"
     )
 
-    def to_fasta(self, famdb, use_accession=False, do_reverse_complement=False, buffer=None):
+    def to_fasta(
+            self,
+            famdb,
+            use_accession=False,
+            include_class_in_name=False,
+            do_reverse_complement=False,
+            buffer=None
+    ):
         """Converts 'self' to FASTA format."""
         sequence = self.consensus
         if sequence is None:
@@ -335,12 +350,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
         else:
             identifier = self.name or self.accession
 
-        rm_class = self.repeat_type
-        if self.repeat_subtype:
-            rm_class += "/" + self.repeat_subtype
-
         if buffer:
-            rm_class = "buffer"
             if buffer is True:
                 # range-less specification: leave identifier unchanged, and use
                 # the whole sequence as the buffer
@@ -350,12 +360,19 @@ class Family:  # pylint: disable=too-many-instance-attributes
                 identifier += "_%d_%d" % (buffer[0], buffer[1])
 
             sequence = sequence[buffer[0]-1:buffer[1]]
+            identifier = identifier + "#buffer"
 
         if do_reverse_complement:
             sequence = sequence.translate(self.__COMPLEMENT_TABLE)
             sequence = sequence[::-1]
 
-        header = ">%s#%s" % (identifier, rm_class)
+        if include_class_in_name and not buffer:
+            rm_class = self.repeat_type
+            if self.repeat_subtype:
+                rm_class += "/" + self.repeat_subtype
+            identifier = identifier + "#" + rm_class
+
+        header = ">" + identifier
 
         if do_reverse_complement:
             header += " (anti)"
@@ -1416,9 +1433,9 @@ def print_families(args, families, header, species=None):
         if args.format == "summary":
             entry = str(family) + "\n"
         elif args.format == "hmm":
-            entry = family.to_dfam_hmm(args.file)
+            entry = family.to_dfam_hmm(args.file, include_class_in_name=args.include_class_in_name)
         elif args.format == "hmm_species":
-            entry = family.to_dfam_hmm(args.file, species)
+            entry = family.to_dfam_hmm(args.file, species, include_class_in_name=args.include_class_in_name)
         elif args.format == "fasta" or args.format == "fasta_name" or args.format == "fasta_acc":
             use_accession = (args.format == "fasta_acc")
 
@@ -1441,10 +1458,17 @@ def print_families(args, families, header, species=None):
 
             entry = ""
             for buffer_spec in buffers:
-                entry += family.to_fasta(args.file, use_accession=use_accession, buffer=buffer_spec)
+                entry += family.to_fasta(
+                    args.file,
+                    use_accession=use_accession,
+                    include_class_in_name=args.include_class_in_name,
+                    buffer=buffer_spec
+                )
+
                 if args.add_reverse_complement:
                     entry += family.to_fasta(args.file,
                                              use_accession=use_accession,
+                                             include_class_in_name=args.include_class_in_name,
                                              do_reverse_complement=True,
                                              buffer=buffer_spec)
         elif args.format == "embl":
@@ -1591,6 +1615,7 @@ def main():
     p_families.add_argument("-f", "--format", default="summary", choices=family_formats,
                             help="choose output format")
     p_families.add_argument("--add-reverse-complement", action="store_true", help=argparse.SUPPRESS)
+    p_families.add_argument("--include-class-in-name", action="store_true", help=argparse.SUPPRESS)
     p_families.add_argument("term", help="search term. Can be an NCBI taxonomy identifier or an unambiguous scientific or common name")
     p_families.set_defaults(func=command_families)
 
