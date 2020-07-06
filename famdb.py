@@ -328,6 +328,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
         sequence = self.consensus
         if sequence is None:
             return None
+        sequence = sequence.upper()
 
         if use_accession:
             identifier = "%s.%d" % (self.accession, self.version or 0)
@@ -381,6 +382,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
         sequence = self.consensus
         if sequence is None:
             return None
+        sequence = sequence.lower()
 
         out = ""
 
