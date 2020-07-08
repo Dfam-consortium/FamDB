@@ -438,8 +438,7 @@ def iterate_db_families(session, tax_db, families_query):
             family.max_length = record.hmm_maxl
         family.is_model_masked = record.model_mask
 
-        seed_count = session.query(dfam.t_seed_region).filter(
-            dfam.t_seed_region.c.family_id == record.id).count()
+        seed_count = session.execute("SELECT COUNT(*) from seed_region where family_id=:id", {"id": record.id}).fetchone()[0]
         family.seed_count = seed_count
 
         yield family
