@@ -274,34 +274,32 @@ def iterate_db_families(session, tax_db, families_query):
 
         # clades and taxonomy links
         family.clades = []
-        for clade_record in session.query(dfam.t_family_clade.c.dfam_taxdb_tax_id)\
+        for (clade_id,) in session.query(dfam.t_family_clade.c.dfam_taxdb_tax_id)\
             .filter(dfam.t_family_clade.c.family_id == record.id)\
             .all():
-
-            clade_id = clade_record.dfam_taxdb_tax_id
 
             family.clades += [clade_id]
 
         # "SearchStages: A,B,C,..."
         ss_values = []
-        for ss_record in session.query(dfam.t_family_has_search_stage)\
+        for (stage_id,) in session.query(dfam.t_family_has_search_stage.c.repeatmasker_stage_id)\
             .filter(dfam.t_family_has_search_stage.c.family_id == record.id)\
             .all():
 
-            ss_values += [str(ss_record.repeatmasker_stage_id)]
+            ss_values += [str(stage_id)]
 
         if ss_values:
             family.search_stages = ",".join(ss_values)
 
         # "BufferStages:A,B,C[D-E],..."
         bs_values = []
-        for bs_record in session.query(dfam.FamilyHasBufferStage)\
+        for (stage_id, start_pos, end_pos) in session.query(
+                dfam.FamilyHasBufferStage.repeatmasker_stage_id,
+                dfam.FamilyHasBufferStage.start_pos,
+                dfam.FamilyHasBufferStage.end_pos,
+            )\
             .filter(dfam.FamilyHasBufferStage.family_id == record.id)\
             .all():
-
-            stage_id = bs_record.repeatmasker_stage_id
-            start_pos = bs_record.start_pos
-            end_pos = bs_record.end_pos
 
             if start_pos == 0 and end_pos == 0:
                 bs_values += [str(stage_id)]
@@ -314,22 +312,18 @@ def iterate_db_families(session, tax_db, families_query):
         # Taxa-specific thresholds. "ID, GA, TC, NC, fdr"
         th_values = []
 
-        for (spec_rec, tax_id) in session.query(
-                dfam.FamilyAssemblyDatum,
-                dfam.Assembly.dfam_taxdb_tax_id
+        for (tax_id, spec_ga, spec_tc, spec_nc, spec_fdr) in session.query(
+                dfam.Assembly.dfam_taxdb_tax_id,
+                dfam.FamilyAssemblyDatum.hmm_hit_GA,
+                dfam.FamilyAssemblyDatum.hmm_hit_TC,
+                dfam.FamilyAssemblyDatum.hmm_hit_NC,
+                dfam.FamilyAssemblyDatum.hmm_fdr,
             )\
             .filter(dfam.FamilyAssemblyDatum.family_id == record.id)\
             .filter(dfam.Assembly.id == dfam.FamilyAssemblyDatum.assembly_id)\
             .all():
 
-            th_values += ["{}, {}, {}, {}, {}".format(
-                tax_id,
-                spec_rec.hmm_hit_GA,
-                spec_rec.hmm_hit_TC,
-                spec_rec.hmm_hit_NC,
-                spec_rec.hmm_fdr,
-            )]
-
+            th_values += ["{}, {}, {}, {}, {}".format(tax_id, spec_ga, spec_tc, spec_nc, spec_fdr)]
             tax_db[tax_id].mark_ancestry_used()
 
         if th_values:
