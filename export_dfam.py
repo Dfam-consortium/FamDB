@@ -44,6 +44,8 @@ import re
 import time
 
 import sqlalchemy
+from sqlalchemy import bindparam
+from sqlalchemy.ext import baked
 
 import dfam_31 as dfam
 import famdb
@@ -246,6 +248,59 @@ def iterate_db_families(session, tax_db, families_query):
     """Returns an iterator over families in the Dfam MySQL database."""
     class_db = load_classification(session)
 
+    # A "bakery" caches queries. The performance gains are worth it here, where
+    # the queries are done many times with only the id changing. Another
+    # approach that could be used is to make each of these queries once instead
+    # of in a loop, but that would require a more significant restructuring.
+    bakery = baked.bakery()
+
+    clade_query = bakery(lambda s: s.query(dfam.t_family_clade.c.dfam_taxdb_tax_id))
+    clade_query += lambda q: q.filter(dfam.t_family_clade.c.family_id == bindparam("id"))
+
+    search_stage_query = bakery(lambda s: s.query(dfam.t_family_has_search_stage.c.repeatmasker_stage_id))
+    search_stage_query += lambda q: q.filter(dfam.t_family_has_search_stage.c.family_id == bindparam("id"))
+
+    buffer_stage_query = bakery(lambda s: s.query(
+        dfam.FamilyHasBufferStage.repeatmasker_stage_id,
+        dfam.FamilyHasBufferStage.start_pos,
+        dfam.FamilyHasBufferStage.end_pos,
+    ))
+    buffer_stage_query += lambda q: q.filter(dfam.FamilyHasBufferStage.family_id == bindparam("id"))
+
+    assembly_data_query = bakery(lambda s: s.query(
+        dfam.Assembly.dfam_taxdb_tax_id,
+        dfam.FamilyAssemblyDatum.hmm_hit_GA,
+        dfam.FamilyAssemblyDatum.hmm_hit_TC,
+        dfam.FamilyAssemblyDatum.hmm_hit_NC,
+        dfam.FamilyAssemblyDatum.hmm_fdr,
+    ))
+    assembly_data_query += lambda q: q.filter(dfam.FamilyAssemblyDatum.family_id == bindparam("id"))
+    assembly_data_query += lambda q: q.filter(dfam.Assembly.id == dfam.FamilyAssemblyDatum.assembly_id)
+
+    feature_query = bakery(lambda s: s.query(dfam.FamilyFeature))
+    feature_query += lambda q: q.filter(dfam.FamilyFeature.family_id == bindparam("id"))
+
+    feature_attr_query = bakery(lambda s: s.query(dfam.FeatureAttribute))
+    feature_attr_query += lambda q: q.filter(dfam.FeatureAttribute.family_feature_id == bindparam("id"))
+
+    cds_query = bakery(lambda s: s.query(dfam.CodingSequence))
+    cds_query += lambda q: q.filter(dfam.CodingSequence.family_id == bindparam("id"))
+
+    alias_query = bakery(lambda s: s.query(dfam.FamilyDatabaseAlia))
+    alias_query += lambda q: q.filter(dfam.FamilyDatabaseAlia.family_id == bindparam("id"))
+
+    citation_query = bakery(lambda s: s.query(
+        dfam.Citation.title,
+        dfam.Citation.authors,
+        dfam.Citation.journal,
+        dfam.FamilyHasCitation.order_added,
+    ))
+    citation_query += lambda q: q.filter(dfam.Citation.pmid == dfam.FamilyHasCitation.citation_pmid)
+    citation_query += lambda q: q.filter(dfam.FamilyHasCitation.family_id == bindparam("id"))
+
+    hmm_query = bakery(lambda s: s.query(dfam.HmmModelDatum.hmm))
+    hmm_query += lambda q: q.filter(dfam.HmmModelDatum.family_id == bindparam("id"))
+
     for record in families_query:
         family = famdb.Family()
 
@@ -274,18 +329,12 @@ def iterate_db_families(session, tax_db, families_query):
 
         # clades and taxonomy links
         family.clades = []
-        for (clade_id,) in session.query(dfam.t_family_clade.c.dfam_taxdb_tax_id)\
-            .filter(dfam.t_family_clade.c.family_id == record.id)\
-            .all():
-
+        for (clade_id,) in clade_query(session).params(id=record.id).all():
             family.clades += [clade_id]
 
         # "SearchStages: A,B,C,..."
         ss_values = []
-        for (stage_id,) in session.query(dfam.t_family_has_search_stage.c.repeatmasker_stage_id)\
-            .filter(dfam.t_family_has_search_stage.c.family_id == record.id)\
-            .all():
-
+        for (stage_id,) in search_stage_query(session).params(id=record.id).all():
             ss_values += [str(stage_id)]
 
         if ss_values:
@@ -293,14 +342,7 @@ def iterate_db_families(session, tax_db, families_query):
 
         # "BufferStages:A,B,C[D-E],..."
         bs_values = []
-        for (stage_id, start_pos, end_pos) in session.query(
-                dfam.FamilyHasBufferStage.repeatmasker_stage_id,
-                dfam.FamilyHasBufferStage.start_pos,
-                dfam.FamilyHasBufferStage.end_pos,
-            )\
-            .filter(dfam.FamilyHasBufferStage.family_id == record.id)\
-            .all():
-
+        for (stage_id, start_pos, end_pos) in buffer_stage_query(session).params(id=record.id).all():
             if start_pos == 0 and end_pos == 0:
                 bs_values += [str(stage_id)]
             else:
@@ -312,17 +354,7 @@ def iterate_db_families(session, tax_db, families_query):
         # Taxa-specific thresholds. "ID, GA, TC, NC, fdr"
         th_values = []
 
-        for (tax_id, spec_ga, spec_tc, spec_nc, spec_fdr) in session.query(
-                dfam.Assembly.dfam_taxdb_tax_id,
-                dfam.FamilyAssemblyDatum.hmm_hit_GA,
-                dfam.FamilyAssemblyDatum.hmm_hit_TC,
-                dfam.FamilyAssemblyDatum.hmm_hit_NC,
-                dfam.FamilyAssemblyDatum.hmm_fdr,
-            )\
-            .filter(dfam.FamilyAssemblyDatum.family_id == record.id)\
-            .filter(dfam.Assembly.id == dfam.FamilyAssemblyDatum.assembly_id)\
-            .all():
-
+        for (tax_id, spec_ga, spec_tc, spec_nc, spec_fdr) in assembly_data_query(session).params(id=record.id).all():
             th_values += ["{}, {}, {}, {}, {}".format(tax_id, spec_ga, spec_tc, spec_nc, spec_fdr)]
             tax_db[tax_id].mark_ancestry_used()
 
@@ -330,10 +362,7 @@ def iterate_db_families(session, tax_db, families_query):
             family.taxa_thresholds = "\n".join(th_values)
 
         feature_values = []
-        for feature in session.query(dfam.FamilyFeature)\
-            .filter(dfam.FamilyFeature.family_id == record.id)\
-            .all():
-
+        for feature in feature_query(session).params(id=record.id).all():
             obj = {
                 "type": feature.feature_type,
                 "description": feature.description,
@@ -343,22 +372,15 @@ def iterate_db_families(session, tax_db, families_query):
                 "attributes": [],
             }
 
-            for attribute in session.query(dfam.FeatureAttribute)\
-                .filter(dfam.FeatureAttribute.family_feature_id == feature.id)\
-                .all():
-
+            for attribute in feature_attr_query(session).params(id=feature.id).all():
                 obj["attributes"] += [{"attribute": attribute.attribute, "value": attribute.value}]
-
             feature_values += [obj]
 
         if feature_values:
             family.features = json.dumps(feature_values)
 
         cds_values = []
-        for cds in session.query(dfam.CodingSequence)\
-            .filter(dfam.CodingSequence.family_id == record.id)\
-            .all():
-
+        for cds in cds_query(session).params(id=record.id).all():
             obj = {
                 "product": cds.product,
                 "translation": cds.translation,
@@ -387,25 +409,14 @@ def iterate_db_families(session, tax_db, families_query):
         # External aliases
 
         alias_values = []
-        for alias in session.query(dfam.FamilyDatabaseAlia)\
-            .filter(dfam.FamilyDatabaseAlia.family_id == record.id)\
-            .all():
-
+        for alias in alias_query(session).params(id=record.id).all():
             alias_values += ["%s: %s" % (alias.db_id, alias.db_link)]
 
         if alias_values:
             family.aliases = "\n".join(alias_values)
 
         citation_values = []
-        for citation in session.query(
-                dfam.Citation.title,
-                dfam.Citation.authors,
-                dfam.Citation.journal,
-                dfam.FamilyHasCitation.order_added,
-            ).filter(dfam.Citation.pmid == dfam.FamilyHasCitation.citation_pmid)\
-            .filter(dfam.FamilyHasCitation.family_id == record.id)\
-            .all():
-
+        for citation in citation_query(session).params(id=record.id).all():
             obj = {
                 "title": citation.title,
                 "authors": citation.authors,
@@ -419,8 +430,7 @@ def iterate_db_families(session, tax_db, families_query):
 
         # MODEL DATA + METADATA
 
-        hmm = session.query(dfam.HmmModelDatum.hmm).filter(
-            dfam.HmmModelDatum.family_id == record.id).one_or_none()
+        hmm = hmm_query(session).params(id=record.id).one_or_none()
         if hmm:
             family.model = gzip.decompress(hmm[0]).decode()
 
