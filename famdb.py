@@ -688,8 +688,8 @@ class FamDB:
             self.__write_metadata()
         elif self.mode == "a":
             self.seen = {}
-            self.seen["name"] = list(self.group_byname.keys())
-            self.seen["accession"] = list(self.group_byaccession.keys())
+            self.seen["name"] = set(self.group_byname.keys())
+            self.seen["accession"] = set(self.group_byaccession.keys())
 
             self.added = self.get_counts()
 
@@ -755,12 +755,12 @@ class FamDB:
         seen = self.seen
         value = getattr(family, key)
         if key not in seen:
-            seen[key] = []
+            seen[key] = set()
 
         if value in seen[key]:
             raise Exception("Family is not unique! Already seen {}: {}".format(key, value))
 
-        seen[key] += [value]
+        seen[key].add(value)
 
     def add_family(self, family):
         """Adds the family described by 'family' to the database."""
