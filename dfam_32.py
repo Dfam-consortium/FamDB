@@ -125,6 +125,14 @@ class RepeatmaskerType(Base):
     description = Column(String(128))
 
 
+class SourceMethod(Base):
+    __tablename__ = 'source_method'
+
+    id = Column(BIGINT(20), primary_key=True)
+    name = Column(String(45))
+    description = Column(String(255))
+
+
 class Wikipedia(Base):
     __tablename__ = 'wikipedia'
 
@@ -142,9 +150,10 @@ class Assembly(Base):
     name = Column(String(45), nullable=False, unique=True)
     description = Column(String(100))
     dfam_taxdb_tax_id = Column(ForeignKey('dfam_taxdb.tax_id'), nullable=False, index=True)
-    source = Column(Enum('ensembl', 'ensembl_genomes', 'broad', 'ncbi', 'ucsc', 'baylor'))
+    source = Column(String(20))
     release_date = Column(DateTime)
     version = Column(String(45))
+    uri = Column(Text)
     schema_name = Column(String(45))
     visible = Column(INTEGER(11), server_default=text("'0'"))
     display_order = Column(INTEGER(11), server_default=text("'0'"))
@@ -212,25 +221,15 @@ class Family(Base):
     seed_ref = Column(MEDIUMTEXT)
     title = Column(String(80))
     curation_notes = Column(Text)
+    source_method_id = Column(ForeignKey('source_method.id'), index=True)
+    source_method_desc = Column(Text)
+    source_assembly_id = Column(ForeignKey('assembly.id'), index=True)
 
     classification = relationship('Classification')
     curation_state = relationship('CurationState')
+    source_assembly = relationship('Assembly')
+    source_method = relationship('SourceMethod')
     repeatmasker_stages = relationship('RepeatmaskerStage', secondary='family_has_search_stage')
-
-
-class HmmModelDatum(Family):
-    __tablename__ = 'hmm_model_data'
-
-    family_id = Column(ForeignKey('family.id'), primary_key=True)
-    hmm_logo = Column(LONGBLOB)
-    hmm = Column(LONGBLOB)
-
-
-class SeedAlignDatum(Family):
-    __tablename__ = 'seed_align_data'
-
-    family_id = Column(ForeignKey('family.id'), primary_key=True)
-    graph_json = Column(LONGBLOB, nullable=False)
 
 
 class CodingSequence(Base):
@@ -385,11 +384,31 @@ class FamilyOverlap(Base):
     family2 = relationship('Family', primaryjoin='FamilyOverlap.family2_id == Family.id')
 
 
+class HmmModelDatum(Base):
+    __tablename__ = 'hmm_model_data'
+
+    family_id = Column(ForeignKey('family.id'), primary_key=True)
+    hmm_logo = Column(LONGBLOB)
+    hmm = Column(LONGBLOB)
+
+    family = relationship('Family', uselist=False)
+
+
+class SeedAlignDatum(Base):
+    __tablename__ = 'seed_align_data'
+
+    family_id = Column(ForeignKey('family.id'), primary_key=True)
+    graph_json = Column(LONGBLOB, nullable=False)
+    avg_kimura_divergence = Column(Float)
+
+    family = relationship('Family', uselist=False)
+
+
 t_seed_region = Table(
     'seed_region', metadata,
     Column('family_id', ForeignKey('family.id'), nullable=False, index=True),
     Column('assembly_id', ForeignKey('assembly.id'), nullable=False, index=True),
-    Column('seq_id', String(50), nullable=False),
+    Column('seq_id', String(128), nullable=False),
     Column('seq_start', BIGINT(20)),
     Column('seq_end', BIGINT(20)),
     Column('a3m_seq', Text, nullable=False),

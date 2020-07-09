@@ -166,6 +166,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
         FamilyField("citations", str),
         FamilyField("refineable", bool),
         FamilyField("target_site_cons", str),
+        # TODO: add source_assembly, source_method?
 
         # Metadata available when a model is present
         FamilyField("model", str),

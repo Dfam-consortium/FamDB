@@ -47,7 +47,7 @@ import sqlalchemy
 from sqlalchemy import bindparam
 from sqlalchemy.ext import baked
 
-import dfam_31 as dfam
+import dfam_32 as dfam
 import famdb
 
 LOGGER = logging.getLogger(__name__)
