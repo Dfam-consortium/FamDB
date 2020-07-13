@@ -83,3 +83,12 @@ Filters:
     term.
   * `--class <class>`: Includes only families whose class starts with the
     specified *repeatmasker type*.
+
+## Developing
+
+### Unit Tests
+
+Unit tests are written with Python's `unittest` package, and the test modules
+are named in a way that is discoverable by `unittest` automatically:
+
+`python3 -m unittest`
