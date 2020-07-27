@@ -176,3 +176,14 @@ GCAACGTTGCAACGTTG
             fam.to_fasta(mockdb()),
             ">Test10\nACGT\n"
         )
+
+    def test_without_version(self):
+        fam = Family()
+        fam.accession = "Test11"
+        fam.clades = []
+        fam.consensus = "acgt"
+
+        self.assertEqual(
+            fam.to_fasta(mockdb(), use_accession=True),
+            ">Test11\nACGT\n"
+        )

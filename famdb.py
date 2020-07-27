@@ -205,9 +205,19 @@ class Family:  # pylint: disable=too-many-instance-attributes
                     name, expected_type, type(value))) from exc
         super().__setattr__(name, value)
 
+    def accession_with_optional_version(self):
+        """
+        Returns the accession of 'self', with '.version' appended if the version is known.
+        """
+
+        acc = self.accession
+        if self.version is not None:
+            acc += "." + str(self.version)
+        return acc
+
     # A useful string representation for debugging, but not much else
     def __str__(self):
-        return "%s.%d '%s': %s len=%d" % (self.accession, self.version or 0,
+        return "%s.%s '%s': %s len=%d" % (self.accession, self.version,
                                           self.name, self.classification, self.length or -1)
 
     def to_dfam_hmm(self, famdb, species=None, include_class_in_name=False):  # pylint: disable=too-many-locals,too-many-branches
@@ -259,7 +269,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
                     name = name + "#" + rm_class
 
                 append("NAME", name)
-                append("ACC", "%s.%d" % (self.accession, self.version or 0))
+                append("ACC", self.accession_with_optional_version())
                 append("DESC", self.title)
             elif any(map(line.startswith, ["NAME", "ACC", "DESC"])):
                 # Correct version of this line was output already
@@ -347,7 +357,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
         sequence = sequence.upper()
 
         if use_accession:
-            identifier = "%s.%d" % (self.accession, self.version or 0)
+            identifier = self.accession_with_optional_version()
         else:
             identifier = self.name or self.accession
 
@@ -431,8 +441,11 @@ class Family:  # pylint: disable=too-many-instance-attributes
                 out += textwrap.indent(textwrap.fill(str(text), width=72), prefix)
                 out += "\n"
 
-        append("ID", "%s; SV %d; linear; DNA; STD; UNC; %d BP." %
-               (self.accession, self.version or 0, len(sequence)))
+        id_line = self.accession
+        if self.version is not None:
+            id_line += "; SV " + str(self.version)
+
+        append("ID", "%s; linear; DNA; STD; UNC; %d BP." % (id_line, len(sequence)))
         append("NM", self.name)
         out += "XX\n"
         append("AC", self.accession + ';')
