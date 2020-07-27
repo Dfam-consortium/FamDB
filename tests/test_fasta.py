@@ -18,7 +18,7 @@ class TestFASTA(unittest.TestCase):
         )
         self.assertEqual(
             fam.to_fasta(None, use_accession=True),
-            ">TEST0001.1\nACGTAAAA\n"
+            ">TEST0001.1 name=Test1\nACGTAAAA\n"
         )
 
     def test_classname(self):
@@ -120,7 +120,7 @@ ACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCA
                 buffer=True,
             ),
             """\
->TEST0007.7#buffer @A_Clade @Another_Clade_3.
+>TEST0007.7#buffer name=Test7 @A_Clade @Another_Clade_3.
 ACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGT
 TGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCA
 ACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCA
@@ -136,7 +136,7 @@ ACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCA
                 buffer=[23, 39],
             ),
             """\
->TEST0007.7_23_39#buffer (anti) @A_Clade @Another_Clade_3.
+>TEST0007.7_23_39#buffer (anti) name=Test7 @A_Clade @Another_Clade_3.
 GCAACGTTGCAACGTTG
 """
         )

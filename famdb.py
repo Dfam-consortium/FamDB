@@ -388,6 +388,9 @@ class Family:  # pylint: disable=too-many-instance-attributes
         if do_reverse_complement:
             header += " (anti)"
 
+        if use_accession and self.name:
+            header += " name=" + self.name
+
         for clade_id in self.clades:
             clade_name = famdb.get_sanitized_name(clade_id)
             header += " @" + clade_name
