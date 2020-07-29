@@ -1641,7 +1641,7 @@ def main():
     p_family.add_argument("term", help="the accession of the family to be retrieved")
     p_family.set_defaults(func=command_family)
 
-    p_append = subparsers.add_parser("append", help=argparse.SUPPRESS)
+    p_append = subparsers.add_parser("append")
     p_append.add_argument("infile", help="the name of the input file to be appended")
     p_append.set_defaults(func=command_append)
 

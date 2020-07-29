@@ -7,7 +7,6 @@ positional arguments:
   {info,names,lineage,families,family,append}
                         Specifies the kind of query to perform. For more
                         information, run e.g. famdb.py lineage --help
-    append              ==SUPPRESS==
 
 optional arguments:
   -h, --help            show this help message and exit
