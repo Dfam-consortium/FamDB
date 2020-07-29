@@ -5,7 +5,7 @@ import unittest
 
 from famdb import Family, FamDB
 
-# lightweight taxonomy node with the minimum required by
+# lightweight taxonomy node with the minimum required by FamDB
 class TaxNode:
     def __init__(self, tax_id, parent, sci_name):
         self.tax_id = tax_id
@@ -13,7 +13,7 @@ class TaxNode:
             self.parent_id = None
         else:
             self.parent_id = parent.tax_id
-        self.names = [["scientific name"], sci_name]
+        self.names = [["scientific name", sci_name]]
 
         self.parent_node = parent
         self.children = []
@@ -35,7 +35,9 @@ def make_family(acc, clades, consensus, model):
     return fam
 
 class TestDatabase(unittest.TestCase):
-    def test_metadata(self):
+    # Set up a single database file shared by all tests in this class
+    @classmethod
+    def setUpClass(cls):
         fd, filename = tempfile.mkstemp()
         os.close(fd)
 
@@ -56,16 +58,29 @@ class TestDatabase(unittest.TestCase):
             for fam in families:
                 db.add_family(fam)
 
-            root = TaxNode(1, None, "root")
-            t2 = TaxNode(2, root, "Clade 2")
-            t3 = TaxNode(3, root, "Third Clade")
-            t4 = TaxNode(4, t3, "Unused Clade")
-            t4.used = False
+            taxa = {}
+            taxa[1] = TaxNode(1, None, "root")
+            taxa[2] = TaxNode(2, taxa[1], "Clade 2")
+            taxa[3] = TaxNode(3, taxa[1], "Third Clade")
+            taxa[4] = TaxNode(4, taxa[3], "Unused Clade")
+            taxa[4].used = False
+            taxa[5] = TaxNode(5, taxa[3], "Drosophila <flies>")
+            taxa[6] = TaxNode(6, taxa[3], "Drosophila <fungus>")
 
-            db.write_taxonomy({1: root, 2: t2, 3: t3, 4: t4})
+            db.write_taxonomy(taxa)
             db.finalize()
 
-        with FamDB(filename, "r") as db:
+        TestDatabase.filename = filename
+
+    @classmethod
+    def tearDownClass(cls):
+        filename = TestDatabase.filename
+        TestDatabase.filename = None
+
+        os.remove(filename)
+
+    def test_metadata(self):
+        with FamDB(TestDatabase.filename, "r") as db:
             self.assertEqual(db.get_db_info(), {
                 "name": "Test",
                 "version": "V1",
@@ -78,4 +93,61 @@ class TestDatabase(unittest.TestCase):
                 "hmm": 3,
             })
 
-        os.remove(filename)
+    def test_species_lookup(self):
+        with FamDB(TestDatabase.filename, "r") as db:
+            self.assertEqual(list(db.search_taxon_names("Clade")), [
+                [2, False],
+                [3, False],
+            ])
+
+            self.assertEqual(list(db.search_taxon_names("Third Clade")), [
+                [3, True],
+            ])
+
+            self.assertEqual(list(db.search_taxon_names("Tardigrade", search_similar=True)), [
+                [3, False],
+            ])
+
+            self.assertEqual(
+                list(db.search_taxon_names("Drosophila", "scientific name")),
+                [
+                    [5, True],
+                    [6, True],
+                ]
+            )
+
+            # TODO: not being tested: some of these print disambiguations to stdout
+
+            self.assertEqual(db.resolve_species(3), [[3, True]])
+            self.assertEqual(db.resolve_one_species(3), 3)
+            self.assertEqual(db.resolve_species(999), [])
+            self.assertEqual(db.resolve_one_species(999), None)
+
+            self.assertEqual(db.resolve_species("Tardigrade"), [])
+            self.assertEqual(db.resolve_one_species("Tardigrade"), None)
+
+            self.assertEqual(db.resolve_species("Mus musculus"), [])
+            self.assertEqual(db.resolve_one_species("Mus musculus"), None)
+
+            self.assertEqual(db.resolve_species("Tardigrade", search_similar=True), [[3, False]])
+            self.assertEqual(db.resolve_one_species("Tardigrade"), None)
+
+            self.assertEqual(db.resolve_species("Drosophila", kind="scientific name"), [[5, True], [6, True]])
+            self.assertEqual(db.resolve_one_species("Drosophila", kind="scientific name"), None)
+
+            self.assertEqual(db.resolve_species("hird"), [[3, False]])
+            self.assertEqual(db.resolve_one_species("hird"), 3)
+
+    def test_lineage(self):
+        with FamDB(TestDatabase.filename, "r") as db:
+            self.assertEqual(db.get_lineage(1, descendants=True), [1, [2], [3, [5], [6]]])
+            self.assertEqual(db.get_lineage(3), [3])
+            self.assertEqual(db.get_lineage(6, ancestors=True), [1, [3, [6]]])
+
+            self.assertEqual(db.get_lineage_path(3), ["root", "Third Clade"])
+
+            # test caching in get_lineage_path
+            self.assertEqual(db.get_lineage_path(3), ["root", "Third Clade"])
+
+            # test lookup without cache
+            self.assertEqual(db.get_lineage_path(3, False), ["root", "Third Clade"])

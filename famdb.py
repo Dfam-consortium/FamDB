@@ -934,7 +934,7 @@ class FamDB:
         try:
             tax_id = int(term)
             if self.has_taxon(tax_id):
-                return [(tax_id, True)]
+                return [[tax_id, True]]
 
             return []
         except ValueError:
@@ -991,7 +991,7 @@ class FamDB:
         if len(results) == 0:
             print("No species found for search term '{}'".format(term), file=sys.stderr)
         elif len(results) == 1:
-            return results[0]
+            return results[0][0]
         else:
             print("""Ambiguous search term '{}' (found {} results).
 Please use a more specific name or taxa ID, which can be looked
