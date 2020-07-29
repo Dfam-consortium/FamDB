@@ -1159,8 +1159,8 @@ up with the 'names' command."""
             descendants = True
         else:
             tax_id = kwargs["tax_id"]
-            ancestors = kwargs["ancestors"] or False
-            descendants = kwargs["descendants"] or False
+            ancestors = kwargs.get("ancestors") or False
+            descendants = kwargs.get("descendants") or False
 
         # Define family filters (logically ANDed together)
         filters = []
@@ -1205,37 +1205,36 @@ up with the 'names' command."""
 
         seen = set()
 
-        # special case: Searching the whole database in a specific
-        # stage only is a common usage pattern in RepeatMasker.
-        # When searching the whole database instead of a species,
-        # the number of accessions to read through is shorter
-        # when going off of only the stage indexes.
-        if tax_id == 1 and descendants and filter_stages \
-                and not filter_repeat_type and not filter_name:
-            for stage in filter_stages:
-                grp = self.group_bystage.get(stage)
-                if grp:
-                    for accession in grp.keys():
-                        if accession in seen:
-                            continue
-                        seen.add(accession)
+        def iterate_accs():
+            # special case: Searching the whole database in a specific
+            # stage only is a common usage pattern in RepeatMasker.
+            # When searching the whole database instead of a species,
+            # the number of accessions to read through is shorter
+            # when going off of only the stage indexes.
+            if tax_id == 1 and descendants and filter_stages \
+                    and not filter_repeat_type and not filter_name:
+                for stage in filter_stages:
+                    grp = self.group_bystage.get(stage)
+                    if grp:
+                        yield from grp.keys()
+            else:
+                lineage = self.get_lineage(tax_id, ancestors=ancestors, descendants=descendants)
+                for node in walk_tree(lineage):
+                    yield from self.get_families_for_taxon(node)
 
-                        yield accession
-        else:
-            lineage = self.get_lineage(tax_id, ancestors=ancestors, descendants=descendants)
-            for node in walk_tree(lineage):
-                for accession in self.get_families_for_taxon(node):
-                    if accession in seen:
-                        continue
 
-                    seen.add(accession)
-                    family = self.file["Families"].get(accession)
-                    match = True
-                    for filt in filters:
-                        if not filt(accession, family):
-                            match = False
-                    if match:
-                        yield accession
+        for accession in iterate_accs():
+            if accession in seen:
+                continue
+            seen.add(accession)
+
+            family = self.file["Families"].get(accession)
+            match = True
+            for filt in filters:
+                if not filt(accession, family):
+                    match = False
+            if match:
+                yield accession
 
     def get_family_names(self):
         """Returns a list of names of families in the database."""
