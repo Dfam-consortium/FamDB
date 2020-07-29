@@ -54,6 +54,8 @@ class TestDatabase(unittest.TestCase):
             families[1].name = None
             families[2].search_stages = "30,40"
             families[3].buffer_stages = "10[1-2],10[5-8],20"
+            families[3].search_stages = "35"
+            families[3].repeat_type = "SINE"
 
             for fam in families:
                 db.add_family(fam)
@@ -137,6 +139,34 @@ class TestDatabase(unittest.TestCase):
 
             self.assertEqual(db.resolve_species("hird"), [[3, False]])
             self.assertEqual(db.resolve_one_species("hird"), 3)
+
+    def test_taxa_queries(self):
+        with FamDB(TestDatabase.filename, "r") as db:
+            self.assertEqual(db.get_taxon_name(3), "Third Clade")
+            self.assertEqual(db.get_sanitized_name(5), "Drosophila_flies")
+
+    def test_family_queries(self):
+        with FamDB(TestDatabase.filename, "r") as db:
+            self.assertEqual(list(db.get_families_for_taxon(3)), ["TEST0002", "TEST0003"])
+            self.assertEqual(
+                list(db.get_accessions_filtered(tax_id=3)),
+                ["TEST0002", "TEST0003"],
+            )
+            self.assertEqual(
+                list(db.get_accessions_filtered(tax_id=3, ancestors=True)),
+                ["TEST0001", "TEST0002", "TEST0003"],
+            )
+            self.assertEqual(
+                sorted(list(db.get_accessions_filtered())),
+                ["TEST0001", "TEST0002", "TEST0003", "TEST0004"],
+            )
+            self.assertEqual(list(db.get_accessions_filtered(stage=30)), ["TEST0003"])
+            self.assertEqual(list(db.get_accessions_filtered(stage=10)), ["TEST0004"])
+            self.assertEqual(list(db.get_accessions_filtered(stage=10, is_hmm=True)), [])
+            self.assertEqual(list(db.get_accessions_filtered(name="Test family TEST0004")), ["TEST0004"])
+            self.assertEqual(list(db.get_accessions_filtered(repeat_type="SINE")), ["TEST0004"])
+            self.assertEqual(list(db.get_accessions_filtered(stage=80, tax_id=2)), ["TEST0002", "TEST0004"])
+            self.assertEqual(list(db.get_accessions_filtered(stage=95, tax_id=2)), ["TEST0004"])
 
     def test_lineage(self):
         with FamDB(TestDatabase.filename, "r") as db:
