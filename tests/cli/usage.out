@@ -1,0 +1,15 @@
+usage: famdb.py [-h] [-l LOG_LEVEL] [-i FILE]
+                {info,names,lineage,families,family,append} ...
+
+Queries the contents of a famdb file.
+
+positional arguments:
+  {info,names,lineage,families,family,append}
+                        Specifies the kind of query to perform. For more
+                        information, run e.g. famdb.py lineage --help
+    append              ==SUPPRESS==
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -l LOG_LEVEL, --log-level LOG_LEVEL
+  -i FILE, --file FILE  specifies the file to query
