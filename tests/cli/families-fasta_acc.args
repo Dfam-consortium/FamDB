@@ -1,0 +1,6 @@
+families
+--format
+fasta_acc
+--add-reverse-complement
+-a
+3

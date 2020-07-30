@@ -1,0 +1,8 @@
+>TEST0001.1 name=Test family TEST0001 @root
+ACGT
+>TEST0001.1 (anti) name=Test family TEST0001 @root
+ACGT
+>TEST0003.1 name=Test family TEST0003 @Third_Clade [S:30,40]
+GGTC
+>TEST0003.1 (anti) name=Test family TEST0003 @Third_Clade [S:30,40]
+GACC

@@ -312,7 +312,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
         if self.search_method:
             append("SM", self.search_method)
 
-        append("CT", self.classification.replace("root;", ""))
+        append("CT", (self.classification and self.classification.replace("root;", "")))
 
         for clade_id in self.clades:
             tax_name = famdb.get_sanitized_name(clade_id)
@@ -1479,14 +1479,14 @@ def print_families(args, families, header, species=None):
                     use_accession=use_accession,
                     include_class_in_name=args.include_class_in_name,
                     buffer=buffer_spec
-                )
+                ) or ""
 
                 if args.add_reverse_complement:
                     entry += family.to_fasta(args.file,
                                              use_accession=use_accession,
                                              include_class_in_name=args.include_class_in_name,
                                              do_reverse_complement=True,
-                                             buffer=buffer_spec)
+                                             buffer=buffer_spec) or ""
         elif args.format == "embl":
             entry = family.to_embl(args.file)
         elif args.format == "embl_meta":
