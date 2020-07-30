@@ -1,5 +1,6 @@
 families
 --format
 fasta_name
+--curated
 -a
 6

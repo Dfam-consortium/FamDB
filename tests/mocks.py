@@ -98,6 +98,8 @@ def init_db_file(filename):
             make_family("TEST0002", [2, 3], None, "<model2>"),
             make_family("TEST0003", [3], "GGTC", "<model3>"),
             make_family("TEST0004", [2], "CCCCTTTT", None),
+            make_family("DR0000001", [6], "GCATATCG", None),
+            make_family("DR_Repeat1", [5], "CGACTAT", None),
         ]
 
         families[1].name = None

@@ -33,7 +33,7 @@ class TestDatabase(unittest.TestCase):
                 "copyright": "<copyright header>",
             })
             self.assertEqual(db.get_counts(), {
-                "consensus": 3,
+                "consensus": 5,
                 "hmm": 3,
             })
 
@@ -100,7 +100,7 @@ class TestDatabase(unittest.TestCase):
             )
             self.assertEqual(
                 sorted(list(db.get_accessions_filtered())),
-                ["TEST0001", "TEST0002", "TEST0003", "TEST0004"],
+                ["DR0000001", "DR_Repeat1", "TEST0001", "TEST0002", "TEST0003", "TEST0004"],
             )
             self.assertEqual(list(db.get_accessions_filtered(stage=30)), ["TEST0003"])
             self.assertEqual(list(db.get_accessions_filtered(stage=10)), ["TEST0004"])
@@ -109,6 +109,9 @@ class TestDatabase(unittest.TestCase):
             self.assertEqual(list(db.get_accessions_filtered(repeat_type="SINE")), ["TEST0004"])
             self.assertEqual(list(db.get_accessions_filtered(stage=80, tax_id=2)), ["TEST0002", "TEST0004"])
             self.assertEqual(list(db.get_accessions_filtered(stage=95, tax_id=2)), ["TEST0004"])
+            self.assertEqual(list(db.get_accessions_filtered(tax_id=6, curated_only=True)), [])
+            self.assertEqual(list(db.get_accessions_filtered(tax_id=6, curated_only=False)), ["DR0000001"])
+            self.assertEqual(list(db.get_accessions_filtered(tax_id=5, curated_only=True)), ["DR_Repeat1"])
 
     def test_lineage(self):
         with FamDB(TestDatabase.filename, "r") as db:

@@ -1131,6 +1131,23 @@ up with the 'names' command."""
 
         return False
 
+    @staticmethod
+    def __filter_curated(accession):
+        """
+        Returns True if the family is "curated".
+
+        Families are currently assumed to be curated unless their name is of the
+        form DR<7 digits> and have a version.
+
+        TODO: perhaps this should be a dedicated 'curated' boolean field on Family
+        """
+
+        if len(accession) == 9 and accession.startswith("DR"):
+            # any non-digit makes this "curated"
+            return any([ch not in "0123456789" for ch in accession[2:]])
+
+        return True
+
     def get_accessions_filtered(self, **kwargs):
         """
         Returns an iterator that yields accessions for the given search terms.
@@ -1141,6 +1158,7 @@ up with the 'names' command."""
             descendants: boolean, default False
                 If none of (tax_id, ancestors, descendants) are
                 specified, *all* families will be checked.
+            curated_only = boolean
             stage = int
             is_hmm = boolean
             repeat_type = string (prefix)
@@ -1164,6 +1182,9 @@ up with the 'names' command."""
 
         # Define family filters (logically ANDed together)
         filters = []
+
+        if kwargs.get("curated_only"):
+            filters += [lambda a, f: self.__filter_curated(a)]
 
         filter_stage = kwargs.get("stage")
         filter_stages = None
@@ -1527,6 +1548,7 @@ def command_families(args):
     accessions = sorted(args.file.get_accessions_filtered(tax_id=target_id,
                                                           descendants=args.descendants,
                                                           ancestors=args.ancestors,
+                                                          curated_only=args.curated,
                                                           is_hmm=is_hmm,
                                                           stage=args.stage,
                                                           repeat_type=args.repeat_type,
@@ -1628,6 +1650,8 @@ def main():
                             help="include only families that have the specified repeat type")
     p_families.add_argument("--name", type=str,
                             help="include only families whose name begins with this search term")
+    p_families.add_argument("--curated", action="store_true",
+                            help="include only 'curated' families (those not named DRXXXXXXX)")
     p_families.add_argument("-f", "--format", default="summary", choices=family_formats,
                             help="choose output format")
     p_families.add_argument("--add-reverse-complement", action="store_true", help=argparse.SUPPRESS)

@@ -1,4 +1,44 @@
 CC   <copyright header>
+ID   DR0000001; SV 1; linear; DNA; STD; UNC; 8 BP.
+NM   Test family DR0000001
+XX
+AC   DR0000001;
+XX
+XX
+KW   /.
+XX
+OS   Drosophila <fungus>
+OC   Third Clade.
+XX
+CC
+CC   RepeatMasker Annotations:
+CC        Type: 
+CC        SubType: 
+CC        Species: Drosophila_fungus
+CC        SearchStages: 
+CC        BufferStages: 
+XX
+//
+ID   DR_Repeat1; SV 1; linear; DNA; STD; UNC; 7 BP.
+NM   Test family DR_Repeat1
+XX
+AC   DR_Repeat1;
+XX
+XX
+KW   /.
+XX
+OS   Drosophila <flies>
+OC   Third Clade.
+XX
+CC
+CC   RepeatMasker Annotations:
+CC        Type: 
+CC        SubType: 
+CC        Species: Drosophila_flies
+CC        SearchStages: 
+CC        BufferStages: 
+XX
+//
 ID   TEST0003; SV 1; linear; DNA; STD; UNC; 4 BP.
 NM   Test family TEST0003
 XX
