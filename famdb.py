@@ -880,8 +880,8 @@ class FamDB:
         """
         Searches 'self' for taxons with a name containing 'text', returning an
         iterator that yields a tuple of (id, is_exact) for each matching node.
-        The same id can be returned more than once, and can furthermore be
-        returned both as an exact and a non-exact match.
+        Each id is returned at most once, and if any of its names are an exact
+        match the whole node is treated as an exact match.
 
         If 'similar' is True, names that sound similar will also be considered
         eligible.
@@ -893,11 +893,11 @@ class FamDB:
         text = text.lower()
 
         for tax_id, names in self.names_dump.items():
+            matches = False
+            exact = False
             for name_cls, name_txt in names:
                 name_txt = name_txt.lower()
                 if kind is None or kind == name_cls:
-                    matches = False
-                    exact = False
                     if text == name_txt:
                         matches = True
                         exact = True
@@ -906,13 +906,11 @@ class FamDB:
                         exact = True
                     elif text in name_txt:
                         matches = True
-                        exact = False
                     elif search_similar and sounds_like(text, name_txt):
                         matches = True
-                        exact = False
 
-                    if matches:
-                        yield [int(tax_id), exact]
+            if matches:
+                yield [int(tax_id), exact]
 
     def resolve_species(self, term, kind=None, search_similar=False):
         """
@@ -940,18 +938,14 @@ class FamDB:
         except ValueError:
             pass
 
-        # Perform a search by name, deduplicating with 'seen' and splitting
-        # between exact and inexact matches for sorting
-        seen = set()
+        # Perform a search by name, splitting between exact and inexact matches for sorting
         exact = []
         inexact = []
         for tax_id, is_exact in self.search_taxon_names(term, kind, search_similar):
-            if tax_id not in seen:
-                seen.add(tax_id)
-                if is_exact:
-                    exact += [tax_id]
-                else:
-                    inexact += [tax_id]
+            if is_exact:
+                exact += [tax_id]
+            else:
+                inexact += [tax_id]
 
         # Combine back into one list, with exact matches first
         results = [[tax_id, True] for tax_id in exact]
