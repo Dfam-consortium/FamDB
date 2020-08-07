@@ -990,10 +990,10 @@ class FamDB:
         elif len(results) == 1:
             return results[0][0]
         else:
-            print("""Ambiguous search term '{}' (found {} results).
+            print("""Ambiguous search term '{}' (found {} results, {} exact).
 Please use a more specific name or taxa ID, which can be looked
 up with the 'names' command."""
-                  .format(term, len(results)), file=sys.stderr)
+                  .format(term, len(results), len(exact_matches)), file=sys.stderr)
 
         return None
 
