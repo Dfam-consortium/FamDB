@@ -904,6 +904,9 @@ class FamDB:
                     elif name_txt.startswith(text + " <"):
                         matches = True
                         exact = True
+                    elif text == sanitize_name(name_txt):
+                        matches = True
+                        exact = True
                     elif text in name_txt:
                         matches = True
                     elif search_similar and sounds_like(text, name_txt):
