@@ -1315,16 +1315,26 @@ def command_names(args):
     """The 'names' command displays all names of all taxa that match the search term."""
 
     entries = []
-    for tax_id, _ in args.file.resolve_species(args.term):
+    for tax_id, is_exact in args.file.resolve_species(args.term):
         names = args.file.get_taxon_names(tax_id)
-        entries += [[tax_id, names]]
+        entries += [[tax_id, is_exact, names]]
 
     if args.format == "pretty":
-        for (tax_id, names) in entries:
+        prev_exact = None
+        for (tax_id, is_exact, names) in entries:
+            if is_exact != prev_exact:
+                if is_exact:
+                    print("Exact Matches\n=============")
+                else:
+                    if prev_exact:
+                        print()
+                    print("Non-exact Matches\n=================")
+                prev_exact = is_exact
+
             print(tax_id, ", ".join(["{1} ({0})".format(*n) for n in names]))
     elif args.format == "json":
         obj = []
-        for (tax_id, names) in entries:
+        for (tax_id, _, names) in entries:
             names_obj = [{"kind": name[0], "value": name[1]} for name in names]
             obj += [{"id": tax_id, "names": names_obj}]
         print(json.dumps(obj))
