@@ -1,0 +1,20 @@
+ID   TEST0001; SV 1; linear; DNA; STD; UNC; 4 BP.
+NM   Test family TEST0001
+XX
+AC   TEST0001;
+XX
+XX
+KW   /.
+XX
+XX
+CC
+CC   RepeatMasker Annotations:
+CC        Type: 
+CC        SubType: 
+CC        Species: root
+CC        SearchStages: 
+CC        BufferStages: 
+XX
+SQ   Sequence 4 BP; 1 A; 1 C; 1 G; 1 T; 0 other;
+     acgt                                                               4
+//

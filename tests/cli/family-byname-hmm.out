@@ -1,0 +1,8 @@
+<model3>
+MS    TaxId:3 TaxName:Third_Clade
+CC    RepeatMasker Annotations:
+CC         Type: 
+CC         SubType: 
+CC         Species: Third_Clade
+CC         SearchStages: 30,40
+CC         BufferStages: 
