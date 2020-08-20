@@ -1,10 +1,21 @@
 # FamDB
 
+## Overview
+
+FamDB is an HDF5-based export format and query tool developed for offline access
+to the [Dfam] database of transposable element and repetitive DNA families. At
+this time FamDB is intended for use as a "read-only" data store by tools
+such as [RepeatMasker] as an alternative to unindexed EMBL or HMM files.
+
+[Dfam]: https://www.dfam.org/
+[RepeatMasker]: http://www.repeatmasker.org/
+
 ## Getting Started
 
-`pip3 install --user h5py`
-
-`./famdb.py -h`
+```
+$ pip3 install --user h5py
+$ ./famdb.py -h
+```
 
 ## Usage
 
@@ -189,4 +200,6 @@ $ famdb.py -i dfam.h5 families -f embl_seq -a human
 Unit tests are written with Python's `unittest` package, and the test modules
 are named in a way that is discoverable by `unittest` automatically:
 
-`python3 -m unittest`
+```
+$ python3 -m unittest
+```
