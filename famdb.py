@@ -1202,17 +1202,17 @@ up with the 'names' command."""
         # HMM only: add a search stage filter to "un-list" families that were
         # allowed through only because they match in buffer stage
         if kwargs.get("is_hmm") and filter_stages:
-            filters += [lambda a, f: self.__filter_search_stages(f, filter_stages)]
+            filters += [lambda a, f: self.__filter_search_stages(f(), filter_stages)]
 
         filter_repeat_type = kwargs.get("repeat_type")
         if filter_repeat_type:
             filter_repeat_type = filter_repeat_type.lower()
-            filters += [lambda a, f: self.__filter_repeat_type(f, filter_repeat_type)]
+            filters += [lambda a, f: self.__filter_repeat_type(f(), filter_repeat_type)]
 
         filter_name = kwargs.get("name")
         if filter_name:
             filter_name = filter_name.lower()
-            filters += [lambda a, f: self.__filter_name(f, filter_name)]
+            filters += [lambda a, f: self.__filter_name(f(), filter_name)]
 
         # Recursive iterator flattener
         def walk_tree(tree):
@@ -1248,10 +1248,16 @@ up with the 'names' command."""
                 continue
             seen.add(accession)
 
-            family = self.file["Families"].get(accession)
+            cached_family = None
+            def family_getter():
+                nonlocal cached_family
+                if not cached_family:
+                    cached_family = self.file["Families"].get(accession)
+                return cached_family
+
             match = True
             for filt in filters:
-                if not filt(accession, family):
+                if not filt(accession, family_getter):
                     match = False
             if match:
                 yield accession
