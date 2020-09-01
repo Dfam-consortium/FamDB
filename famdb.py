@@ -1237,6 +1237,11 @@ up with the 'names' command."""
                     grp = self.file[FamDB.GROUP_FAMILIES_BYSTAGE].get(stage)
                     if grp:
                         yield from grp.keys()
+
+            # special case: Searching the whole database, going directly via
+            # Families/ is faster than repeatedly traversing the tree
+            elif tax_id == 1 and descendants:
+                yield from self.file[FamDB.GROUP_FAMILIES_BYACC].keys()
             else:
                 lineage = self.get_lineage(tax_id, ancestors=ancestors, descendants=descendants)
                 for node in walk_tree(lineage):
@@ -1268,7 +1273,7 @@ up with the 'names' command."""
 
     def get_family_accessions(self):
         """Returns a list of accessions for families in the database."""
-        return sorted(self.file[FamDB.GROUP_FAMILIES_BYACCESSION].keys(), key=str.lower)
+        return sorted(self.file[FamDB.GROUP_FAMILIES_BYACC].keys(), key=str.lower)
 
     @staticmethod
     def __get_family(entry):
