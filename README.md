@@ -3,8 +3,17 @@
 ## Overview
 
 FamDB is an HDF5-based export format and query tool developed for offline access
-to the [Dfam] database of transposable element and repetitive DNA families. At
-this time FamDB is intended for use as a "read-only" data store by tools
+to the [Dfam] database of transposable element and repetitive DNA families. FamDB stores family
+sequence models (profile HMMs, and consensus sequences), metadata including:
+
+ * Family names, aliases, description
+ * Classification
+ * Taxa
+ * Citations and attribution.
+ 
+In addition, FamDB stores a subset of the NCBI Taxonomy relevant to the family taxa represented
+in the file, facilitating quick extraction of species/clade-specific family libraries.  The query tool provides options for exporting search results in a variety of common formats including EMBL, FASTA, and HMMER HMM format.
+At this time FamDB is intended for use as a "read-only" data store by tools
 such as [RepeatMasker] as an alternative to unindexed EMBL or HMM files.
 
 [Dfam]: https://www.dfam.org/
