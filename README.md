@@ -183,7 +183,7 @@ additional filters.
 
 `famdb.py -i dfam.h5 families [-a] [-d]
   [--stage <st>] [--class <cl>] [--name <name>] [--curated]
-  [-f <format>]
+  [-f <format>] [--add-reverse-complement] [--include-class-in-name]
   <term>`
 
 `[-a]`, `[-d]` include ancestors/descendants as with lineage.
@@ -197,6 +197,13 @@ Filters:
   * `--name <name>`: Includes only families whose name starts with the search
     term.
   * `--curated`: Excludes uncurated entires (accession `DR_______`).
+
+Output options:
+  * `--add-reverse-complement` (`fasta` formats only): Adds a second copy of
+    each family found in the reverse complement; used internally by
+    RepeatMasker.
+  * `--include-class-in-name` (`fasta` and `hmm` formats only): Includes the
+    RepeatMasker type/subtype in the family name, e.g. `HERV16#LTR/ERVL`.
 
 ```
 $ famdb.py -i dfam.h5 families -f embl_seq -a human

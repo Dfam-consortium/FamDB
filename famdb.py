@@ -1687,8 +1687,8 @@ def main():
                             help="include only 'curated' families (those not named DRXXXXXXX)")
     p_families.add_argument("-f", "--format", default="summary", choices=family_formats,
                             help="choose output format")
-    p_families.add_argument("--add-reverse-complement", action="store_true", help=argparse.SUPPRESS)
-    p_families.add_argument("--include-class-in-name", action="store_true", help=argparse.SUPPRESS)
+    p_families.add_argument("--add-reverse-complement", action="store_true", help="include a reverse-complemented copy of each matching family; only suppported for fasta formats")
+    p_families.add_argument("--include-class-in-name", action="store_true", help="include the RepeatMasker type/subtype after the name (e.g. HERV16#LTR/ERVL); only supported for hmm and fasta formats")
     p_families.add_argument("term", help="search term. Can be an NCBI taxonomy identifier or an unambiguous scientific or common name")
     p_families.set_defaults(func=command_families)
 
