@@ -166,24 +166,22 @@ def mark_used_threshold(nodes, thresh):
 
 def count_extra_taxa(nodes, lookup, filename):
     """
-    Counts species assignments from the "Species:" lines of a
-    RepeatMasker-formatted EMBL file, to ensure that the necessary taxa are
-    included in the famdb file ahead of time to support merging and queries for
-    that dataset.
+    Counts species assignments from a file, to ensure that the necessary taxa
+    are included in the famdb file ahead of time to support merging and queries
+    for that dataset. Each line represents an entry, and is formatted as a
+    comma-separated list of "sanitized names".
     """
-    with open(filename) as embl_file:
-        for line in embl_file:
-            fields = line.lower().split(maxsplit=2)
-            if len(fields) > 2:
-                names = fields[2].split(",")
-                for name in names:
-                    name = name.strip()
-                    tax_id = lookup.get(name.strip())
-                    if tax_id:
-                        nodes[tax_id].mark_ancestry_used()
-                        nodes[tax_id].add_ancestral_total(1)
-                    else:
-                        LOGGER.warning("Could not find taxon for '%s'", name)
+    with open(filename) as file:
+        for line in file:
+            names = line.split(",")
+            for name in names:
+                name = name.strip()
+                tax_id = lookup.get(name)
+                if tax_id:
+                    nodes[tax_id].mark_ancestry_used()
+                    nodes[tax_id].add_ancestral_total(1)
+                else:
+                    LOGGER.warning("Could not find taxon for '%s'", name)
 
 
 class ClassificationNode:  # pylint: disable=too-few-public-methods
