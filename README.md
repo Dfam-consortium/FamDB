@@ -3,28 +3,46 @@
 ## Overview
 
 FamDB is an HDF5-based export format and query tool developed for offline access
-to the [Dfam] database of transposable element and repetitive DNA families. FamDB stores family
-sequence models (profile HMMs, and consensus sequences), metadata including:
+to the [Dfam] database of transposable element and repetitive DNA families.
+FamDB stores family sequence models (profile HMMs, and consensus sequences),
+metadata including:
 
  * Family names, aliases, description
  * Classification
  * Taxa
  * Citations and attribution.
- 
-In addition, FamDB stores a subset of the NCBI Taxonomy relevant to the family taxa represented
-in the file, facilitating quick extraction of species/clade-specific family libraries.  The query tool provides options for exporting search results in a variety of common formats including EMBL, FASTA, and HMMER HMM format.
-At this time FamDB is intended for use as a "read-only" data store by tools
-such as [RepeatMasker] as an alternative to unindexed EMBL or HMM files.
+
+In addition, FamDB stores a subset of the NCBI Taxonomy relevant to the family
+taxa represented in the file, facilitating quick extraction of
+species/clade-specific family libraries.  The query tool provides options for
+exporting search results in a variety of common formats including EMBL, FASTA,
+and HMMER HMM format.  At this time FamDB is intended for use as a "read-only"
+data store by tools such as [RepeatMasker] as an alternative to unindexed EMBL
+or HMM files.
 
 [Dfam]: https://www.dfam.org/
 [RepeatMasker]: http://www.repeatmasker.org/
 
-## Getting Started
+## Installation/Setup
 
-```
-$ pip3 install --user h5py
-$ ./famdb.py -h
-```
+### Dependencies
+
+* [`h5py`], to read and write files in HDF5 format
+
+    ```
+    $ pip3 install --user h5py
+    ```
+
+[`h5py`]: https://pypi.org/project/h5py/
+
+### famdb.py
+
+RepeatMasker includes a compatible version of famdb.py. This file should
+generally not be installed or upgraded manually.
+
+FamDB can also be downloaded separately. At this time, only the file famdb.py is
+needed. The latest development version is located here:
+<https://raw.githubusercontent.com/Dfam-consortium/FamDB/master/famdb.py>
 
 ## Usage
 
@@ -207,15 +225,4 @@ Output options:
 
 ```
 $ famdb.py -i dfam.h5 families -f embl_seq -a human
-```
-
-## Developing
-
-### Unit Tests
-
-Unit tests are written with Python's `unittest` package, and the test modules
-are named in a way that is discoverable by `unittest` automatically:
-
-```
-$ python3 -m unittest
 ```
