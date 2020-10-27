@@ -1131,21 +1131,24 @@ up with the 'names' command."""
         return False
 
     @staticmethod
-    def __filter_curated(accession):
+    def __filter_curated(accession, curated):
         """
-        Returns True if the family is "curated".
+        Returns True if the family's curatedness is the same as 'curated'. In
+        other words, 'curated=True' includes only curated familes and
+        'curated=False' includes only uncurated families.
 
         Families are currently assumed to be curated unless their name is of the
-        form DR<7 digits> and have a version.
+        form DR<7 digits>.
 
         TODO: perhaps this should be a dedicated 'curated' boolean field on Family
         """
 
-        if len(accession) == 9 and accession.startswith("DR"):
-            # any non-digit makes this "curated"
-            return any([ch not in "0123456789" for ch in accession[2:]])
+        is_curated = not (
+            accession.startswith("DR") and
+            len(accession) == 9 and
+            all((c >= "0" and c <= "9" for c in accession[2:])))
 
-        return True
+        return is_curated == curated
 
     def get_accessions_filtered(self, **kwargs):
         """
@@ -1158,6 +1161,7 @@ up with the 'names' command."""
                 If none of (tax_id, ancestors, descendants) are
                 specified, *all* families will be checked.
             curated_only = boolean
+            uncurated_only = boolean
             stage = int
             is_hmm = boolean
             repeat_type = string (prefix)
@@ -1183,7 +1187,9 @@ up with the 'names' command."""
         filters = []
 
         if kwargs.get("curated_only"):
-            filters += [lambda a, f: self.__filter_curated(a)]
+            filters += [lambda a, f: self.__filter_curated(a, True)]
+        if kwargs.get("uncurated_only"):
+            filters += [lambda a, f: self.__filter_curated(a, False)]
 
         filter_stage = kwargs.get("stage")
         filter_stages = None
@@ -1577,6 +1583,7 @@ def command_families(args):
                                                           descendants=args.descendants,
                                                           ancestors=args.ancestors,
                                                           curated_only=args.curated,
+                                                          uncurated_only=args.uncurated,
                                                           is_hmm=is_hmm,
                                                           stage=args.stage,
                                                           repeat_type=args.repeat_type,
@@ -1683,8 +1690,10 @@ def main():
                             help="include only families that have the specified repeat type")
     p_families.add_argument("--name", type=str,
                             help="include only families whose name begins with this search term")
+    p_families.add_argument("--uncurated", action="store_true",
+                            help="include only 'uncurated' families (i.e. named DRXXXXXXX)")
     p_families.add_argument("--curated", action="store_true",
-                            help="include only 'curated' families (those not named DRXXXXXXX)")
+                            help="include only 'curated' families (i.e. not named DRXXXXXXX)")
     p_families.add_argument("-f", "--format", default="summary", choices=family_formats,
                             help="choose output format")
     p_families.add_argument("--add-reverse-complement", action="store_true", help="include a reverse-complemented copy of each matching family; only suppported for fasta formats")
