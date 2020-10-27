@@ -1123,9 +1123,16 @@ up with the 'names' command."""
 
     @staticmethod
     def __filter_repeat_type(family, rtype):
-        """Returns True if the family's RepeatMasker Type starts with 'rtype'."""
+        """
+        Returns True if the family's RepeatMasker Type plus SubType
+        (e.g. "DNA/CMC-EnSpm") starts with 'rtype'.
+        """
         if family.attrs.get("repeat_type"):
-            if family.attrs["repeat_type"].lower().startswith(rtype):
+            full_type = family.attrs["repeat_type"]
+            if family.attrs.get("repeat_subtype"):
+                full_type = full_type + "/" + family.attrs["repeat_subtype"]
+
+            if full_type.lower().startswith(rtype):
                 return True
 
         return False
@@ -1687,7 +1694,7 @@ def main():
     p_families.add_argument("--stage", type=int,
                             help="include only families that should be searched in the given stage")
     p_families.add_argument("--class", dest="repeat_type", type=str,
-                            help="include only families that have the specified repeat type")
+                            help="include only families that have the specified repeat Type/SubType")
     p_families.add_argument("--name", type=str,
                             help="include only families whose name begins with this search term")
     p_families.add_argument("--uncurated", action="store_true",
