@@ -175,7 +175,7 @@ def count_extra_taxa(nodes, lookup, filename):
         for line in file:
             names = line.split(",")
             for name in names:
-                name = name.strip()
+                name = name.strip().lower()
                 tax_id = lookup.get(name)
                 if tax_id:
                     nodes[tax_id].mark_ancestry_used()
