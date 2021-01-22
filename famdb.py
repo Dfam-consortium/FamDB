@@ -677,12 +677,21 @@ class FamDB:
     GROUP_NODES = "Taxonomy/Nodes"
 
     def __init__(self, filename, mode="r"):
-        if mode not in ["r", "w", "a"]:
-            raise ValueError("Invalid file mode. Expected 'r' or 'w' or 'a', got '{}'".format(mode))
+        if mode == "r":
+            reading = True
 
-        reading = True
-        if mode == "w":
+            # If we definitely will not be writing to the file, optimistically assume
+            # nobody else is writing to it and disable file locking. File locking can
+            # be a bit flaky, especially on NFS, and is unnecessary unless there is
+            # a parallel writer (which is unlikely for famdb files).
+            os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
+
+        elif mode == "w":
             reading = False
+        elif mode == "a":
+            reading = True
+        else:
+            raise ValueError("Invalid file mode. Expected 'r' or 'w' or 'a', got '{}'".format(mode))
 
 
         self.filename = filename
