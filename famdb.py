@@ -43,6 +43,7 @@ import collections
 import datetime
 import json
 import logging
+import os
 import re
 import sys
 import textwrap
@@ -684,6 +685,7 @@ class FamDB:
             reading = False
 
 
+        self.filename = filename
         self.file = h5py.File(filename, mode)
         self.mode = mode
 
@@ -1322,6 +1324,7 @@ def command_info(args):
     counts = args.file.get_counts()
 
     print("""\
+File: {}
 Database: {}
 Version: {}
 Date: {}
@@ -1331,6 +1334,7 @@ Date: {}
 Total consensus sequences: {}
 Total HMMs: {}
 """.format(
+    os.path.realpath(args.file.filename),
     db_info["name"], db_info["version"],
     db_info["date"], db_info["description"],
     counts["consensus"], counts["hmm"]))
@@ -1722,6 +1726,16 @@ def main():
 
     args = parser.parse_args()
     logging.getLogger().setLevel(getattr(logging, args.log_level.upper()))
+
+    # For RepeatMasker: Try Libraries/RepeatMaskerLib.h5, if no file was specified
+    # in the arguments and that file exists.
+    if not args.file:
+        # sys.path[0], if non-empty, is initially set to the directory of the
+        # originally-invoked script.
+        if sys.path[0]:
+            default_file = os.path.join(sys.path[0], "Libraries/RepeatMaskerLib.h5")
+            if os.path.exists(default_file):
+                args.file = default_file
 
     if args.file:
         try:

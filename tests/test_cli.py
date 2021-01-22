@@ -56,9 +56,7 @@ class TestCliOutput(unittest.TestCase):
     # Set up a single database file shared by all tests in this class
     @classmethod
     def setUpClass(cls):
-        fd, filename = tempfile.mkstemp()
-        os.close(fd)
-
+        filename = "/tmp/famdbtestfile.h5"
         init_db_file(filename)
         TestCliOutput.filename = filename
 
