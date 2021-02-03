@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-    famdb.py
+    famdb.py, version 0.4.x
     Usage: famdb.py [-h] [-l LOG_LEVEL] command ...
 
 
