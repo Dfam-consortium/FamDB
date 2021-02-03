@@ -14,6 +14,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 - Disable HDF5's file locking when reading files, since it's unnecessary in
   that context and unreliable on some filesystems
+- Piping `famdb.py` to utilities that stop reading output early, such as
+  `head` or `less`, no longer produces a `BrokenPipeError`
 
 ## 0.4 - 2020-09-02
 - Initial release
