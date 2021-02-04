@@ -5,11 +5,6 @@ import unittest
 
 from .mocks import init_db_file
 
-# set to True to use 'coverage run' for each test
-COVERAGE = False
-# set to True to overwrite the expected output instead of comparing it
-OVERWRITE = False
-
 def test_one(t, filename, spec_path):
     out_path = spec_path.replace(".args", ".out")
     err_path = spec_path.replace(".args", ".err")
@@ -23,14 +18,14 @@ def test_one(t, filename, spec_path):
     args.insert(1, "--file")
     args.insert(2, filename)
 
-    if COVERAGE:
+    if os.environ.get("FAMDB_TEST_COVERAGE"):
         args.insert(0, "coverage")
         args.insert(1, "run")
 
     result = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     def compare_output(actual, expected_file):
-        if OVERWRITE:
+        if os.environ.get("FAMDB_TEST_BLESS"):
             if actual:
                 with open(expected_file, "wb") as expfile:
                     expfile.write(actual)

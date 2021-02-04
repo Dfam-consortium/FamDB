@@ -27,3 +27,10 @@ are named in a way that is discoverable by `unittest` automatically:
 ```
 $ python3 -m unittest
 ```
+
+The behavior of some tests can be controlled with these environment variables:
+
+* `FAMDB_TEST_COVERAGE`: If non-empty, runs sub-tests inside an invocation of
+  `coverage run`, so they can be included in coverage.
+* `FAMDB_TEST_BLESS`: If non-empty, "blesses" the current actual output of CLI
+  tests as the expected/desired output.
