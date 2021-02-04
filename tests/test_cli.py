@@ -3,7 +3,7 @@ import subprocess
 import tempfile
 import unittest
 
-from .mocks import init_db_file
+from .doubles import init_db_file
 
 def test_one(t, filename, spec_path):
     out_path = spec_path.replace(".args", ".out")

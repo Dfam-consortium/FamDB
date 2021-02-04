@@ -4,7 +4,7 @@ import tempfile
 import unittest
 
 from famdb import Family, FamDB
-from .mocks import init_db_file
+from .doubles import init_db_file
 
 class TestDatabase(unittest.TestCase):
     # Set up a single database file shared by all tests in this class

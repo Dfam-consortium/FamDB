@@ -1,7 +1,7 @@
 import unittest
 
 from famdb import Family
-from .mocks import mockdb
+from .doubles import fakedb
 
 class TestFASTA(unittest.TestCase):
     def test_simple(self):
@@ -64,7 +64,7 @@ class TestFASTA(unittest.TestCase):
         fam.consensus = "ACGT"
 
         self.assertEqual(
-            fam.to_fasta(mockdb()),
+            fam.to_fasta(fakedb()),
             ">Test4 @A_Clade @Another_Clade_3.\nACGT\n"
         )
 
@@ -77,7 +77,7 @@ class TestFASTA(unittest.TestCase):
         fam.consensus = "ACGTTGCA" * 20 # 160 bp total
 
         self.assertEqual(
-            fam.to_fasta(mockdb()),
+            fam.to_fasta(fakedb()),
             """\
 >Test5
 ACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGT
@@ -95,12 +95,12 @@ ACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCA
         fam.consensus = "AAAAGCGCGCAAAA"
 
         self.assertEqual(
-            fam.to_fasta(mockdb(), buffer=True),
+            fam.to_fasta(fakedb(), buffer=True),
             ">Test6#buffer\nAAAAGCGCGCAAAA\n"
         )
 
         self.assertEqual(
-            fam.to_fasta(mockdb(), buffer=[5, 10]),
+            fam.to_fasta(fakedb(), buffer=[5, 10]),
             ">Test6_5_10#buffer\nGCGCGC\n"
         )
 
@@ -114,7 +114,7 @@ ACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCA
 
         self.assertEqual(
             fam.to_fasta(
-                mockdb(),
+                fakedb(),
                 use_accession=True,
                 include_class_in_name=True,
                 buffer=True,
@@ -129,7 +129,7 @@ ACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCA
 
         self.assertEqual(
             fam.to_fasta(
-                mockdb(),
+                fakedb(),
                 use_accession=True,
                 include_class_in_name=True,
                 do_reverse_complement=True,
@@ -148,7 +148,7 @@ GCAACGTTGCAACGTTG
         fam.version = 8
         fam.clades = []
 
-        self.assertEqual(fam.to_fasta(mockdb()), None)
+        self.assertEqual(fam.to_fasta(fakedb()), None)
 
     def test_search_stages(self):
         fam = Family()
@@ -160,7 +160,7 @@ GCAACGTTGCAACGTTG
         fam.search_stages = "30,45"
 
         self.assertEqual(
-            fam.to_fasta(mockdb()),
+            fam.to_fasta(fakedb()),
             ">Test9 @A_Clade [S:30,45]\nACGT\n"
         )
 
@@ -173,7 +173,7 @@ GCAACGTTGCAACGTTG
         fam.consensus = "acgt"
 
         self.assertEqual(
-            fam.to_fasta(mockdb()),
+            fam.to_fasta(fakedb()),
             ">Test10\nACGT\n"
         )
 
@@ -184,6 +184,6 @@ GCAACGTTGCAACGTTG
         fam.consensus = "acgt"
 
         self.assertEqual(
-            fam.to_fasta(mockdb(), use_accession=True),
+            fam.to_fasta(fakedb(), use_accession=True),
             ">Test11\nACGT\n"
         )

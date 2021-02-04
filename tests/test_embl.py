@@ -2,7 +2,7 @@ import json
 import unittest
 
 from famdb import Family
-from .mocks import mockdb
+from .doubles import fakedb
 
 class TestEMBL(unittest.TestCase):
     def setUp(self):
@@ -19,7 +19,7 @@ class TestEMBL(unittest.TestCase):
         fam.repeat_subtype = "SubType"
 
         self.assertEqual(
-            fam.to_embl(mockdb()),
+            fam.to_embl(fakedb()),
             """\
 ID   TEST0001; SV 1; linear; DNA; STD; UNC; 8 BP.
 NM   Test1
@@ -57,7 +57,7 @@ SQ   Sequence 8 BP; 5 A; 1 C; 1 G; 1 T; 0 other;
         fam.repeat_subtype = "Multiline"
 
         self.assertEqual(
-            fam.to_embl(mockdb()),
+            fam.to_embl(fakedb()),
             """\
 ID   TEST0002; SV 2; linear; DNA; STD; UNC; 160 BP.
 NM   Test2
@@ -97,7 +97,7 @@ SQ   Sequence 160 BP; 40 A; 40 C; 40 G; 40 T; 0 other;
         fam.repeat_subtype = "Metadata"
 
         self.assertEqual(
-            fam.to_embl(mockdb(), include_seq=False),
+            fam.to_embl(fakedb(), include_seq=False),
             """\
 ID   TEST0003; SV 3; linear; DNA; STD; UNC; 8 BP.
 NM   Test3
@@ -133,7 +133,7 @@ XX
         fam.repeat_subtype = "SequenceOnly"
 
         self.assertEqual(
-            fam.to_embl(mockdb(), include_meta=False),
+            fam.to_embl(fakedb(), include_meta=False),
             """\
 ID   TEST0004; SV 4; linear; DNA; STD; UNC; 8 BP.
 NM   Test4
@@ -160,7 +160,7 @@ SQ   Sequence 8 BP; 2 A; 2 C; 2 G; 2 T; 0 other;
         fam.refineable = True
 
         self.assertEqual(
-            fam.to_embl(mockdb()),
+            fam.to_embl(fakedb()),
             """\
 ID   TEST0005; SV 5; linear; DNA; STD; UNC; 18 BP.
 NM   Test5
@@ -203,7 +203,7 @@ SQ   Sequence 18 BP; 4 A; 4 C; 4 G; 4 T; 2 other;
         fam.repeat_subtype = "RootTaxa"
 
         self.assertEqual(
-            fam.to_embl(mockdb(), include_seq=False),
+            fam.to_embl(fakedb(), include_seq=False),
             """\
 ID   TEST0006; SV 6; linear; DNA; STD; UNC; 16 BP.
 NM   Test6
@@ -252,7 +252,7 @@ XX
         ])
 
         self.assertEqual(
-            fam.to_embl(mockdb(), include_seq=False),
+            fam.to_embl(fakedb(), include_seq=False),
             """\
 ID   TEST0007; SV 7; linear; DNA; STD; UNC; 16 BP.
 NM   Test7
@@ -316,7 +316,7 @@ XX
         ])
 
         self.assertEqual(
-            fam.to_embl(mockdb(), include_seq=False),
+            fam.to_embl(fakedb(), include_seq=False),
             """\
 ID   TEST0008; SV 8; linear; DNA; STD; UNC; 16 BP.
 NM   Test8

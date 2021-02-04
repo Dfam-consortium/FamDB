@@ -2,7 +2,7 @@ import json
 import unittest
 
 from famdb import Family
-from .mocks import mockdb
+from .doubles import fakedb
 
 def test_family():
     fam = Family()
@@ -46,7 +46,7 @@ class TestHMM(unittest.TestCase):
         fam = test_family()
 
         self.assertEqual(
-            fam.to_dfam_hmm(mockdb()),
+            fam.to_dfam_hmm(fakedb()),
             """\
 HMMER3/f [3.1b2 | February 2015]
 NAME  TEST0001
@@ -92,7 +92,7 @@ HMM          A        C        G        T
         fam.general_cutoff = 25.67
 
         self.assertEqual(
-            fam.to_dfam_hmm(mockdb()),
+            fam.to_dfam_hmm(fakedb()),
             """\
 HMMER3/f [3.1b2 | February 2015]
 NAME  TEST0001
@@ -145,7 +145,7 @@ HMM          A        C        G        T
         fam.taxa_thresholds = "5,1.0,2.0,3.0,0.002\n3,1.0,2.0,3.0,0.002"
 
         self.assertEqual(
-            fam.to_dfam_hmm(mockdb(), species=3),
+            fam.to_dfam_hmm(fakedb(), species=3),
             """\
 HMMER3/f [3.1b2 | February 2015]
 NAME  TEST0001
@@ -190,7 +190,7 @@ HMM          A        C        G        T
         fam = test_family()
 
         self.assertEqual(
-            fam.to_dfam_hmm(mockdb(), include_class_in_name=True),
+            fam.to_dfam_hmm(fakedb(), include_class_in_name=True),
             """\
 HMMER3/f [3.1b2 | February 2015]
 NAME  TEST0001#Type/SubType

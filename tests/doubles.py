@@ -1,15 +1,19 @@
+"""
+Fakes, stubs, etc. for use in testing FamDB
+"""
+
 import famdb
 
-# lightweight taxonomy node suitable for MockFamDB
+# lightweight taxonomy node suitable for FakeFamDB
 class Node:
     def __init__(self, id, parent):
         self.id = id
         self.parent = parent
         self.children = []
 
-# A "mock" FamDB that overrides some methods with fake data.
+# A fake FamDB instance that satisfies some method calls with fake data.
 # Should be kept in sync with FamDB as necessary.
-class MockFamDB(famdb.FamDB):
+class FakeFamDB(famdb.FamDB):
     def __init__(self, names_dump, tree):
         self.names_dump = names_dump
         self.taxa = {}
@@ -50,9 +54,9 @@ class MockFamDB(famdb.FamDB):
 
         return tree
 
-# Returns a particular set of mocked clades
-def mockdb():
-    return MockFamDB({
+# Returns a FakeFamDB with a particular set of fake clades in a hierarchy
+def fakedb():
+    return FakeFamDB({
         "1": [["scientific name", "root"]],
         "2": [["scientific name", "A Clade"]],
         "3": [["scientific name", "Another Clade (3.)"]],
@@ -61,7 +65,7 @@ def mockdb():
     }, [1, [4, [2, [5]]], [3]])
 
 # taxonomy node with the minimum properties required by FamDB
-class MockTaxNode:
+class FakeTaxNode:
     def __init__(self, tax_id, parent, sci_name):
         self.tax_id = tax_id
         if parent is None:
@@ -112,13 +116,13 @@ def init_db_file(filename):
             db.add_family(fam)
 
         taxa = {}
-        taxa[1] = MockTaxNode(1, None, "root")
-        taxa[2] = MockTaxNode(2, taxa[1], "Clade 2")
-        taxa[3] = MockTaxNode(3, taxa[1], "Third Clade")
-        taxa[4] = MockTaxNode(4, taxa[3], "Unused Clade")
+        taxa[1] = FakeTaxNode(1, None, "root")
+        taxa[2] = FakeTaxNode(2, taxa[1], "Clade 2")
+        taxa[3] = FakeTaxNode(3, taxa[1], "Third Clade")
+        taxa[4] = FakeTaxNode(4, taxa[3], "Unused Clade")
         taxa[4].used = False
-        taxa[5] = MockTaxNode(5, taxa[3], "Drosophila <flies>")
-        taxa[6] = MockTaxNode(6, taxa[3], "Drosophila <fungus>")
+        taxa[5] = FakeTaxNode(5, taxa[3], "Drosophila <flies>")
+        taxa[6] = FakeTaxNode(6, taxa[3], "Drosophila <fungus>")
 
         db.write_taxonomy(taxa)
         db.finalize()
