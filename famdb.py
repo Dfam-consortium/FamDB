@@ -2,16 +2,19 @@
 # -*- coding: utf-8 -*-
 """
     famdb.py, version 0.4.x
-    Usage: famdb.py [-h] [-l LOG_LEVEL] command ...
+    Usage: famdb.py [-h] [-l LOG_LEVEL] [-i FILE] command ...
 
+    Queries or modifies the contents of a famdb file. For more detailed help
+    and information about program options, run `famdb.py --help` or
+    `famdb.py <command> --help`.
 
-    This module provides classes and methods for working with FamDB files,
-    which contain Transposable Element (TE) families and associated taxonomy data.
+    This program can also be used as a module. It provides classes and methods
+    for working with FamDB files, which contain Transposable Element (TE)
+    families and associated taxonomy data.
 
     # Classes
         Family: Metadata and model of a TE family.
         FamDB: HDF5-based format for storing Family objects.
-
 
 SEE ALSO:
     Dfam: http://www.dfam.org
@@ -1670,19 +1673,49 @@ def main():
 
     logging.basicConfig()
 
-    parser = argparse.ArgumentParser(description="Queries the contents of a famdb file.")
+    parser = argparse.ArgumentParser(description="""This is famdb.py version 0.4.x.
+
+example commands, including the most commonly used options:
+
+  famdb.py [-i FILE] info
+    Prints information about the file including database name and date.
+
+  famdb.py [-i FILE] names 'mus' | head
+    Prints taxonomy nodes that include 'mus', and the corresponding IDs.
+    The IDs and names are stored in the FamDB file, and are based
+    on the NCBI taxonomy database (https://www.ncbi.nlm.nih.gov/taxonomy).
+
+  famdb.py [-i FILE] lineage -ad 'Homo sapiens'
+  famdb.py [-i FILE] lineage -ad --format totals 9606
+    Prints a taxonomic tree including the given clade and optionally ancestors
+    and/or descendants, with the number of repeats indicated at each level of
+    the hierarchy. With the 'totals' format, prints the number of matching
+    ancestral and lineage-specific entries.
+
+  famdb.py [-i FILE] family --format fasta_acc MIR3
+    Exports a single family from the database in one of several formats.
+
+  famdb.py [-i FILE] families -f embl_meta -ad --curated 'Drosophila melanogaster'
+  famdb.py [-i FILE] families -f hmm -ad --curated --class LTR 7227
+    Searches and exports multiple families from the database, in one of several formats.
+
+""", formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-l", "--log-level", default="INFO")
 
     parser.add_argument("-i", "--file", help="specifies the file to query")
 
-    subparsers = parser.add_subparsers(help="Specifies the kind of query to perform. For more information, run e.g. famdb.py lineage --help")
+    subparsers = parser.add_subparsers(description="""Specifies the kind of query to perform.
+For more information on all the possible options for a command, add the --help option after it:
+famdb.py families --help
+""")
 
     p_info = subparsers.add_parser("info", description="List general information about the file.")
     p_info.set_defaults(func=command_info)
 
     p_names = subparsers.add_parser("names", description="List the names and taxonomy identifiers of a clade.")
     p_names.add_argument("-f", "--format", default="pretty", choices=["pretty", "json"],
-                         help="choose output format. json is more appropriate for scripts.")
+                         metavar="<format>",
+                         help="choose output format. The default is 'pretty'. 'json' is more appropriate for scripts.")
     p_names.add_argument("term", help="search term. Can be an NCBI taxonomy identifier or part of a scientific or common name")
     p_names.set_defaults(func=command_names)
 
@@ -1692,14 +1725,37 @@ def main():
     p_lineage.add_argument("-d", "--descendants", action="store_true",
                            help="include all descendants of the given clade")
     p_lineage.add_argument("-f", "--format", default="pretty", choices=["pretty", "semicolon", "totals"],
-                           help="choose output format. semicolon-delimited is more appropriate for scripts")
+                           metavar="<format>",
+                           help="choose output format. The default is 'pretty'. 'semicolon' is more appropriate for scripts. 'totals' displays the number of ancestral and lineage-specific families found.")
     p_lineage.add_argument("term", help="search term. Can be an NCBI taxonomy identifier or an unambiguous scientific or common name")
     p_lineage.set_defaults(func=command_lineage)
 
     family_formats = ["summary", "hmm", "hmm_species", "fasta_name", "fasta_acc", "embl", "embl_meta", "embl_seq"]
+    family_formats_epilog = """
+Supported formats:
+  * 'summary'     : (default) A human-readable summary format. Currently includes
+                    accession, name, classification, and length.
 
-    p_families = subparsers.add_parser("families", description="Retrieve the families associated\
-                                       with a given clade, optionally filtered by other additional criteria")
+  * 'hmm'         : The family's HMM, including some additional metadata such as
+                    species and RepeatMasker classification.
+  * 'hmm_species' : Same as 'hmm', but with a species-specific TH line extracted
+                    into the GA/TC/NC values. This format is only useful for the
+                    families command when querying within a species for which such
+                    thresholds have been determined.
+
+  * 'fasta_name'  : FASTA, with the following header format:
+                    >MIR @Mammalia [S:40,60,65]
+  * 'fasta_acc'   : FASTA, with the following header format:
+                    >DF0000001.4 @Mammalia [S:40,60,65]
+
+  * 'embl'        : EMBL, including all metadata and the consensus sequence.
+  * 'embl_meta'   : Same as 'embl', but with only the metadata included.
+  * 'embl_seq'    : Same as 'embl', but with only the sequences included.
+"""
+
+    p_families = subparsers.add_parser("families", description="Retrieve the families associated \
+with a given clade, optionally filtered by additional criteria",
+                                       epilog=family_formats_epilog, formatter_class=argparse.RawDescriptionHelpFormatter)
     p_families.add_argument("-a", "--ancestors", action="store_true",
                             help="include all ancestors of the given clade")
     p_families.add_argument("-d", "--descendants", action="store_true",
@@ -1715,15 +1771,16 @@ def main():
     p_families.add_argument("--curated", action="store_true",
                             help="include only 'curated' families (i.e. not named DRXXXXXXX)")
     p_families.add_argument("-f", "--format", default="summary", choices=family_formats,
-                            help="choose output format")
+                            metavar="<format>", help="choose output format.")
     p_families.add_argument("--add-reverse-complement", action="store_true", help="include a reverse-complemented copy of each matching family; only suppported for fasta formats")
     p_families.add_argument("--include-class-in-name", action="store_true", help="include the RepeatMasker type/subtype after the name (e.g. HERV16#LTR/ERVL); only supported for hmm and fasta formats")
     p_families.add_argument("term", help="search term. Can be an NCBI taxonomy identifier or an unambiguous scientific or common name")
     p_families.set_defaults(func=command_families)
 
-    p_family = subparsers.add_parser("family", description="Retrieve details of a single family.")
+    p_family = subparsers.add_parser("family", description="Retrieve details of a single family.",
+                                     epilog=family_formats_epilog, formatter_class=argparse.RawDescriptionHelpFormatter)
     p_family.add_argument("-f", "--format", default="summary", choices=family_formats,
-                          help="choose output format")
+                          metavar="<format>", help="choose output format.")
     p_family.add_argument("term", help="the accession of the family to be retrieved")
     p_family.set_defaults(func=command_family)
 
