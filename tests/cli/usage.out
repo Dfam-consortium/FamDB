@@ -1,14 +1,40 @@
 usage: famdb.py [-h] [-l LOG_LEVEL] [-i FILE]
                 {info,names,lineage,families,family,append} ...
 
-Queries the contents of a famdb file.
+This is famdb.py version 0.4.x.
 
-positional arguments:
-  {info,names,lineage,families,family,append}
-                        Specifies the kind of query to perform. For more
-                        information, run e.g. famdb.py lineage --help
+example commands, including the most commonly used options:
+
+  famdb.py [-i FILE] info
+    Prints information about the file including database name and date.
+
+  famdb.py [-i FILE] names 'mus' | head
+    Prints taxonomy nodes that include 'mus', and the corresponding IDs.
+    The IDs and names are stored in the FamDB file, and are based
+    on the NCBI taxonomy database (https://www.ncbi.nlm.nih.gov/taxonomy).
+
+  famdb.py [-i FILE] lineage -ad 'Homo sapiens'
+  famdb.py [-i FILE] lineage -ad --format totals 9606
+    Prints a taxonomic tree including the given clade and optionally ancestors
+    and/or descendants, with the number of repeats indicated at each level of
+    the hierarchy. With the 'totals' format, prints the number of matching
+    ancestral and lineage-specific entries.
+
+  famdb.py [-i FILE] family --format fasta_acc MIR3
+    Exports a single family from the database in one of several formats.
+
+  famdb.py [-i FILE] families -f embl_meta -ad --curated 'Drosophila melanogaster'
+  famdb.py [-i FILE] families -f hmm -ad --curated --class LTR 7227
+    Searches and exports multiple families from the database, in one of several formats.
 
 optional arguments:
   -h, --help            show this help message and exit
   -l LOG_LEVEL, --log-level LOG_LEVEL
   -i FILE, --file FILE  specifies the file to query
+
+subcommands:
+  Specifies the kind of query to perform.
+  For more information on all the possible options for a command, add the --help option after it:
+  famdb.py families --help
+
+  {info,names,lineage,families,family,append}
