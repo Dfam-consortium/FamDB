@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-    famdb.py, version 0.4.x
+    famdb.py, version 0.4.1
     Usage: famdb.py [-h] [-l LOG_LEVEL] [-i FILE] command ...
 
     Queries or modifies the contents of a famdb file. For more detailed help
@@ -1673,7 +1673,7 @@ def main():
 
     logging.basicConfig()
 
-    parser = argparse.ArgumentParser(description="""This is famdb.py version 0.4.x.
+    parser = argparse.ArgumentParser(description="""This is famdb.py version 0.4.1.
 
 example commands, including the most commonly used options:
 
