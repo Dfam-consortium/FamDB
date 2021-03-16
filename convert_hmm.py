@@ -58,13 +58,20 @@ def command_import(args):
             tax_id = int(entry)
             tax_db[tax_id].mark_ancestry_used()
 
+    taxid_lookup = {}
+    for (tax_id, node) in tax_db.items():
+        for [name_class, name_txt] in node.names:
+            if name_class == "scientific name":
+                sanitized_name = famdb.sanitize_name(name_txt).lower()
+                taxid_lookup[sanitized_name] = int(tax_id)
+
     LOGGER.info("Importing families")
     count = 0
-    for family in hmmfile.iterate_hmm_file(args.infile):
+    for family in hmmfile.iterate_hmm_file(args.infile, tax_db, taxid_lookup):
         count += 1
 
         # Associate the family to its relevant taxa and mark them as "used"
-        for tax_id in family.extract_tax_ids():
+        for tax_id in family.clades:
             tax_db[tax_id].families += [family.accession]
             tax_db[tax_id].mark_ancestry_used()
 
