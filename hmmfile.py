@@ -102,6 +102,10 @@ def set_family_code(family, code, value, tax_db, taxid_lookup):
         if matches:
             family.buffer_stages = matches.group(1).strip()
 
+        matches = re.search('Refineable', value)
+        if matches:
+            family.buffer_stages = True
+
 def iterate_hmm_file(file, tax_db, taxid_lookup):
     """Iterates over Family objects from the .hmm file 'file'."""
     family = None

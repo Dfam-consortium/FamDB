@@ -585,6 +585,8 @@ class Family:  # pylint: disable=too-many-instance-attributes
             elif code == "DE":
                 family.description = value
             elif code == "CC":
+                # TODO: Consider only recognizing these after seeing "RepeatMasker Annotations"
+
                 matches = re.match(r'\s*Type:\s*(\S+)', value)
                 if matches:
                     family.repeat_type = matches.group(1).strip()
@@ -611,6 +613,10 @@ class Family:  # pylint: disable=too-many-instance-attributes
                 matches = re.search(r'BufferStages:\s*(\S+)', value)
                 if matches:
                     family.buffer_stages = matches.group(1).strip()
+
+                matches = re.search(r'Refineable', value)
+                if matches:
+                    family.refineable = True
 
         header = ""
         family = None
