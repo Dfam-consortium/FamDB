@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-    famdb.py, version 0.4.1
+    famdb.py, version 0.4.2
     Usage: famdb.py [-h] [-l LOG_LEVEL] [-i FILE] command ...
 
     Queries or modifies the contents of a famdb file. For more detailed help
@@ -734,7 +734,7 @@ class FamDB:
             self.names_dump = json.loads(self.file["TaxaNames"][0])
 
     def __write_metadata(self):
-        self.file.attrs["generator"] = "famdb.py v0.1"
+        self.file.attrs["generator"] = "famdb.py v0.4.2"
         self.file.attrs["version"] = FILE_VERSION
         self.file.attrs["created"] = str(datetime.datetime.now())
 
@@ -1679,7 +1679,7 @@ def main():
 
     logging.basicConfig()
 
-    parser = argparse.ArgumentParser(description="""This is famdb.py version 0.4.1.
+    parser = argparse.ArgumentParser(description="""This is famdb.py version 0.4.2.
 
 example commands, including the most commonly used options:
 

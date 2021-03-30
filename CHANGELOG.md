@@ -3,6 +3,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 0.4.2 - 2021-03-30
+### Fixed
+- famdb now correctly recognizes the "Refineable" annotation for RepeatMasker
+  when reading EMBL files (e.g. 'famdb.py append' and 'export_dfam.py')
+
 ## 0.4.1 - 2021-03-08
 ### Added
 - Added options to the `families` command: `--add-reverse-complement`,
