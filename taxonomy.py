@@ -81,8 +81,11 @@ def read_taxdb(directory):
             fields = line.split("|")
             tax_id = int(fields[0])
             name_txt = fields[1].strip()
+            unique_name = fields[2].strip()
             name_class = fields[3].strip()
-            nodes[tax_id].names += [[name_class, name_txt]]
+
+            name = unique_name or name_txt
+            nodes[tax_id].names += [[name_class, name]]
 
     LOGGER.info("Loaded %d taxonomy nodes", len(nodes))
 

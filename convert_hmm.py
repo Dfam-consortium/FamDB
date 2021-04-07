@@ -32,6 +32,7 @@ DISCLAIMER:
 """
 
 import argparse
+import datetime
 import logging
 
 import famdb
@@ -57,6 +58,13 @@ def command_import(args):
         for entry in contents.split():
             tax_id = int(entry)
             tax_db[tax_id].mark_ancestry_used()
+
+    version = args.db_version
+    date = args.db_date or datetime.date.today().strftime("%Y-%m-%d")
+    description = "TODO: convert_hmm.py description not yet implemented"
+    copyright_text = "TODO: convert_hmm.py copyright not yet implemented"
+
+    args.outfile.set_db_info("Dfam", version, date, description, copyright_text)
 
     taxid_lookup = {}
     for (tax_id, node) in tax_db.items():
@@ -111,7 +119,9 @@ def main():
 
     p_import = subparsers.add_parser("import")
     p_import.add_argument("-t", "--tax-db", required=True)
-    p_import.add_argument("-e", "--extra-taxa-file")
+    p_import.add_argument("-e", "--extra-taxa-file", help="One taxonomy ID per line (NB: does not match export_dfam.py)")
+    p_import.add_argument("--db-version", required=True, help="database version")
+    p_import.add_argument("--db-date", help="database date, in YYYY-MM-DD format (default today)")
     p_import.add_argument("infile", type=argparse.FileType("r"))
     p_import.add_argument("outfile", type=famdb_file_type("w"))
     p_import.set_defaults(func=command_import)
