@@ -67,12 +67,16 @@ def set_family_code(family, code, value, tax_db, taxid_lookup):
             else:
                 family.taxa_thresholds += "\n"
             family.taxa_thresholds += th_values
+        else:
+            LOGGER.warning("Unrecognized format of TH line: <%s>", value)
     elif code == "CT":
         family.classification = value
     elif code == "MS":
         match = re.match(r"TaxId:\s*(\d+)", value)
         if match:
             family.clades += [int(match.group(1))]
+        else:
+            LOGGER.warning("Unrecognized format of MS line: <%s>", value)
     elif code == "CC":
         matches = re.match(r'\s*Type:\s*(\S+)', value)
         if matches:

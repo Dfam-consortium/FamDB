@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 0.4.3 - Unreleased
+### Fixed
+- Fixed numerous bugs with HMM-only libraries produced by `convert_hmm.py`
+
 ## 0.4.2 - 2021-03-30
 ### Fixed
 - famdb now correctly recognizes the "Refineable" annotation for RepeatMasker

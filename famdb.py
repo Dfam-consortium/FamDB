@@ -414,10 +414,12 @@ class Family:  # pylint: disable=too-many-instance-attributes
     def to_embl(self, famdb, include_meta=True, include_seq=True):  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
         """Converts 'self' to EMBL format."""
 
-        sequence = self.consensus
-        if sequence is None:
+        if include_seq and self.consensus is None:
+            # Skip families without consensus sequences, if sequences were required.
+            # metadata-only formats will still include families without a consensus sequence.
             return None
-        sequence = sequence.lower()
+
+        sequence = self.consensus or ""
 
         out = ""
 

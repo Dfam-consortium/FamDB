@@ -88,6 +88,7 @@ def command_import(args):
     LOGGER.info("Imported %d families", count)
 
     args.outfile.write_taxonomy(tax_db)
+    args.outfile.finalize()
 
     LOGGER.info("Finished import")
 
