@@ -38,6 +38,9 @@ def test_one(t, filename, spec_path):
                     expected = expfile.read()
             except FileNotFoundError:
                 expected = ""
+
+            if actual != expected:
+                print("    ERROR: cli output mismatch for ", spec_path)
             t.assertEqual(actual, expected)
 
     compare_output(result.stdout or "", out_path)

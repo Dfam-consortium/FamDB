@@ -1588,9 +1588,9 @@ def print_families(args, families, header, species=None):
 
 def command_family(args):
     """The 'family' command outputs a single family by name or accession."""
-    family = args.file.get_family_by_accession(args.term)
+    family = args.file.get_family_by_accession(args.accession)
     if not family:
-        family = args.file.get_family_by_name(args.term)
+        family = args.file.get_family_by_name(args.accession)
 
     if family:
         print_families(args, [family], False)
@@ -1724,7 +1724,7 @@ famdb.py families --help
     p_names.add_argument("-f", "--format", default="pretty", choices=["pretty", "json"],
                          metavar="<format>",
                          help="choose output format. The default is 'pretty'. 'json' is more appropriate for scripts.")
-    p_names.add_argument("term", help="search term. Can be an NCBI taxonomy identifier or part of a scientific or common name")
+    p_names.add_argument("term", nargs="+", help="search term. Can be an NCBI taxonomy identifier or part of a scientific or common name")
     p_names.set_defaults(func=command_names)
 
     p_lineage = subparsers.add_parser("lineage", description="List the taxonomy tree including counts of families at each clade.")
@@ -1735,7 +1735,7 @@ famdb.py families --help
     p_lineage.add_argument("-f", "--format", default="pretty", choices=["pretty", "semicolon", "totals"],
                            metavar="<format>",
                            help="choose output format. The default is 'pretty'. 'semicolon' is more appropriate for scripts. 'totals' displays the number of ancestral and lineage-specific families found.")
-    p_lineage.add_argument("term", help="search term. Can be an NCBI taxonomy identifier or an unambiguous scientific or common name")
+    p_lineage.add_argument("term", nargs="+", help="search term. Can be an NCBI taxonomy identifier or an unambiguous scientific or common name")
     p_lineage.set_defaults(func=command_lineage)
 
     family_formats = ["summary", "hmm", "hmm_species", "fasta_name", "fasta_acc", "embl", "embl_meta", "embl_seq"]
@@ -1782,14 +1782,14 @@ with a given clade, optionally filtered by additional criteria",
                             metavar="<format>", help="choose output format.")
     p_families.add_argument("--add-reverse-complement", action="store_true", help="include a reverse-complemented copy of each matching family; only suppported for fasta formats")
     p_families.add_argument("--include-class-in-name", action="store_true", help="include the RepeatMasker type/subtype after the name (e.g. HERV16#LTR/ERVL); only supported for hmm and fasta formats")
-    p_families.add_argument("term", help="search term. Can be an NCBI taxonomy identifier or an unambiguous scientific or common name")
+    p_families.add_argument("term", nargs="+", help="search term. Can be an NCBI taxonomy identifier or an unambiguous scientific or common name")
     p_families.set_defaults(func=command_families)
 
     p_family = subparsers.add_parser("family", description="Retrieve details of a single family.",
                                      epilog=family_formats_epilog, formatter_class=argparse.RawDescriptionHelpFormatter)
     p_family.add_argument("-f", "--format", default="summary", choices=family_formats,
                           metavar="<format>", help="choose output format.")
-    p_family.add_argument("term", help="the accession of the family to be retrieved")
+    p_family.add_argument("accession", help="the accession of the family to be retrieved")
     p_family.set_defaults(func=command_family)
 
     p_append = subparsers.add_parser("append")
@@ -1800,6 +1800,9 @@ with a given clade, optionally filtered by additional criteria",
 
     args = parser.parse_args()
     logging.getLogger().setLevel(getattr(logging, args.log_level.upper()))
+
+    if "term" in args:
+        args.term = " ".join(args.term)
 
     # For RepeatMasker: Try Libraries/RepeatMaskerLib.h5, if no file was specified
     # in the arguments and that file exists.

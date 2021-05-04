@@ -123,6 +123,7 @@ def init_db_file(filename):
         taxa[4].used = False
         taxa[5] = FakeTaxNode(5, taxa[3], "Drosophila <flies>")
         taxa[6] = FakeTaxNode(6, taxa[3], "Drosophila <fungus>")
+        taxa[7] = FakeTaxNode(7, taxa[5], "Drosophila melanogaster")
 
         db.write_taxonomy(taxa)
         db.finalize()

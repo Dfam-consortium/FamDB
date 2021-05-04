@@ -57,6 +57,7 @@ class TestDatabase(unittest.TestCase):
                 [
                     [5, True],
                     [6, True],
+                    [7, False],
                 ]
             )
 
@@ -76,7 +77,7 @@ class TestDatabase(unittest.TestCase):
             self.assertEqual(db.resolve_species("Tardigrade", search_similar=True), [[3, False]])
             self.assertEqual(db.resolve_one_species("Tardigrade"), None)
 
-            self.assertEqual(db.resolve_species("Drosophila", kind="scientific name"), [[5, True], [6, True]])
+            self.assertEqual(db.resolve_species("Drosophila", kind="scientific name"), [[5, True], [6, True], [7, False]])
             self.assertEqual(db.resolve_one_species("Drosophila", kind="scientific name"), None)
 
             self.assertEqual(db.resolve_species("hird"), [[3, False]])
@@ -115,7 +116,7 @@ class TestDatabase(unittest.TestCase):
 
     def test_lineage(self):
         with FamDB(TestDatabase.filename, "r") as db:
-            self.assertEqual(db.get_lineage(1, descendants=True), [1, [2], [3, [5], [6]]])
+            self.assertEqual(db.get_lineage(1, descendants=True), [1, [2], [3, [5, [7]], [6]]])
             self.assertEqual(db.get_lineage(3), [3])
             self.assertEqual(db.get_lineage(6, ancestors=True), [1, [3, [6]]])
 

@@ -39,6 +39,27 @@ CC        SearchStages:
 CC        BufferStages: 
 XX
 //
+ID   TEST0002; SV 1; linear; DNA; STD; UNC; 0 BP.
+XX
+AC   TEST0002;
+XX
+XX
+KW   /.
+XX
+OS   Clade 2
+OC   .
+OS   Third Clade
+OC   .
+XX
+CC
+CC   RepeatMasker Annotations:
+CC        Type: 
+CC        SubType: 
+CC        Species: Clade_2, Third_Clade
+CC        SearchStages: 
+CC        BufferStages: 
+XX
+//
 ID   TEST0003; SV 1; linear; DNA; STD; UNC; 4 BP.
 NM   Test family TEST0003
 XX

@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## 0.4.3 - Unreleased
+### Added
+- Most subcommands will now accept multiple arguments for a species name and
+  treat it as a single space-separated string instead of raising an error. For
+  instance, `famdb.py names homo sapiens` now works exactly the same as
+  `famdb.py names 'homo sapiens'`
 ### Fixed
 - Fixed numerous bugs with HMM-only libraries produced by `convert_hmm.py`
 
