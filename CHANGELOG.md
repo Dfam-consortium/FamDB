@@ -9,8 +9,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   treat it as a single space-separated string instead of raising an error. For
   instance, `famdb.py names homo sapiens` now works exactly the same as
   `famdb.py names 'homo sapiens'`
+### Changed
+- `export_dfam.py` has been refactored and extended . It subsumes the previous
+  functionality of `convert_hmm.py`, which has been removed.
 ### Fixed
-- Fixed numerous bugs with HMM-only libraries produced by `convert_hmm.py`
+- Fixed numerous bugs with HMM-only libraries produced by `convert_hmm.py`/`export_dfam.py`
 
 ## 0.4.2 - 2021-03-30
 ### Fixed

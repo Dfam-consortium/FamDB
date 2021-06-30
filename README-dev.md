@@ -2,21 +2,23 @@
 
 ## Creating famdb files
 
-A limited number of import and export formats are available at this time.
+`export_dfam.py` is used to build famdb files for Dfam releases. It
+can be used in a few ways:
 
-### HMM
+* Taxonomy can be sourced from the database, or from a local dump of the NCBI taxonomy.
+* Families can be sourced from the database, from HMM, and/or from EMBL files.
 
-`convert_hmm.py import` and `convert_hmm.py dump` convert from and to HMM format, respectively.
-
-### Dfam Releases
-
-`export_dfam.py` is used to build the famdb format for Dfam releases. It
-requires a mysql connection to a Dfam database corresponding to a frozen
-release.
+Example: build a famdb file from a frozen Dfam release.
 
 ```
-$ /usr/bin/time ./export_dfam.py mysql://user:pass@host/database --extra-taxa-file extra_taxa.txt --extra-embl-file Supplemental.embl Dfam_curatedonly.h5
-$ /usr/bin/time ./export_dfam.py mysql://user:pass@host/database --extra-taxa-file extra_taxa.txt --extra-embl-file Supplemental.embl -r Dfam.h5
+$ /usr/bin/time ./export_dfam.py --from-db mysql://user:pass@host/database --from-embl Supplemental.embl --count-taxa-in extra_taxa.txt Dfam_curatedonly.h5
+$ /usr/bin/time ./export_dfam.py --from-db mysql://user:pass@host/database -r --from-embl Supplemental.embl --count-taxa-in extra_taxa.txt Dfam.h5
+```
+
+Example: build a famdb file from an HMM file
+
+```
+$ /usr/bin/time ./export_dfam.py --from-tax-dump /path/to/taxonomy --from-hmm=families.hmm --db-version=0.1 custom_hmms.h5
 ```
 
 ## Unit Tests

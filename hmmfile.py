@@ -61,7 +61,7 @@ def set_family_code(family, code, value, tax_db, taxid_lookup):
             if family.general_cutoff is None or family.general_cutoff < tc_value:
                 family.general_cutoff = tc_value
 
-            th_values = ", ".join([tax_id, match.group(3), match.group(4), match.group(5), match.group(6)])
+            th_values = ", ".join([str(tax_id), match.group(3), match.group(4), match.group(5), match.group(6)])
             if family.taxa_thresholds is None:
                 family.taxa_thresholds = ""
             else:

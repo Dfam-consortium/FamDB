@@ -574,7 +574,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
 
         def set_family_code(family, code, value):
             """
-            Sets an attribute on 'family' based on the hmm shortcode 'code'.
+            Sets an attribute on 'family' based on the EMBL line starting with 'code'.
             For codes corresponding to list attributes, values are appended.
             """
             if code == "ID":
