@@ -52,16 +52,16 @@ def set_family_code(family, code, value, tax_db, taxid_lookup):
     elif code == "LENG":
         family.length = int(value)
     elif code == "TH":
-        match = re.match(r"TaxId:\s*(\d+);\s*TaxName:\s*.*;\s*GA:\s*([\.\d]+);\s*TC:\s*([\.\d]+);\s*NC:\s*([\.\d]+);\s*fdr:\s*([\.\d]+);", value)
+        match = re.match(r"TaxId:\s*(\d+);(\s*TaxName:\s*.*;)?\s*GA:\s*([\.\d]+);\s*TC:\s*([\.\d]+);\s*NC:\s*([\.\d]+);\s*fdr:\s*([\.\d]+);", value)
         if match:
             tax_id = int(match.group(1))
             tax_db[tax_id].mark_ancestry_used()
 
-            tc_value = float(match.group(3))
+            tc_value = float(match.group(4))
             if family.general_cutoff is None or family.general_cutoff < tc_value:
                 family.general_cutoff = tc_value
 
-            th_values = "{}, {}, {}, {}, {}".format(tax_id, match.group(2), match.group(3), match.group(4), match.group(5))
+            th_values = ", ".join([tax_id, match.group(3), match.group(4), match.group(5), match.group(6)])
             if family.taxa_thresholds is None:
                 family.taxa_thresholds = ""
             else:
