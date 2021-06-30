@@ -94,7 +94,7 @@ def set_family_code(family, code, value, tax_db, taxid_lookup):
                     tax_id = taxid_lookup.get(name)
                     if tax_id:
                         if tax_id not in family.clades:
-                            LOGGER.warning("MS line does not match RepeatMaksser Species: line in '%s'!", name)
+                            LOGGER.warning("MS line does not match RepeatMasker Species: line in '%s'!", name)
                     else:
                         LOGGER.warning("Could not find taxon for '%s'", name)
 

@@ -567,7 +567,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
         taxonomy IDs.
 
         If specified, 'header_cb' will be invoked with the contents of the
-        header text at the top of the file before the last iteration.
+        header text at the top of the file before the iteration is complete.
 
         TODO: This mechanism is a bit awkward and should perhaps be reworked.
         """
