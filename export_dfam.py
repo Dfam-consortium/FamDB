@@ -435,6 +435,9 @@ def iterate_db_families(session, tax_db, families_query):
         th_values = []
 
         for (tax_id, spec_ga, spec_tc, spec_nc, spec_fdr) in assembly_data_query(session).params(id=record.id).all():
+            if None in (spec_ga, spec_tc, spec_nc, spec_fdr):
+                raise Exception("Found value of None for a threshold value for " +
+                    record.accession + " in tax_id" + str(tax_id))
             th_values += ["{}, {}, {}, {}, {}".format(tax_id, spec_ga, spec_tc, spec_nc, spec_fdr)]
             tax_db[tax_id].mark_ancestry_used()
 

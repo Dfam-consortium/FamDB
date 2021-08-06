@@ -224,7 +224,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
         return "%s.%s '%s': %s len=%d" % (self.accession, self.version,
                                           self.name, self.classification, self.length or -1)
 
-    def to_dfam_hmm(self, famdb, species=None, include_class_in_name=False):  # pylint: disable=too-many-locals,too-many-branches
+    def to_dfam_hmm(self, famdb, species=None, include_class_in_name=False, require_general_threshold=False):  # pylint: disable=too-many-locals,too-many-branches
         """
         Converts 'self' to Dfam-style HMM format.
         'famdb' is used for lookups in the taxonomy database (id -> name).
@@ -300,13 +300,17 @@ class Family:  # pylint: disable=too-many-instance-attributes
                 th_lines += ["TaxId:%d; TaxName:%s; GA:%.2f; TC:%.2f; NC:%.2f; fdr:%.3f;" % (
                     tax_id, tax_name, hmm_ga, hmm_tc, hmm_nc, hmm_fdr)]
 
-        if not species and self.general_cutoff:
-            species_hmm_ga = species_hmm_tc = species_hmm_nc = self.general_cutoff
+        if species is None:
+            if self.general_cutoff:
+                species_hmm_ga = species_hmm_tc = species_hmm_nc = self.general_cutoff
 
         if species_hmm_ga:
             append("GA", "%.2f;" % species_hmm_ga)
             append("TC", "%.2f;" % species_hmm_tc)
             append("NC", "%.2f;" % species_hmm_nc)
+        elif require_general_threshold:
+            LOGGER.debug("missing general threshold for " + self.accession)
+            return None
 
         for th_line in th_lines:
             append("TH", th_line)
@@ -1515,6 +1519,7 @@ def print_families(args, families, header, species=None):
     # TODO: consider reworking argument passing to avoid this workaround
     add_reverse_complement = getattr(args, "add_reverse_complement", False)
     include_class_in_name = getattr(args, "include_class_in_name", False)
+    require_general_threshold = getattr(args, "require_general_threshold", False)
     stage = getattr(args, "stage", None)
 
     if header:
@@ -1535,9 +1540,9 @@ def print_families(args, families, header, species=None):
         if args.format == "summary":
             entry = str(family) + "\n"
         elif args.format == "hmm":
-            entry = family.to_dfam_hmm(args.file, include_class_in_name=include_class_in_name)
+            entry = family.to_dfam_hmm(args.file, include_class_in_name=include_class_in_name, require_general_threshold=require_general_threshold)
         elif args.format == "hmm_species":
-            entry = family.to_dfam_hmm(args.file, species, include_class_in_name=include_class_in_name)
+            entry = family.to_dfam_hmm(args.file, species, include_class_in_name=include_class_in_name, require_general_threshold=require_general_threshold)
         elif args.format == "fasta" or args.format == "fasta_name" or args.format == "fasta_acc":
             use_accession = (args.format == "fasta_acc")
 
@@ -1782,6 +1787,7 @@ with a given clade, optionally filtered by additional criteria",
                             metavar="<format>", help="choose output format.")
     p_families.add_argument("--add-reverse-complement", action="store_true", help="include a reverse-complemented copy of each matching family; only suppported for fasta formats")
     p_families.add_argument("--include-class-in-name", action="store_true", help="include the RepeatMasker type/subtype after the name (e.g. HERV16#LTR/ERVL); only supported for hmm and fasta formats")
+    p_families.add_argument("--require-general-threshold", action="store_true", help="skip families missing general thresholds (and log their accessions at the debug log level)")
     p_families.add_argument("term", nargs="+", help="search term. Can be an NCBI taxonomy identifier or an unambiguous scientific or common name")
     p_families.set_defaults(func=command_families)
 
