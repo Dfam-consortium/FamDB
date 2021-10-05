@@ -75,7 +75,7 @@ import sqlalchemy
 from sqlalchemy import bindparam
 from sqlalchemy.ext import baked
 
-import dfam_32 as dfam
+import dfam_35 as dfam
 import famdb
 
 LOGGER = logging.getLogger(__name__)
@@ -381,6 +381,9 @@ def iterate_db_families(session, tax_db, families_query):
     hmm_query = bakery(lambda s: s.query(dfam.HmmModelDatum.hmm))
     hmm_query += lambda q: q.filter(dfam.HmmModelDatum.family_id == bindparam("id"))
 
+    sequence_count_query = bakery(lambda s: s.query(dfam.SeedAlignDatum.sequence_count))
+    sequence_count_query += lambda q: q.filter(dfam.SeedAlignDatum.family_id == bindparam("id"))
+
     for record in families_query:
         family = famdb.Family()
 
@@ -521,8 +524,9 @@ def iterate_db_families(session, tax_db, families_query):
             family.max_length = record.hmm_maxl
         family.is_model_masked = record.model_mask
 
-        seed_count = session.execute("SELECT COUNT(*) from seed_region where family_id=:id", {"id": record.id}).fetchone()[0]
-        family.seed_count = seed_count
+        seq_count = sequence_count_query(session).params(id=record.id).one_or_none()
+        if seq_count:
+            family.seed_count = seq_count[0]
 
         yield family
 

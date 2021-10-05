@@ -70,10 +70,10 @@ class NcbiTaxdbName(Base):
     __tablename__ = 'ncbi_taxdb_names'
 
     tax_id = Column(BIGINT(20), primary_key=True, nullable=False, index=True)
-    name_txt = Column(String(128), primary_key=True, nullable=False, index=True)
-    unique_name = Column(String(128), primary_key=True, nullable=False, index=True)
-    name_class = Column(String(128), primary_key=True, nullable=False, index=True)
-    sanitized_name = Column(String(128), index=True)
+    name_txt = Column(String(256), primary_key=True, nullable=False, index=True)
+    unique_name = Column(String(256), primary_key=True, nullable=False, index=True)
+    name_class = Column(String(256), primary_key=True, nullable=False, index=True)
+    sanitized_name = Column(String(256), index=True)
 
 
 class NcbiTaxdbNode(Base):
@@ -373,17 +373,6 @@ t_family_has_search_stage = Table(
 )
 
 
-class FamilyOverlap(Base):
-    __tablename__ = 'family_overlap'
-
-    id = Column(BIGINT(20), primary_key=True)
-    family1_id = Column(ForeignKey('family.id'), nullable=False, index=True)
-    family2_id = Column(ForeignKey('family.id'), nullable=False, index=True)
-
-    family1 = relationship('Family', primaryjoin='FamilyOverlap.family1_id == Family.id')
-    family2 = relationship('Family', primaryjoin='FamilyOverlap.family2_id == Family.id')
-
-
 class HmmModelDatum(Base):
     __tablename__ = 'hmm_model_data'
 
@@ -394,12 +383,33 @@ class HmmModelDatum(Base):
     family = relationship('Family', uselist=False)
 
 
+class OverlapSegment(Base):
+    __tablename__ = 'overlap_segment'
+
+    family1_id = Column(ForeignKey('family.id'), primary_key=True, nullable=False, index=True)
+    family2_id = Column(ForeignKey('family.id'), primary_key=True, nullable=False, index=True)
+    family1_start = Column(MEDIUMINT(8), primary_key=True, nullable=False)
+    family1_end = Column(MEDIUMINT(8), primary_key=True, nullable=False)
+    family2_start = Column(MEDIUMINT(8), primary_key=True, nullable=False)
+    family2_end = Column(MEDIUMINT(8), primary_key=True, nullable=False)
+    strand = Column(Enum('+', '-'), primary_key=True, nullable=False)
+    evalue = Column(String(15))
+    identity = Column(String(6))
+    coverage = Column(String(6))
+    cigar = Column(Text)
+
+    family1 = relationship('Family', primaryjoin='OverlapSegment.family1_id == Family.id')
+    family2 = relationship('Family', primaryjoin='OverlapSegment.family2_id == Family.id')
+
+
 class SeedAlignDatum(Base):
     __tablename__ = 'seed_align_data'
 
     family_id = Column(ForeignKey('family.id'), primary_key=True)
+    comsa_data = Column(LONGBLOB, nullable=False)
     graph_json = Column(LONGBLOB, nullable=False)
     avg_kimura_divergence = Column(Float)
+    sequence_count = Column(INTEGER(11))
 
     family = relationship('Family', uselist=False)
 
@@ -422,24 +432,7 @@ class FeatureAttribute(Base):
     __tablename__ = 'feature_attribute'
 
     family_feature_id = Column(ForeignKey('family_feature.id'), primary_key=True, nullable=False)
-    attribute = Column(String(45), primary_key=True, nullable=False, unique=True)
-    value = Column(String(45))
+    attribute = Column(String(45), primary_key=True, nullable=False)
+    value = Column(String(256))
 
     family_feature = relationship('FamilyFeature')
-
-
-class OverlapSegment(Base):
-    __tablename__ = 'overlap_segment'
-
-    family_overlap_id = Column(ForeignKey('family_overlap.id'), primary_key=True, nullable=False, index=True)
-    family1_start = Column(MEDIUMINT(8), primary_key=True, nullable=False)
-    family1_end = Column(MEDIUMINT(8), primary_key=True, nullable=False)
-    family2_start = Column(MEDIUMINT(8), primary_key=True, nullable=False)
-    family2_end = Column(MEDIUMINT(8), primary_key=True, nullable=False)
-    strand = Column(Enum('+', '-'), primary_key=True, nullable=False)
-    evalue = Column(String(15))
-    identity = Column(String(6))
-    coverage = Column(String(6))
-    cigar = Column(Text)
-
-    family_overlap = relationship('FamilyOverlap')
