@@ -701,12 +701,12 @@ class FamDB:
             # a parallel writer (which is unlikely for famdb files).
             os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
 
+        elif mode == "r+":
+            reading = True
         elif mode == "w":
             reading = False
-        elif mode == "a":
-            reading = True
         else:
-            raise ValueError("Invalid file mode. Expected 'r' or 'w' or 'a', got '{}'".format(mode))
+            raise ValueError("Invalid file mode. Expected 'r' or 'r+' or 'w', got '{}'".format(mode))
 
 
         self.filename = filename
@@ -729,7 +729,7 @@ class FamDB:
             self.seen = {}
             self.added = {'consensus': 0, 'hmm': 0}
             self.__write_metadata()
-        elif self.mode == "a":
+        elif self.mode == "r+":
             self.seen = {}
             self.seen["name"] = set(self.file[FamDB.GROUP_FAMILIES_BYNAME].keys())
             self.seen["accession"] = set(self.file[FamDB.GROUP_FAMILIES_BYACC].keys())
@@ -1823,7 +1823,7 @@ with a given clade, optionally filtered by additional criteria",
     if args.file:
         try:
             if "func" in args and args.func is command_append:
-                mode = "a"
+                mode = "r+"
             else:
                 mode = "r"
 
