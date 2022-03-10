@@ -1484,6 +1484,8 @@ def get_lineage_totals(file, tree, target_id, seen=None):
 def command_lineage(args):
     """The 'lineage' command outputs ancestors and/or descendants of the given taxon."""
 
+    # TODO: like 'families', filter curated or uncurated (and other filters?)
+
     target_id = args.file.resolve_one_species(args.term)
     if not target_id:
         return
@@ -1491,6 +1493,7 @@ def command_lineage(args):
                                  descendants=args.descendants,
                                  ancestors=args.ancestors or args.format == "semicolon")
 
+    # TODO: prune branches with 0 total
     if args.format == "pretty":
         print_lineage_tree(args.file, tree, "", "")
     elif args.format == "semicolon":
