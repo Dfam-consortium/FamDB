@@ -14,6 +14,10 @@
                outfile
 
 
+    WARNING: For DB exports this uses 47GB of RAM (as of Dfam 3.7) to hold
+             auxiliary tables during export.  Do not run this on the production
+             server or on an NFS partition.
+
     Data source options:
 
     --from-db                : Connection string to MySQL database to import from
@@ -28,6 +32,10 @@
                       for each node with any families assigned and for each that occurs in a
                       count-taxa-in file.  Nodes with more families assigned to them in either way
                       also have more of their children included in the tree.
+
+                      E.g:
+                      fgrep Species RMRBMeta.embl |
+                         perl -ne '{ if ( /Species:\s+(\S.*)/ ) { print "$1\n"; }}' > repbase_list.txt
 
     Metadata options:
 
@@ -79,7 +87,6 @@ import dfam_35 as dfam
 import famdb
 
 LOGGER = logging.getLogger(__name__)
-
 
 class TaxNode:  # pylint: disable=too-few-public-methods
     """An NCBI Taxonomy node linked to its parent and children."""
@@ -253,6 +260,8 @@ def count_extra_taxa(nodes, lookup, filename):
     for that dataset. Each line represents an entry, and is formatted as a
     comma-separated list of "sanitized names".
     """
+    missing = 0
+    linenum = 1
     with open(filename) as file:
         for line in file:
             names = line.split(",")
@@ -263,7 +272,12 @@ def count_extra_taxa(nodes, lookup, filename):
                     nodes[tax_id].mark_ancestry_used()
                     nodes[tax_id].add_ancestral_total(1)
                 else:
-                    LOGGER.warning("Could not find taxon for '%s'", name)
+                    LOGGER.warning("Could not find taxon for '%s' [line %d]", name,linenum)
+                    missing = 1
+            linenum = linenum + 1
+    if missing:
+        LOGGER.warning("Missing taxa were specified in the " + filename + " file.")
+        LOGGER.warning("These taxa have probably been renamed in the NCBI taxonomy and need to be corrected.  Probably in the RMRBMeta.embl file.")
 
 
 class ClassificationNode:  # pylint: disable=too-few-public-methods
@@ -332,6 +346,23 @@ def iterate_db_families(session, tax_db, families_query):
     # the queries are done many times with only the id changing. Another
     # approach that could be used is to make each of these queries once instead
     # of in a loop, but that would require a more significant restructuring.
+    #
+    # NOTE: This feature is deprecated in SQLAalchemy 1.4 and 2.0 and is rolled
+    #       into the core behaviour.  To execute this query efficiently in the future
+    #       we simply need to roll it into a function like so:
+    #
+    #       def my_query(connection, parameter):
+    #           stmt = select(dfam.t_family_clade)
+    #           stmt = stmt.where(dfam.t_family_clade.c.dfam_taxdb_tax_id == parameter)
+    #           return connection.execute(stmt)
+    #
+    #       Also to control the size of the cache simply pass query_cache_size to the
+    #       engine creation statement like so:
+    #
+    #       engine = create_engine("mysql://.....", query_cache_size=1200)
+    #
+    #       See: https://docs.sqlalchemy.org/en/14/core/connections.html#sql-caching
+    #
     bakery = baked.bakery()
 
     clade_query = bakery(lambda s: s.query(dfam.t_family_clade.c.dfam_taxdb_tax_id))
@@ -748,17 +779,25 @@ http://creativecommons.org/publicdomain/zero/1.0/legalcode
 
 
     show_progress = LOGGER.getEffectiveLevel() > logging.DEBUG
-    batches = 20
-    batch_size = target_count // batches
     count = 0
 
     if args.from_embl or args.from_hmm:
-        LOGGER.info("File sources are not counted in advance; no progress will be reported")
-        show_progress = False
+        LOGGER.info("File sources are not counted in advance; only progress for db families will be reported.")
+
+    start = time.perf_counter()
+    report_start = start
+    # Note about timining.  At this stage we haven't executed the iterate_db_families function yet
+    # to iterate over the yielded family objects.  Therefore, the first time through this loop there
+    # will be some overhead while it loads the classification nodes.  The remaining cycles will only
+    # include the inner yeild loop in iterate_db_families.
+    report_every = 1000
+    if target_count > 1000000:
+        report_every = int(target_count / 10000)
 
     for family in to_import:
         count += 1
 
+        #print("count = " + str(count), flush=True)
         for clade_id in family.clades:
             # Associate the family to its relevant taxa and mark them as "used"
             tax_db[clade_id].families += [family.accession]
@@ -767,11 +806,20 @@ http://creativecommons.org/publicdomain/zero/1.0/legalcode
         args.outfile.add_family(family)
         LOGGER.debug("Imported family %s (%s)", family.name, family.accession)
 
-        if show_progress and (count % batch_size) == 0:
-            print("%5d / %5d" % (count, target_count))
+        if (count % report_every ) == 0:
+            current = time.perf_counter()
+            total_elapsed = current - start
+            report_elapsed = current - report_start
+            avg_time_per = total_elapsed / count
+            curr_time_per = report_elapsed / report_every
+            LOGGER.info("%5d / %5d : %.3f avg secs per family : %.3f curr secs per family : %s HH:MM:SS remaining" \
+                    % (count, target_count, avg_time_per, curr_time_per, \
+                       str(datetime.timedelta(seconds=(curr_time_per*(target_count-count))))))
+            report_start = time.perf_counter()
+
 
     delta = time.perf_counter() - start
-    LOGGER.info("Imported %d families in %f", count, delta)
+    LOGGER.info("Imported %d families in %s", count, str(datetime.timedelta(seconds=delta)))
 
     if args.count_taxa_in:
         count_extra_taxa(tax_db, tax_lookup, args.count_taxa_in)

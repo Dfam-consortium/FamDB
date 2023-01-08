@@ -678,7 +678,8 @@ class Family:  # pylint: disable=too-many-instance-attributes
             header_cb(header)
 
 
-FILE_VERSION = "0.4"
+# The current version of the file format
+FILE_VERSION = "0.5"
 
 class FamDB:
     """Transposable Element Family and taxonomy database."""
@@ -690,6 +691,9 @@ class FamDB:
     GROUP_FAMILIES_BYACC = "Families/ByAccession"
     GROUP_FAMILIES_BYSTAGE = "Families/ByStage"
     GROUP_NODES = "Taxonomy/Nodes"
+
+    # DF####### or DF########## or DR####### or DR##########
+    dfam_acc_pat = re.compile("^(D[FR])([0-9]{2})([0-9]{2})[0-9]{3,6}$")
 
     def __init__(self, filename, mode="r"):
         if mode == "r":
@@ -732,8 +736,7 @@ class FamDB:
         elif self.mode == "r+":
             self.seen = {}
             self.seen["name"] = set(self.file[FamDB.GROUP_FAMILIES_BYNAME].keys())
-            self.seen["accession"] = set(self.file[FamDB.GROUP_FAMILIES_BYACC].keys())
-
+            self.seen["accession"] = set(self.__families_iterator(self.file[FamDB.GROUP_FAMILIES],"Families"))
             self.added = self.get_counts()
 
         if reading:
@@ -758,7 +761,7 @@ class FamDB:
 
     def get_db_info(self):
         """
-        Gets database metadata for the current file as a dict with keys
+        Gets database database metadata for the current file as a dict with keys
         'name', 'version', 'date', 'description', 'copyright'
         """
         if "db_name" not in self.file.attrs:
@@ -770,6 +773,17 @@ class FamDB:
             "date": self.file.attrs["db_date"],
             "description": self.file.attrs["db_description"],
             "copyright": self.file.attrs["db_copyright"],
+        }
+
+    def get_metadata(self):
+        """
+        Gets file metadata for the current file as a dict with keys
+        'generator', 'version', 'created'
+        """
+        return {
+            "generator": self.file.attrs["generator"],
+            "version": self.file.attrs["version"],
+            "created": self.file.attrs["created"],
         }
 
     def get_counts(self):
@@ -805,6 +819,26 @@ class FamDB:
 
         seen[key].add(value)
 
+    @staticmethod
+    def __accession_bin(acc):
+        """Maps an accession (Dfam or otherwise) into apropriate bins (groups) in HDF5"""
+        dfam_match = FamDB.dfam_acc_pat.match(acc)
+        if dfam_match:
+            path = FamDB.GROUP_FAMILIES + "/" + dfam_match.group(1) + "/" + \
+                   dfam_match.group(2) + "/" + dfam_match.group(3)
+        else:
+            path = FamDB.GROUP_FAMILIES + "/Aux/" + acc[0:2].lower()
+        return path
+
+    @staticmethod
+    def __families_iterator(g, prefix=''):
+        for key, item in g.items():
+            path = '{}/{}'.format(prefix, key)
+            if isinstance(item, h5py.Dataset): # test for dataset
+                yield (key)
+            elif isinstance(item, h5py.Group): # test for group (go down)
+                yield from FamDB.__families_iterator(item, path)
+
     def add_family(self, family):
         """Adds the family described by 'family' to the database."""
         # Verify uniqueness of name and accession.
@@ -820,28 +854,36 @@ class FamDB:
             self.added['hmm'] += 1
 
         # Create the family data
-        dset = self.file.require_group(FamDB.GROUP_FAMILIES).create_dataset(family.accession, (0,))
+        # In v0.5 we bin the datasets into subgroups to improve performance
+        group_path = self.__accession_bin(family.accession)
+        dset = self.file.require_group(group_path).create_dataset(family.accession, (0,))
 
         # Set the family attributes
         for k in Family.META_LOOKUP:
             value = getattr(family, k)
             if value:
-                dset.attrs[k] = value
+                if k == "model":
+                    #self.file['hmm_dataset'][self.added['hmm']] = value
+                    dset.attrs[k] = value
+                else:
+                    dset.attrs[k] = value
 
         # Create links
         if family.name:
-            self.file.require_group(FamDB.GROUP_FAMILIES_BYNAME)[family.name] = h5py.SoftLink("/Families/" + family.accession)
-        self.file.require_group(FamDB.GROUP_FAMILIES_BYACC)[family.accession] = h5py.SoftLink("/Families/" + family.accession)
+            self.file.require_group(FamDB.GROUP_FAMILIES_BYNAME)[family.name] = h5py.SoftLink(group_path + "/" + family.accession)
+        # In FamDB format version 0.5 we removed the /Families/ByAccession group as it's redundant
+        # (all the data is in Families/<datasets> *and* HDF5 suffers from poor performance when
+        # the number of entries in a group exceeds 200-500k.
 
         for clade_id in family.clades:
             taxon_group = self.file.require_group(FamDB.GROUP_NODES).require_group(str(clade_id))
             families_group = taxon_group.require_group("Families")
-            families_group[family.accession] = h5py.SoftLink("/Families/" + family.accession)
+            families_group[family.accession] = h5py.SoftLink(group_path + "/" + family.accession)
 
         def add_stage_link(stage, accession):
             stage_group = self.file.require_group(FamDB.GROUP_FAMILIES_BYSTAGE).require_group(stage.strip())
             if accession not in stage_group:
-                stage_group[accession] = h5py.SoftLink("/Families/" + accession)
+                stage_group[accession] = h5py.SoftLink(group_path + "/" + accession)
 
         if family.search_stages:
             for stage in family.search_stages.split(","):
@@ -1280,7 +1322,9 @@ up with the 'names' command."""
             # special case: Searching the whole database, going directly via
             # Families/ is faster than repeatedly traversing the tree
             elif tax_id == 1 and descendants:
-                yield from self.file[FamDB.GROUP_FAMILIES_BYACC].keys()
+                #yield from self.file[FamDB.GROUP_FAMILIES_BYACC].keys()
+                for name in self.__families_iterator(self.file[FamDB.GROUP_FAMILIES],"Families"):
+                    yield name
             else:
                 lineage = self.get_lineage(tax_id, ancestors=ancestors, descendants=descendants)
                 for node in walk_tree(lineage):
@@ -1296,7 +1340,8 @@ up with the 'names' command."""
             def family_getter():
                 nonlocal cached_family
                 if not cached_family:
-                    cached_family = self.file["Families"].get(accession)
+                    path = self.__accession_bin(accession)
+                    cached_family = self.file[path].get(accession)
                 return cached_family
 
             match = True
@@ -1310,9 +1355,10 @@ up with the 'names' command."""
         """Returns a list of names of families in the database."""
         return sorted(self.file[FamDB.GROUP_FAMILIES_BYNAME].keys(), key=str.lower)
 
+    # Currently I do not believe this is used by anyone?
     def get_family_accessions(self):
         """Returns a list of accessions for families in the database."""
-        return sorted(self.file[FamDB.GROUP_FAMILIES_BYACC].keys(), key=str.lower)
+        return sorted(self.__families_iterator(self.file[FamDB.GROUP_FAMILIES],"Families"), key=str.lower)
 
     @staticmethod
     def __get_family(entry):
@@ -1330,7 +1376,8 @@ up with the 'names' command."""
 
     def get_family_by_accession(self, accession):
         """Returns the family with the given accession."""
-        entry = self.file["Families"].get(accession)
+        path = self.__accession_bin(accession)
+        entry = self.file[path].get(accession)
         return self.__get_family(entry)
 
     def get_family_by_name(self, name):
@@ -1346,9 +1393,14 @@ def command_info(args):
 
     db_info = args.file.get_db_info()
     counts = args.file.get_counts()
+    f_info = args.file.get_metadata()
 
     print("""\
 File: {}
+FamDB Generator: {}
+FamDB Format Version: {}
+FamDB Creation Date: {}
+
 Database: {}
 Version: {}
 Date: {}
@@ -1359,6 +1411,8 @@ Total consensus sequences: {}
 Total HMMs: {}
 """.format(
     os.path.realpath(args.file.filename),
+    f_info["generator"], f_info["version"],
+    f_info["created"],
     db_info["name"], db_info["version"],
     db_info["date"], db_info["description"],
     counts["consensus"], counts["hmm"]))
