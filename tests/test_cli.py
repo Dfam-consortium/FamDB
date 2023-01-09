@@ -22,7 +22,10 @@ def test_one(t, filename, spec_path):
         args.insert(0, "coverage")
         args.insert(1, "run")
 
+    print("running: " + str(args))
     result = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    print("ERROR:" + str(result.stderr))
+    print("OUT:" + str(result.stdout))
 
     def compare_output(actual, expected_file):
         if os.environ.get("FAMDB_TEST_BLESS"):

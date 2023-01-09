@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-    famdb.py, version 0.4.2
+    famdb.py, version 0.4.3
     Usage: famdb.py [-h] [-l LOG_LEVEL] [-i FILE] command ...
 
     Queries or modifies the contents of a famdb file. For more detailed help
@@ -743,7 +743,7 @@ class FamDB:
             self.names_dump = json.loads(self.file["TaxaNames"][0])
 
     def __write_metadata(self):
-        self.file.attrs["generator"] = "famdb.py v0.4.2"
+        self.file.attrs["generator"] = "famdb.py v0.4.3"
         self.file.attrs["version"] = FILE_VERSION
         self.file.attrs["created"] = str(datetime.datetime.now())
 
@@ -1377,11 +1377,16 @@ up with the 'names' command."""
     def get_family_by_accession(self, accession):
         """Returns the family with the given accession."""
         path = self.__accession_bin(accession)
-        entry = self.file[path].get(accession)
-        return self.__get_family(entry)
+        if path in self.file:
+            entry = self.file[path].get(accession)
+            return self.__get_family(entry)
+        return None
 
     def get_family_by_name(self, name):
         """Returns the family with the given name."""
+        # TODO: This will also suffer the performance issues seen with
+        #       other groups that exceed 200-500k entries in a single group
+        #       at some point.  This needs to be refactored to scale appropriately.
         entry = self.file["Families/ByName"].get(name)
         return self.__get_family(entry)
 
@@ -1743,7 +1748,7 @@ def main():
 
     logging.basicConfig()
 
-    parser = argparse.ArgumentParser(description="""This is famdb.py version 0.4.2.
+    parser = argparse.ArgumentParser(description="""This is famdb.py version 0.4.3.
 
 example commands, including the most commonly used options:
 

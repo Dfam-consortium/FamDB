@@ -97,6 +97,12 @@ def init_db_file(filename):
     with famdb.FamDB(filename, "w") as db:
         db.set_db_info("Test", "V1", "2020-07-15", "Test Database", "<copyright header>")
 
+        # Override setting of format metadata for testing
+        db.file.attrs['generator'] = "famdb.py v0.4.3"
+        db.file.attrs['version'] = "0.5"
+        db.file.attrs['created'] = "2023-01-09 09:57:56.026443"
+
+
         families = [
             make_family("TEST0001", [1], "ACGT", "<model1>"),
             make_family("TEST0002", [2, 3], None, "<model2>"),

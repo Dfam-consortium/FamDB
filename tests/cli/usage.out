@@ -1,7 +1,7 @@
 usage: famdb.py [-h] [-l LOG_LEVEL] [-i FILE]
                 {info,names,lineage,families,family,append} ...
 
-This is famdb.py version 0.4.2.
+This is famdb.py version 0.4.3.
 
 example commands, including the most commonly used options:
 
