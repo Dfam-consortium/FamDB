@@ -32,6 +32,7 @@
         --dfam_config, -c : Dfam Config file
         --version, -v     : Get Dfam Version
         --chunk_size, -S  : Maximum file size of the partitions in bytes (default 10,000,000,000)
+        --rep_base, -r    : Save space for Repbase Data in the partitions
 
 SEE ALSO: related_script.py
           Dfam: http://www.dfam.org
@@ -120,6 +121,7 @@ def main(*args):
     parser.add_argument("-c", "--dfam_config", dest="dfam_config")
     parser.add_argument("-v", "--version", dest="get_version", action="store_true")
     parser.add_argument("-S", "--chunk_size", dest="chunk_size", default=10000000000)
+    parser.add_argument("-r", "--rep_base", dest="rep_base", action="store_true")
     args = parser.parse_args()
 
     logging.getLogger().setLevel(getattr(logging, args.log_level.upper()))
@@ -151,7 +153,20 @@ def main(*args):
         session = dfamdb_sfactory()
 
         # query nodes from Dfam
-        node_query = "SELECT dfam_taxdb.tax_id, parent_id FROM `ncbi_taxdb_nodes` JOIN dfam_taxdb ON dfam_taxdb.tax_id = ncbi_taxdb_nodes.tax_id ORDER BY dfam_taxdb.tax_id ASC"
+        node_query = "SELECT dfam_taxdb.tax_id, parent_id FROM `ncbi_taxdb_nodes` JOIN dfam_taxdb ON dfam_taxdb.tax_id = ncbi_taxdb_nodes.tax_id"# ORDER BY dfam_taxdb.tax_id ASC"
+        
+        # if RepBase is included, add the taxa to the list
+        if args.rep_base:
+            rb_taxa_file = f"{PREPPED_DIR}/RMRB_spec_to_tax.json"
+            if os.path.exists(rb_taxa_file):
+                LOGGER.info("Found RepBase Taxa File")
+                with open(rb_taxa_file, "rb") as spec_file:
+                    spec_to_taxa = json.load(spec_file)
+                node_query += f" UNION SELECT tax_id, parent_id from ncbi_taxdb_nodes WHERE tax_id IN ({','.join(str(node) for node in spec_to_taxa.values())})"
+            else:
+                LOGGER.error("RMRB_spec_to_tax.json Not Found\nRun embl_parser.py")
+                exit()
+
         with session.bind.begin() as conn:
             tax_ids, parent_ids = zip(*conn.execute(node_query))
             tax_ids = list(tax_ids)
@@ -173,7 +188,8 @@ def main(*args):
                 parent_ids.extend(new_parents)
 
         # query file sizes for each node
-        node_query = "SELECT family_clade.dfam_taxdb_tax_id, OCTET_LENGTH(hmm_model_data.hmm) FROM hmm_model_data JOIN family_clade ON hmm_model_data.family_id = family_clade.family_id"
+        # node_query = "SELECT family_clade.dfam_taxdb_tax_id, OCTET_LENGTH(hmm_model_data.hmm) FROM hmm_model_data JOIN family_clade ON hmm_model_data.family_id = family_clade.family_id"
+        node_query = "SELECT family_clade.dfam_taxdb_tax_id, OCTET_LENGTH(hmm_model_data.hmm) + OCTET_LENGTH(family.consensus) FROM hmm_model_data JOIN family_clade ON hmm_model_data.family_id = family_clade.family_id JOIN family ON family_clade.family_id = family.id"
         with session.bind.begin() as conn:
             filesizes = conn.execute(node_query)
 
@@ -193,6 +209,23 @@ def main(*args):
         # assign filesizes
         for size in filesizes:
             T[size[0]]["filesize"] += size[1]
+        
+        # add sizes from RepBase 
+        if args.rep_base:
+            RB_file = f"{PREPPED_DIR}/RMRB.sizes"
+            if os.path.exists(RB_file):
+                LOGGER.info("Found RepBase Taxa Sizes")
+                with open(RB_file, "rb") as size_file:
+                    RB = json.load(size_file)
+                for fam in RB:
+                    tax_id = fam["tax_id"]
+                    if tax_id in T:
+                        T[tax_id]["filesize"] += fam["seq_size"]
+                    else:
+                        T[tax_id]["filesize"] = fam["seq_size"]
+            else:
+                LOGGER.error("RMRB.sizes Not Found\nRun embl_parser.py")
+                exit()
 
         # assign children
         for n in T:
