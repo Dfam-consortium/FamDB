@@ -81,13 +81,149 @@ import DfamVersion as dfVersion
 
 LOGGER = logging.getLogger(__name__)
 PREPPED_DIR = "partitions"
-
+rb_taxa_file = f"{PREPPED_DIR}/RMRB_spec_to_tax.json"
+RB_file = f"{PREPPED_DIR}/RMRB_sizes.json"
+T_file = f"{PREPPED_DIR}/T.pkl"
 
 def _usage():
     """Print out docstring as program usage"""
     # Call to help/pydoc with scriptname ( sans path and file extension )
     help(os.path.splitext(os.path.basename(__file__))[0])
     sys.exit(0)
+
+def parse_RMRB(args, session):
+    data = []
+    with open(args.rep_base, 'r') as input:
+        lines = input.readlines()
+        fam = {'species': None, 'seq_size': 0}
+        for line in lines:
+            if line.startswith('CC        Species:'):
+                fam['species'] = line.split(' ')[-1].strip()
+            elif line.startswith('SQ   Sequence'):
+                fam['seq_size'] = int(line.split(' ')[4])*8
+            
+            if fam['species'] and fam['seq_size']:
+                data.append(fam)
+                fam = {'species': None, 'seq_size': 0}
+
+    looked_up = {}
+    with session.bind.begin() as conn:
+        for fam in data:
+            species = fam['species']
+            if species in looked_up:
+                tax_id = looked_up[species]
+            else:
+                query = f"SELECT tax_id FROM `ncbi_taxdb_names` WHERE sanitized_name='{species}'"
+                res = tuple(conn.execute(query))
+                tax_id = res[0][0] if res else None
+                looked_up[species] = tax_id
+                if not tax_id:
+                    print(species)
+            fam["tax_id"] = tax_id
+   
+    with open(RB_file, 'w+') as output:
+        output.write(json.dumps(data))
+
+    with open(rb_taxa_file, 'w+') as output:
+        sec_to_tax = {}
+        for fam in data:
+            if fam["species"] not in sec_to_tax:
+                sec_to_tax[fam["species"]] = fam["tax_id"]
+        output.write(json.dumps(sec_to_tax))
+
+def generate_T(args, session):
+    # query nodes from Dfam
+    node_query = "SELECT dfam_taxdb.tax_id, parent_id FROM `ncbi_taxdb_nodes` JOIN dfam_taxdb ON dfam_taxdb.tax_id = ncbi_taxdb_nodes.tax_id"# ORDER BY dfam_taxdb.tax_id ASC"
+    
+    # if RepBase is included, add the taxa to the list
+    if args.rep_base:
+        with open(rb_taxa_file, "rb") as spec_file:
+            spec_to_taxa = json.load(spec_file)
+        node_query += f" UNION SELECT tax_id, parent_id from ncbi_taxdb_nodes WHERE tax_id IN ({','.join(str(node) for node in spec_to_taxa.values())})"
+
+    with session.bind.begin() as conn:
+        tax_ids, parent_ids = zip(*conn.execute(node_query))
+        tax_ids = list(tax_ids)
+        parent_ids = list(parent_ids)
+
+        # query parents of Dfam nodes until a connected tree can be built
+        while True:
+            missing_parents = []
+            for parent in parent_ids:
+                if parent not in tax_ids:
+                    missing_parents.append(parent)
+            if not missing_parents:
+                break
+            update_query = f"SELECT tax_id, parent_id FROM `ncbi_taxdb_nodes` WHERE tax_id IN ({','.join(str(node) for node in missing_parents)})"
+            new_taxs, new_parents = zip(*conn.execute(update_query))
+            new_taxs = list(new_taxs)
+            new_parents = list(new_parents)
+            tax_ids.extend(new_taxs)
+            parent_ids.extend(new_parents)
+
+    # query file sizes for each node
+    node_query = "SELECT family_clade.dfam_taxdb_tax_id, OCTET_LENGTH(hmm_model_data.hmm) + OCTET_LENGTH(family.consensus) FROM hmm_model_data JOIN family_clade ON hmm_model_data.family_id = family_clade.family_id JOIN family ON family_clade.family_id = family.id"
+    with session.bind.begin() as conn:
+        filesizes = conn.execute(node_query)
+
+    LOGGER.info("Building Tree")
+    # assemble tree from node info
+    T = {
+        z[0]: {
+            "parent": z[1],
+            "children": [],
+            "filesize": 0,
+            "tot_weight": 0,
+            "chunk": None,
+        }
+        for z in zip(tax_ids, parent_ids)
+    }
+
+    # assign filesizes
+    for size in filesizes:
+        T[size[0]]["filesize"] += size[1]
+    
+    # add sizes from RepBase 
+    if args.rep_base:
+        with open(RB_file, "rb") as size_file:
+            RB = json.load(size_file)
+        for fam in RB:
+            tax_id = fam["tax_id"]
+            if tax_id in T:
+                T[tax_id]["filesize"] += fam["seq_size"]
+            else:
+                T[tax_id]["filesize"] = fam["seq_size"]
+
+    # assign children
+    for n in T:
+        parent = T[n]["parent"]
+        if parent:
+            T[parent]["children"].append(n)
+
+    # root (node 1) is a child/parent of itself. Remove to allow recursion
+    T[1]["children"].remove(1)
+    T[1]["parent"] = None
+
+    # Assign tot_weight for each node as the sum of its filesize and the filesizes of all of it's child nodes
+    def assign_total_weights(n):
+        n_size = T[n]["filesize"]
+        children = T[n]["children"]
+        if not children:
+            T[n]["tot_weight"] = n_size
+            return n_size
+        else:
+            for child in children:
+                n_size += assign_total_weights(child)
+            T[n]["tot_weight"] = n_size
+            return n_size
+
+    assign_total_weights(1)
+
+    LOGGER.info("Stashing Tree")
+    with open(T_file, "wb") as phandle:
+        # pickle with protocol 4 since we require python 3.6.8 or later
+        pickle.dump(T, phandle, protocol=4)
+    return T
 
 
 #
@@ -121,7 +257,7 @@ def main(*args):
     parser.add_argument("-c", "--dfam_config", dest="dfam_config")
     parser.add_argument("-v", "--version", dest="get_version", action="store_true")
     parser.add_argument("-S", "--chunk_size", dest="chunk_size", default=10000000000)
-    parser.add_argument("-r", "--rep_base", dest="rep_base", action="store_true")
+    parser.add_argument("-r", "--rep_base", dest="rep_base")
     args = parser.parse_args()
 
     logging.getLogger().setLevel(getattr(logging, args.log_level.upper()))
@@ -137,126 +273,31 @@ def main(*args):
         LOGGER.info(df_ver.version_string)
         exit(0)
 
+     # Setup the database connections
+    conf = dc.DfamConfig(args.dfam_config)
+    dfamdb = create_engine(conf.getDBConnStrWPassFallback("Dfam"))
+    dfamdb_sfactory = sessionmaker(dfamdb)
+    session = dfamdb_sfactory()
+
+    # ~ PARSE RMRB.emble ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    if args.rep_base:
+        if os.path.exists(rb_taxa_file) and os.path.exists(RB_file):
+            LOGGER.info("Found RepBase Files")
+        else:
+            LOGGER.info("Generating RMRB_spec_to_tax.json and RMRB.sizes")
+            parse_RMRB(args, session)
+
     # ~ GENERATE T ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # check to see if tree has been cached
-    T_file = f"{PREPPED_DIR}/T.pkl"
     if os.path.exists(T_file):
         LOGGER.info("Found Stashed T")
         with open(T_file, "rb") as phandle:
             T = pickle.load(phandle)
     else:
         LOGGER.info("Did not find Stashed Tree, Fetching Nodes")
-        # Setup the database connections
-        conf = dc.DfamConfig(args.dfam_config)
-        dfamdb = create_engine(conf.getDBConnStrWPassFallback("Dfam"))
-        dfamdb_sfactory = sessionmaker(dfamdb)
-        session = dfamdb_sfactory()
+        T = generate_T(args, session)
 
-        # query nodes from Dfam
-        node_query = "SELECT dfam_taxdb.tax_id, parent_id FROM `ncbi_taxdb_nodes` JOIN dfam_taxdb ON dfam_taxdb.tax_id = ncbi_taxdb_nodes.tax_id"# ORDER BY dfam_taxdb.tax_id ASC"
         
-        # if RepBase is included, add the taxa to the list
-        if args.rep_base:
-            rb_taxa_file = f"{PREPPED_DIR}/RMRB_spec_to_tax.json"
-            if os.path.exists(rb_taxa_file):
-                LOGGER.info("Found RepBase Taxa File")
-                with open(rb_taxa_file, "rb") as spec_file:
-                    spec_to_taxa = json.load(spec_file)
-                node_query += f" UNION SELECT tax_id, parent_id from ncbi_taxdb_nodes WHERE tax_id IN ({','.join(str(node) for node in spec_to_taxa.values())})"
-            else:
-                LOGGER.error("RMRB_spec_to_tax.json Not Found\nRun embl_parser.py")
-                exit()
-
-        with session.bind.begin() as conn:
-            tax_ids, parent_ids = zip(*conn.execute(node_query))
-            tax_ids = list(tax_ids)
-            parent_ids = list(parent_ids)
-
-            # query parents of Dfam nodes until a connected tree can be built
-            while True:
-                missing_parents = []
-                for parent in parent_ids:
-                    if parent not in tax_ids:
-                        missing_parents.append(parent)
-                if not missing_parents:
-                    break
-                update_query = f"SELECT tax_id, parent_id FROM `ncbi_taxdb_nodes` WHERE tax_id IN ({','.join(str(node) for node in missing_parents)})"
-                new_taxs, new_parents = zip(*conn.execute(update_query))
-                new_taxs = list(new_taxs)
-                new_parents = list(new_parents)
-                tax_ids.extend(new_taxs)
-                parent_ids.extend(new_parents)
-
-        # query file sizes for each node
-        # node_query = "SELECT family_clade.dfam_taxdb_tax_id, OCTET_LENGTH(hmm_model_data.hmm) FROM hmm_model_data JOIN family_clade ON hmm_model_data.family_id = family_clade.family_id"
-        node_query = "SELECT family_clade.dfam_taxdb_tax_id, OCTET_LENGTH(hmm_model_data.hmm) + OCTET_LENGTH(family.consensus) FROM hmm_model_data JOIN family_clade ON hmm_model_data.family_id = family_clade.family_id JOIN family ON family_clade.family_id = family.id"
-        with session.bind.begin() as conn:
-            filesizes = conn.execute(node_query)
-
-        LOGGER.info("Building Tree")
-        # assemble tree from node info
-        T = {
-            z[0]: {
-                "parent": z[1],
-                "children": [],
-                "filesize": 0,
-                "tot_weight": 0,
-                "chunk": None,
-            }
-            for z in zip(tax_ids, parent_ids)
-        }
-
-        # assign filesizes
-        for size in filesizes:
-            T[size[0]]["filesize"] += size[1]
-        
-        # add sizes from RepBase 
-        if args.rep_base:
-            RB_file = f"{PREPPED_DIR}/RMRB.sizes"
-            if os.path.exists(RB_file):
-                LOGGER.info("Found RepBase Taxa Sizes")
-                with open(RB_file, "rb") as size_file:
-                    RB = json.load(size_file)
-                for fam in RB:
-                    tax_id = fam["tax_id"]
-                    if tax_id in T:
-                        T[tax_id]["filesize"] += fam["seq_size"]
-                    else:
-                        T[tax_id]["filesize"] = fam["seq_size"]
-            else:
-                LOGGER.error("RMRB.sizes Not Found\nRun embl_parser.py")
-                exit()
-
-        # assign children
-        for n in T:
-            parent = T[n]["parent"]
-            if parent:
-                T[parent]["children"].append(n)
-
-        # root (node 1) is a child/parent of itself. Remove to allow recursion
-        T[1]["children"].remove(1)
-        T[1]["parent"] = None
-
-        # Assign tot_weight for each node as the sum of its filesize and the filesizes of all of it's child nodes
-        def assign_total_weights(n):
-            n_size = T[n]["filesize"]
-            children = T[n]["children"]
-            if not children:
-                T[n]["tot_weight"] = n_size
-                return n_size
-            else:
-                for child in children:
-                    n_size += assign_total_weights(child)
-                T[n]["tot_weight"] = n_size
-                return n_size
-
-        assign_total_weights(1)
-
-        LOGGER.info("Stashing Tree")
-        with open(T_file, "wb") as phandle:
-            # pickle with protocol 4 since we require python 3.6.8 or later
-            pickle.dump(T, phandle, protocol=4)
-
     # ~ CHUNK ASSIGNMENT ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     def label_chunk(n):
         # assign chunk label if unassigned
