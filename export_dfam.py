@@ -829,18 +829,15 @@ http://creativecommons.org/publicdomain/zero/1.0/legalcode
     target_count = 0
 
     if args.from_db:
-        if args.db_partition:
-            # SELECT * FROM `family` JOIN `family_clade` ON family_id=id WHERE dfam_taxdb_tax_id IN (taxa)
-            query = (
-                session.query(dfam.Family)
-                .join(
-                    dfam.t_family_clade,
-                    dfam.Family.id == dfam.t_family_clade.c.family_id,
-                )
-                .filter(dfam.t_family_clade.c.dfam_taxdb_tax_id.in_(taxa))
+        # SELECT * FROM `family` JOIN `family_clade` ON family_id=id WHERE dfam_taxdb_tax_id IN (taxa)
+        query = (
+            session.query(dfam.Family)
+            .join(
+                dfam.t_family_clade,
+                dfam.Family.id == dfam.t_family_clade.c.family_id,
             )
-        else:
-            query = session.query(dfam.Family)
+            .filter(dfam.t_family_clade.c.dfam_taxdb_tax_id.in_(taxa))
+        )
 
         # TODO: assuming that partitioned chunk files will include uncurated data
         if not args.include_uncurated and not args.db_partition:
@@ -945,7 +942,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-l", "--log-level", default="INFO")
     parser.add_argument("--from-db")
-    parser.add_argument("--db-partition")
+    parser.add_argument("--db-partition", required=True)
     parser.add_argument("--from-tax-dump")
     parser.add_argument("-r", "--include-uncurated", action="store_true")
     parser.add_argument("--from-embl", action="append", default=[])
@@ -969,22 +966,16 @@ def main():
     if args.from_tax_dump:
         tax_db, tax_lookup = load_taxonomy_from_dump(args.from_tax_dump)
 
-    # export each chunk in F separately
-    if args.db_partition:
-        with open(args.db_partition, "r") as F_file:
-            F = json.load(F_file)
+    with open(args.db_partition, "r") as F_file:
+        F = json.load(F_file)
 
-        out_str = args.outfile
-        for n in F:
-            taxa = F[n]["nodes"]
-            LOGGER.info(f"\tExporting chunk {n}")
-            # LOGGER.info(f"Taxa: {taxa}")
-            args.outfile = famdb.FamDB(f"{out_str}.{n}.chunk", "w")
-            run_export(args, session, tax_db, tax_lookup, chunk=n, taxa=taxa)
-    # export whole database to 1 file
-    else:
-        args.outfile = famdb.FamDB(args.outfile, "w")
-        run_export(args, session, tax_db, tax_lookup)
+    out_str = args.outfile
+    for n in F:
+        taxa = F[n]["nodes"]
+        LOGGER.info(f"\tExporting chunk {n}")
+        # LOGGER.info(f"Taxa: {taxa}")
+        args.outfile = famdb.FamDB(f"{out_str}.{n}.h5", "w")
+        run_export(args, session, tax_db, tax_lookup, chunk=n, taxa=taxa)
 
 
 if __name__ == "__main__":

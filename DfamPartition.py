@@ -85,31 +85,33 @@ rb_taxa_file = f"{PREPPED_DIR}/RMRB_spec_to_tax.json"
 RB_file = f"{PREPPED_DIR}/RMRB_sizes.json"
 T_file = f"{PREPPED_DIR}/T.pkl"
 
+
 def _usage():
     """Print out docstring as program usage"""
     # Call to help/pydoc with scriptname ( sans path and file extension )
     help(os.path.splitext(os.path.basename(__file__))[0])
     sys.exit(0)
 
+
 def parse_RMRB(args, session):
     data = []
-    with open(args.rep_base, 'r') as input:
+    with open(args.rep_base, "r") as input:
         lines = input.readlines()
-        fam = {'species': None, 'seq_size': 0}
+        fam = {"species": None, "seq_size": 0}
         for line in lines:
-            if line.startswith('CC        Species:'):
-                fam['species'] = line.split(' ')[-1].strip()
-            elif line.startswith('SQ   Sequence'):
-                fam['seq_size'] = int(line.split(' ')[4])*8
-            
-            if fam['species'] and fam['seq_size']:
+            if line.startswith("CC        Species:"):
+                fam["species"] = line.split(" ")[-1].strip()
+            elif line.startswith("SQ   Sequence"):
+                fam["seq_size"] = int(line.split(" ")[4]) * 8
+
+            if fam["species"] and fam["seq_size"]:
                 data.append(fam)
-                fam = {'species': None, 'seq_size': 0}
+                fam = {"species": None, "seq_size": 0}
 
     looked_up = {}
     with session.bind.begin() as conn:
         for fam in data:
-            species = fam['species']
+            species = fam["species"]
             if species in looked_up:
                 tax_id = looked_up[species]
             else:
@@ -120,21 +122,22 @@ def parse_RMRB(args, session):
                 if not tax_id:
                     print(species)
             fam["tax_id"] = tax_id
-   
-    with open(RB_file, 'w+') as output:
+
+    with open(RB_file, "w+") as output:
         output.write(json.dumps(data))
 
-    with open(rb_taxa_file, 'w+') as output:
+    with open(rb_taxa_file, "w+") as output:
         sec_to_tax = {}
         for fam in data:
             if fam["species"] not in sec_to_tax:
                 sec_to_tax[fam["species"]] = fam["tax_id"]
         output.write(json.dumps(sec_to_tax))
 
+
 def generate_T(args, session):
     # query nodes from Dfam
-    node_query = "SELECT dfam_taxdb.tax_id, parent_id FROM `ncbi_taxdb_nodes` JOIN dfam_taxdb ON dfam_taxdb.tax_id = ncbi_taxdb_nodes.tax_id"# ORDER BY dfam_taxdb.tax_id ASC"
-    
+    node_query = "SELECT dfam_taxdb.tax_id, parent_id FROM `ncbi_taxdb_nodes` JOIN dfam_taxdb ON dfam_taxdb.tax_id = ncbi_taxdb_nodes.tax_id"  # ORDER BY dfam_taxdb.tax_id ASC"
+
     # if RepBase is included, add the taxa to the list
     if args.rep_base:
         with open(rb_taxa_file, "rb") as spec_file:
@@ -182,8 +185,8 @@ def generate_T(args, session):
     # assign filesizes
     for size in filesizes:
         T[size[0]]["filesize"] += size[1]
-    
-    # add sizes from RepBase 
+
+    # add sizes from RepBase
     if args.rep_base:
         with open(RB_file, "rb") as size_file:
             RB = json.load(size_file)
@@ -273,7 +276,7 @@ def main(*args):
         LOGGER.info(df_ver.version_string)
         exit(0)
 
-     # Setup the database connections
+    # Setup the database connections
     conf = dc.DfamConfig(args.dfam_config)
     dfamdb = create_engine(conf.getDBConnStrWPassFallback("Dfam"))
     dfamdb_sfactory = sessionmaker(dfamdb)
@@ -297,7 +300,6 @@ def main(*args):
         LOGGER.info("Did not find Stashed Tree, Fetching Nodes")
         T = generate_T(args, session)
 
-        
     # ~ CHUNK ASSIGNMENT ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     def label_chunk(n):
         # assign chunk label if unassigned
