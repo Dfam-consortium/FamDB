@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-    famdb.py, version 0.4.3
+    famdb.py, version 0.5
     Usage: famdb.py [-h] [-l LOG_LEVEL] [-i FILE] command ...
 
     Queries or modifies the contents of a famdb file. For more detailed help
@@ -61,15 +61,34 @@ LOGGER = logging.getLogger(__name__)
 
 # Soundex codes
 SOUNDEX_LOOKUP = {
-    'A': 0, 'E': 0, 'I': 0, 'O': 0, 'U': 0, 'Y': 0,
-    'B': 1, 'F': 1, 'P': 1, 'V': 1,
-    'C': 2, 'G': 2, 'J': 2, 'K': 2, 'Q': 2, 'S': 2, 'X': 2, 'Z': 2,
-    'D': 3, 'T': 3,
-    'L': 4,
-    'M': 5, 'N': 5,
-    'R': 6,
-    'H': None, 'W': None,
+    "A": 0,
+    "E": 0,
+    "I": 0,
+    "O": 0,
+    "U": 0,
+    "Y": 0,
+    "B": 1,
+    "F": 1,
+    "P": 1,
+    "V": 1,
+    "C": 2,
+    "G": 2,
+    "J": 2,
+    "K": 2,
+    "Q": 2,
+    "S": 2,
+    "X": 2,
+    "Z": 2,
+    "D": 3,
+    "T": 3,
+    "L": 4,
+    "M": 5,
+    "N": 5,
+    "R": 6,
+    "H": None,
+    "W": None,
 }
+
 
 def soundex(word):
     """
@@ -88,7 +107,7 @@ def soundex(word):
     # Drop identical sounds and H and W
     while i < len(codes):
         code = codes[i]
-        prev = codes[i-1]
+        prev = codes[i - 1]
 
         if code is None:
             # Drop H and W
@@ -111,10 +130,11 @@ def soundex(word):
 
     # Pad to 3 digits
     while len(coding) < 4:
-        coding += '0'
+        coding += "0"
 
     # Truncate to 3 digits
     return coding[:4]
+
 
 def sounds_like(first, second):
     """
@@ -128,6 +148,7 @@ def sounds_like(first, second):
 
     return soundex_first == soundex_second
 
+
 def sanitize_name(name):
     """
     Returns the "sanitized" version of the given 'name'.
@@ -136,6 +157,7 @@ def sanitize_name(name):
     name = re.sub(r"[\s\,\_]+", "_", name)
     name = re.sub(r"[\(\)\<\>\']+", "", name)
     return name
+
 
 class Family:  # pylint: disable=too-many-instance-attributes
     """A Transposable Element family, made up of metadata and a model."""
@@ -150,7 +172,6 @@ class Family:  # pylint: disable=too-many-instance-attributes
         FamilyField("version", int),
         FamilyField("consensus", str),
         FamilyField("length", int),
-
         # Optional family metadata
         FamilyField("title", str),
         FamilyField("author", str),
@@ -171,7 +192,6 @@ class Family:  # pylint: disable=too-many-instance-attributes
         FamilyField("refineable", bool),
         FamilyField("target_site_cons", str),
         # TODO: add source_assembly, source_method?
-
         # Metadata available when a model is present
         FamilyField("model", str),
         FamilyField("max_length", int),
@@ -205,8 +225,11 @@ class Family:  # pylint: disable=too-many-instance-attributes
             try:
                 value = expected_type(value)
             except Exception as exc:
-                raise TypeError("Incompatible type for '{}'. Expected '{}', got '{}'".format(
-                    name, expected_type, type(value))) from exc
+                raise TypeError(
+                    "Incompatible type for '{}'. Expected '{}', got '{}'".format(
+                        name, expected_type, type(value)
+                    )
+                ) from exc
         super().__setattr__(name, value)
 
     def accession_with_optional_version(self):
@@ -221,10 +244,21 @@ class Family:  # pylint: disable=too-many-instance-attributes
 
     # A useful string representation for debugging, but not much else
     def __str__(self):
-        return "%s.%s '%s': %s len=%d" % (self.accession, self.version,
-                                          self.name, self.classification, self.length or -1)
+        return "%s.%s '%s': %s len=%d" % (
+            self.accession,
+            self.version,
+            self.name,
+            self.classification,
+            self.length or -1,
+        )
 
-    def to_dfam_hmm(self, famdb, species=None, include_class_in_name=False, require_general_threshold=False):  # pylint: disable=too-many-locals,too-many-branches
+    def to_dfam_hmm(
+        self,
+        famdb,
+        species=None,
+        include_class_in_name=False,
+        require_general_threshold=False,
+    ):  # pylint: disable=too-many-locals,too-many-branches
         """
         Converts 'self' to Dfam-style HMM format.
         'famdb' is used for lookups in the taxonomy database (id -> name).
@@ -294,11 +328,17 @@ class Family:  # pylint: disable=too-many-instance-attributes
                 tax_id = int(parts[0])
                 (hmm_ga, hmm_tc, hmm_nc, hmm_fdr) = map(float, parts[1:])
 
-                tax_name = famdb.get_taxon_name(tax_id, 'scientific name')
+                tax_name = famdb.get_taxon_name(tax_id, "scientific name")
                 if tax_id == species:
-                    species_hmm_ga, species_hmm_tc, species_hmm_nc = hmm_ga, hmm_tc, hmm_nc
-                th_lines += ["TaxId:%d; TaxName:%s; GA:%.2f; TC:%.2f; NC:%.2f; fdr:%.3f;" % (
-                    tax_id, tax_name, hmm_ga, hmm_tc, hmm_nc, hmm_fdr)]
+                    species_hmm_ga, species_hmm_tc, species_hmm_nc = (
+                        hmm_ga,
+                        hmm_tc,
+                        hmm_nc,
+                    )
+                th_lines += [
+                    "TaxId:%d; TaxName:%s; GA:%.2f; TC:%.2f; NC:%.2f; fdr:%.3f;"
+                    % (tax_id, tax_name, hmm_ga, hmm_tc, hmm_nc, hmm_fdr)
+                ]
 
         if species is None:
             if self.general_cutoff:
@@ -341,22 +381,19 @@ class Family:  # pylint: disable=too-many-instance-attributes
             append("CC", "     Refineable")
 
         # Append all remaining lines unchanged
-        out += "\n".join(model_lines[i+1:])
+        out += "\n".join(model_lines[i + 1 :])
 
         return out
 
-    __COMPLEMENT_TABLE = str.maketrans(
-        "ACGTRYWSKMNXBDHV",
-        "TGCAYRSWMKNXVHDB"
-    )
+    __COMPLEMENT_TABLE = str.maketrans("ACGTRYWSKMNXBDHV", "TGCAYRSWMKNXVHDB")
 
     def to_fasta(
-            self,
-            famdb,
-            use_accession=False,
-            include_class_in_name=False,
-            do_reverse_complement=False,
-            buffer=None
+        self,
+        famdb,
+        use_accession=False,
+        include_class_in_name=False,
+        do_reverse_complement=False,
+        buffer=None,
     ):
         """Converts 'self' to FASTA format."""
         sequence = self.consensus
@@ -378,7 +415,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
                 # range specification: append _START_END to the identifier
                 identifier += "_%d_%d" % (buffer[0], buffer[1])
 
-            sequence = sequence[buffer[0]-1:buffer[1]]
+            sequence = sequence[buffer[0] - 1 : buffer[1]]
             identifier = identifier + "#buffer"
 
         if do_reverse_complement:
@@ -410,12 +447,14 @@ class Family:  # pylint: disable=too-many-instance-attributes
 
         i = 0
         while i < len(sequence):
-            out += sequence[i:i+60] + "\n"
+            out += sequence[i : i + 60] + "\n"
             i += 60
 
         return out
 
-    def to_embl(self, famdb, include_meta=True, include_seq=True):  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+    def to_embl(
+        self, famdb, include_meta=True, include_seq=True
+    ):  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
         """Converts 'self' to EMBL format."""
 
         if include_seq and self.consensus is None:
@@ -461,7 +500,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
         append("ID", "%s; linear; DNA; STD; UNC; %d BP." % (id_line, len(sequence)))
         append("NM", self.name)
         out += "XX\n"
-        append("AC", self.accession + ';')
+        append("AC", self.accession + ";")
         out += "XX\n"
         append("DE", self.title, True)
         out += "XX\n"
@@ -475,9 +514,14 @@ class Family:  # pylint: disable=too-many-instance-attributes
                         out += "XX\n"
 
             if self.repeat_type == "LTR":
-                append("KW", "Long terminal repeat of retrovirus-like element; %s." % self.name)
+                append(
+                    "KW",
+                    "Long terminal repeat of retrovirus-like element; %s." % self.name,
+                )
             else:
-                append("KW", "%s/%s." % (self.repeat_type or "", self.repeat_subtype or ""))
+                append(
+                    "KW", "%s/%s." % (self.repeat_type or "", self.repeat_subtype or "")
+                )
             out += "XX\n"
 
             for clade_id in self.clades:
@@ -494,7 +538,9 @@ class Family:  # pylint: disable=too-many-instance-attributes
                 citations = json.loads(self.citations)
                 citations.sort(key=lambda c: c["order_added"])
                 for cit in citations:
-                    append("RN", "[%d] (bases 1 to %d)" % (cit["order_added"], self.length))
+                    append(
+                        "RN", "[%d] (bases 1 to %d)" % (cit["order_added"], self.length)
+                    )
                     append("RA", cit["authors"], True)
                     append("RT", cit["title"], True)
                     append("RL", cit["journal"])
@@ -506,8 +552,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
             append("CC", "     Type: %s" % (self.repeat_type or ""))
             append("CC", "     SubType: %s" % (self.repeat_subtype or ""))
 
-            species_names = [famdb.get_sanitized_name(c)
-                             for c in self.clades]
+            species_names = [famdb.get_sanitized_name(c) for c in self.clades]
             append("CC", "     Species: %s" % ", ".join(species_names))
 
             append("CC", "     SearchStages: %s" % (self.search_stages or ""))
@@ -522,12 +567,14 @@ class Family:  # pylint: disable=too-many-instance-attributes
                 for cds in json.loads(self.coding_sequences):
                     # TODO: sanitize values which might already contain a " in them?
 
-                    append("FT", "CDS             %d..%d" % (cds["cds_start"], cds["cds_end"]))
+                    append(
+                        "FT",
+                        "CDS             %d..%d" % (cds["cds_start"], cds["cds_end"]),
+                    )
                     append_featuredata('/product="%s"' % cds["product"])
-                    append_featuredata('/number=%s' % cds["exon_count"])
+                    append_featuredata("/number=%s" % cds["exon_count"])
                     append_featuredata('/note="%s"' % cds["description"])
                     append_featuredata('/translation="%s"' % cds["translation"])
-
 
             out += "XX\n"
 
@@ -540,18 +587,27 @@ class Family:  # pylint: disable=too-many-instance-attributes
                     char = "other"
                 counts[char] += 1
 
-            append("SQ", "Sequence %d BP; %d A; %d C; %d G; %d T; %d other;" % (
-                len(sequence), counts["a"], counts["c"], counts["g"], counts["t"],
-                counts["other"]))
+            append(
+                "SQ",
+                "Sequence %d BP; %d A; %d C; %d G; %d T; %d other;"
+                % (
+                    len(sequence),
+                    counts["a"],
+                    counts["c"],
+                    counts["g"],
+                    counts["t"],
+                    counts["other"],
+                ),
+            )
 
             while i < len(sequence):
-                chunk = sequence[i:i+60]
+                chunk = sequence[i : i + 60]
                 i += 60
 
                 j = 0
                 line = ""
                 while j < len(chunk):
-                    line += chunk[j:j + 10] + " "
+                    line += chunk[j : j + 10] + " "
                     j += 10
 
                 out += "     %-66s %d\n" % (line, min(i, len(sequence)))
@@ -582,7 +638,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
             For codes corresponding to list attributes, values are appended.
             """
             if code == "ID":
-                match = re.match(r'(\S*)', value)
+                match = re.match(r"(\S*)", value)
                 acc = match.group(1)
                 acc = acc.rstrip(";")
                 family.accession = acc
@@ -593,15 +649,15 @@ class Family:  # pylint: disable=too-many-instance-attributes
             elif code == "CC":
                 # TODO: Consider only recognizing these after seeing "RepeatMasker Annotations"
 
-                matches = re.match(r'\s*Type:\s*(\S+)', value)
+                matches = re.match(r"\s*Type:\s*(\S+)", value)
                 if matches:
                     family.repeat_type = matches.group(1).strip()
 
-                matches = re.match(r'\s*SubType:\s*(\S+)', value)
+                matches = re.match(r"\s*SubType:\s*(\S+)", value)
                 if matches:
                     family.repeat_subtype = matches.group(1).strip()
 
-                matches = re.search(r'Species:\s*(.+)', value)
+                matches = re.search(r"Species:\s*(.+)", value)
                 if matches:
                     for spec in matches.group(1).split(","):
                         name = spec.strip().lower()
@@ -612,15 +668,15 @@ class Family:  # pylint: disable=too-many-instance-attributes
                             else:
                                 LOGGER.warning("Could not find taxon for '%s'", name)
 
-                matches = re.search(r'SearchStages:\s*(\S+)', value)
+                matches = re.search(r"SearchStages:\s*(\S+)", value)
                 if matches:
                     family.search_stages = matches.group(1).strip()
 
-                matches = re.search(r'BufferStages:\s*(\S+)', value)
+                matches = re.search(r"BufferStages:\s*(\S+)", value)
                 if matches:
                     family.buffer_stages = matches.group(1).strip()
 
-                matches = re.search(r'Refineable', value)
+                matches = re.search(r"Refineable", value)
                 if matches:
                     family.refineable = True
 
@@ -643,7 +699,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
                         if line.startswith("XX"):
                             in_header = False
                         elif matches:
-                            header_line = matches.group(2).rstrip('*').strip()
+                            header_line = matches.group(2).rstrip("*").strip()
                             header += header_line + "\n"
                         else:
                             header += line
@@ -672,7 +728,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
 
                     # Part of the sequence area
                     else:
-                        family.consensus += re.sub(r'[^A-Za-z]', '', line)
+                        family.consensus += re.sub(r"[^A-Za-z]", "", line)
 
         if header_cb:
             header_cb(header)
@@ -680,6 +736,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
 
 # The current version of the file format
 FILE_VERSION = "0.5"
+
 
 class FamDB:
     """Transposable Element Family and taxonomy database."""
@@ -691,6 +748,7 @@ class FamDB:
     GROUP_FAMILIES_BYACC = "Families/ByAccession"
     GROUP_FAMILIES_BYSTAGE = "Families/ByStage"
     GROUP_NODES = "Taxonomy/Nodes"
+    GROUP_FILEMAP = "FileMap"
 
     # DF####### or DF########## or DR####### or DR##########
     dfam_acc_pat = re.compile("^(D[FR])([0-9]{2})([0-9]{2})[0-9]{3,6}$")
@@ -710,18 +768,28 @@ class FamDB:
         elif mode == "w":
             reading = False
         else:
-            raise ValueError("Invalid file mode. Expected 'r' or 'r+' or 'w', got '{}'".format(mode))
-
+            raise ValueError(
+                "Invalid file mode. Expected 'r' or 'r+' or 'w', got '{}'".format(mode)
+            )
 
         self.filename = filename
         self.file = h5py.File(filename, mode)
         self.mode = mode
 
+        self.partition_num = filename.split(".")[-2]
+        if self.partition_num == "0":
+            self.root = True
+        else:
+            self.root = False
+
         try:
             if reading and self.file.attrs["version"] != FILE_VERSION:
-                raise Exception("File version is {}, but this is version {}".format(
-                    self.file.attrs["version"], FILE_VERSION,
-                ))
+                raise Exception(
+                    "File version is {}, but this is version {}".format(
+                        self.file.attrs["version"],
+                        FILE_VERSION,
+                    )
+                )
         except:
             # This 'except' catches both "version" missing from attrs, or the
             # value not matching if it is present.
@@ -731,25 +799,64 @@ class FamDB:
 
         if self.mode == "w":
             self.seen = {}
-            self.added = {'consensus': 0, 'hmm': 0}
+            self.added = {"consensus": 0, "hmm": 0}
             self.__write_metadata()
+            self.__set_partition()
+            if self.root:
+                self.__set_root_map()
         elif self.mode == "r+":
             self.seen = {}
             self.seen["name"] = set(self.file[FamDB.GROUP_FAMILIES_BYNAME].keys())
-            self.seen["accession"] = set(self.__families_iterator(self.file[FamDB.GROUP_FAMILIES],"Families"))
+            self.seen["accession"] = set(
+                self.__families_iterator(self.file[FamDB.GROUP_FAMILIES], "Families")
+            )
             self.added = self.get_counts()
 
         if reading:
             self.names_dump = json.loads(self.file["TaxaNames"][0])
 
     def __write_metadata(self):
-        self.file.attrs["generator"] = "famdb.py v0.4.3"
+        self.file.attrs["generator"] = f"famdb.py v{FILE_VERSION}"
         self.file.attrs["version"] = FILE_VERSION
         self.file.attrs["created"] = str(datetime.datetime.now())
 
     def __write_counts(self):
-        self.file.attrs["count_consensus"] = self.added['consensus']
-        self.file.attrs["count_hmm"] = self.added['hmm']
+        self.file.attrs["count_consensus"] = self.added["consensus"]
+        self.file.attrs["count_hmm"] = self.added["hmm"]
+
+    def __set_partition(self):
+        T_root = None
+        F_roots = None
+        with open("./partitions/F_test.json") as F_file:
+            F = json.load(F_file)
+            T_root = int(F[self.partition_num]["T_root"])
+            F_roots = [int(root) for root in F[self.partition_num]["F_roots"]]
+        partition_info = {}
+        if T_root == 1 and F_roots == []:
+            partition_info["partition_name"] = "Root Partition"
+            partition_info["partition_detail"] = None
+        elif len(F_roots) == 1 and F_roots[0] == T_root:
+            partition_info["partition_name"] = T_root
+            partition_info["partition_detail"] = None
+        elif len(F_roots) > 1:
+            partition_info["partition_name"] = T_root
+            partition_info["partition_detail"] = F_roots
+        self.file.attrs["partition"] = json.dumps(partition_info)
+
+    def __set_root_map(self):
+        with open("./partitions/F_test.json") as F_file:
+            F = json.load(F_file)
+        tax_to_file = {}
+        file_labels = {}
+        for chunk in F:
+            file_labels[int(chunk)] = {
+                "T_root": F[chunk]["T_root"],
+                "F_roots": F[chunk]["F_roots"],
+            }
+            for node in F[chunk]["nodes"]:
+                tax_to_file[node] = int(chunk)
+        self.file.attrs["tax_to_file"] = json.dumps(tax_to_file)
+        self.file.attrs["file_labels"] = json.dumps(file_labels)
 
     def set_db_info(self, name, version, date, desc, copyright_text):
         """Sets database metadata for the current file"""
@@ -780,10 +887,24 @@ class FamDB:
         Gets file metadata for the current file as a dict with keys
         'generator', 'version', 'created'
         """
+        partition = json.loads(self.file.attrs["partition"])
+        if type(partition["partition_name"]) is int:
+            partition_name = self.get_sanitized_name(partition["partition_name"])
+        else:
+            partition_name = partition["partition_name"]
+        partition_detail = partition["partition_detail"]
+        if partition_detail is None:
+            partition_detail = "None"
+        else:
+            partition_detail = ", ".join(
+                [self.get_sanitized_name(node) for node in partition_detail]
+            )
         return {
             "generator": self.file.attrs["generator"],
             "version": self.file.attrs["version"],
             "created": self.file.attrs["created"],
+            "partition_name": partition_name,
+            "partition_detail": partition_detail,
         }
 
     def get_counts(self):
@@ -815,7 +936,9 @@ class FamDB:
             seen[key] = set()
 
         if value in seen[key]:
-            raise Exception("Family is not unique! Already seen {}: {}".format(key, value))
+            raise Exception(
+                "Family is not unique! Already seen {}: {}".format(key, value)
+            )
 
         seen[key].add(value)
 
@@ -824,19 +947,26 @@ class FamDB:
         """Maps an accession (Dfam or otherwise) into apropriate bins (groups) in HDF5"""
         dfam_match = FamDB.dfam_acc_pat.match(acc)
         if dfam_match:
-            path = FamDB.GROUP_FAMILIES + "/" + dfam_match.group(1) + "/" + \
-                   dfam_match.group(2) + "/" + dfam_match.group(3)
+            path = (
+                FamDB.GROUP_FAMILIES
+                + "/"
+                + dfam_match.group(1)
+                + "/"
+                + dfam_match.group(2)
+                + "/"
+                + dfam_match.group(3)
+            )
         else:
             path = FamDB.GROUP_FAMILIES + "/Aux/" + acc[0:2].lower()
         return path
 
     @staticmethod
-    def __families_iterator(g, prefix=''):
+    def __families_iterator(g, prefix=""):
         for key, item in g.items():
-            path = '{}/{}'.format(prefix, key)
-            if isinstance(item, h5py.Dataset): # test for dataset
+            path = "{}/{}".format(prefix, key)
+            if isinstance(item, h5py.Dataset):  # test for dataset
                 yield (key)
-            elif isinstance(item, h5py.Group): # test for group (go down)
+            elif isinstance(item, h5py.Group):  # test for group (go down)
                 yield from FamDB.__families_iterator(item, path)
 
     def add_family(self, family):
@@ -849,39 +979,49 @@ class FamDB:
 
         # Increment counts
         if family.consensus:
-            self.added['consensus'] += 1
+            self.added["consensus"] += 1
         if family.model:
-            self.added['hmm'] += 1
+            self.added["hmm"] += 1
 
         # Create the family data
         # In v0.5 we bin the datasets into subgroups to improve performance
         group_path = self.__accession_bin(family.accession)
-        dset = self.file.require_group(group_path).create_dataset(family.accession, (0,))
+        dset = self.file.require_group(group_path).create_dataset(
+            family.accession, (0,)
+        )
 
         # Set the family attributes
         for k in Family.META_LOOKUP:
             value = getattr(family, k)
             if value:
                 if k == "model":
-                    #self.file['hmm_dataset'][self.added['hmm']] = value
+                    # self.file['hmm_dataset'][self.added['hmm']] = value
                     dset.attrs[k] = value
                 else:
                     dset.attrs[k] = value
 
         # Create links
         if family.name:
-            self.file.require_group(FamDB.GROUP_FAMILIES_BYNAME)[family.name] = h5py.SoftLink(group_path + "/" + family.accession)
+            self.file.require_group(FamDB.GROUP_FAMILIES_BYNAME)[
+                family.name
+            ] = h5py.SoftLink(group_path + "/" + family.accession)
         # In FamDB format version 0.5 we removed the /Families/ByAccession group as it's redundant
         # (all the data is in Families/<datasets> *and* HDF5 suffers from poor performance when
         # the number of entries in a group exceeds 200-500k.
 
         for clade_id in family.clades:
-            taxon_group = self.file.require_group(FamDB.GROUP_NODES).require_group(str(clade_id))
+            taxon_group = self.file.require_group(FamDB.GROUP_NODES).require_group(
+                str(clade_id)
+            )
             families_group = taxon_group.require_group("Families")
-            families_group[family.accession] = h5py.SoftLink(group_path + "/" + family.accession)
+            families_group[family.accession] = h5py.SoftLink(
+                group_path + "/" + family.accession
+            )
 
         def add_stage_link(stage, accession):
-            stage_group = self.file.require_group(FamDB.GROUP_FAMILIES_BYSTAGE).require_group(stage.strip())
+            stage_group = self.file.require_group(
+                FamDB.GROUP_FAMILIES_BYSTAGE
+            ).require_group(stage.strip())
             if accession not in stage_group:
                 stage_group[accession] = h5py.SoftLink(group_path + "/" + accession)
 
@@ -911,7 +1051,9 @@ class FamDB:
                 self.names_dump[taxon.tax_id] = taxon.names
 
         def store_tree_links(taxon, parent_id):
-            group = self.file.require_group(FamDB.GROUP_NODES).require_group(str(taxon.tax_id))
+            group = self.file.require_group(FamDB.GROUP_NODES).require_group(
+                str(taxon.tax_id)
+            )
             if parent_id:
                 group.create_dataset("Parent", data=[parent_id])
 
@@ -924,8 +1066,9 @@ class FamDB:
             group.create_dataset("Children", data=child_ids)
 
         names_data = numpy.array([json.dumps(self.names_dump)])
-        names_dset = self.file.create_dataset("TaxaNames", shape=names_data.shape,
-                                              dtype=FamDB.dtype_str)
+        names_dset = self.file.create_dataset(
+            "TaxaNames", shape=names_data.shape, dtype=FamDB.dtype_str
+        )
         names_dset[:] = names_data
 
         LOGGER.info("Writing taxonomy tree")
@@ -1027,11 +1170,17 @@ class FamDB:
             # Try a sounds-like search (currently soundex)
             similar_results = self.resolve_species(term, kind, True)
             if similar_results:
-                print("No results were found for that name, but some names sound similar:",
-                      file=sys.stderr)
+                print(
+                    "No results were found for that name, but some names sound similar:",
+                    file=sys.stderr,
+                )
                 for tax_id, _ in similar_results:
                     names = self.get_taxon_names(tax_id)
-                    print(tax_id, ", ".join(["{1}".format(*n) for n in names]), file=sys.stderr)
+                    print(
+                        tax_id,
+                        ", ".join(["{1}".format(*n) for n in names]),
+                        file=sys.stderr,
+                    )
 
         return results
 
@@ -1058,10 +1207,14 @@ class FamDB:
         elif len(results) == 1:
             return results[0][0]
         else:
-            print("""Ambiguous search term '{}' (found {} results, {} exact).
+            print(
+                """Ambiguous search term '{}' (found {} results, {} exact).
 Please use a more specific name or taxa ID, which can be looked
-up with the 'names' command."""
-                  .format(term, len(results), len(exact_matches)), file=sys.stderr)
+up with the 'names' command.""".format(
+                    term, len(results), len(exact_matches)
+                ),
+                file=sys.stderr,
+            )
 
         return None
 
@@ -1072,7 +1225,7 @@ up with the 'names' command."""
 
         return self.names_dump[str(tax_id)]
 
-    def get_taxon_name(self, tax_id, kind='scientific name'):
+    def get_taxon_name(self, tax_id, kind="scientific name"):
         """
         Returns the first name of the given 'kind' for the taxon given by 'tax_id',
         or None if no such name was found.
@@ -1091,7 +1244,7 @@ up with the 'names' command."""
         of the scientific name.
         """
 
-        name = self.get_taxon_name(tax_id, 'scientific name')
+        name = self.get_taxon_name(tax_id, "scientific name")
         if name:
             name = sanitize_name(name)
         return name
@@ -1116,11 +1269,13 @@ up with the 'names' command."""
         group_nodes = self.file[FamDB.GROUP_NODES]
 
         if kwargs.get("descendants"):
+
             def descendants_of(tax_id):
                 descendants = [int(tax_id)]
                 for child in group_nodes[str(tax_id)]["Children"]:
                     descendants += [descendants_of(child)]
                 return descendants
+
             tree = descendants_of(tax_id)
         else:
             tree = [tax_id]
@@ -1151,7 +1306,7 @@ up with the 'names' command."""
             node = tree[0]
             tree = tree[1] if len(tree) > 1 else None
 
-            tax_name = self.get_taxon_name(node, 'scientific name')
+            tax_name = self.get_taxon_name(node, "scientific name")
             lineage += [tax_name]
 
         if cache:
@@ -1219,9 +1374,10 @@ up with the 'names' command."""
         """
 
         is_curated = not (
-            accession.startswith("DR") and
-            len(accession) == 9 and
-            all((c >= "0" and c <= "9" for c in accession[2:])))
+            accession.startswith("DR")
+            and len(accession) == 9
+            and all((c >= "0" and c <= "9" for c in accession[2:]))
+        )
 
         return is_curated == curated
 
@@ -1312,8 +1468,13 @@ up with the 'names' command."""
             # When searching the whole database instead of a species,
             # the number of accessions to read through is shorter
             # when going off of only the stage indexes.
-            if tax_id == 1 and descendants and filter_stages \
-                    and not filter_repeat_type and not filter_name:
+            if (
+                tax_id == 1
+                and descendants
+                and filter_stages
+                and not filter_repeat_type
+                and not filter_name
+            ):
                 for stage in filter_stages:
                     grp = self.file[FamDB.GROUP_FAMILIES_BYSTAGE].get(stage)
                     if grp:
@@ -1322,14 +1483,17 @@ up with the 'names' command."""
             # special case: Searching the whole database, going directly via
             # Families/ is faster than repeatedly traversing the tree
             elif tax_id == 1 and descendants:
-                #yield from self.file[FamDB.GROUP_FAMILIES_BYACC].keys()
-                for name in self.__families_iterator(self.file[FamDB.GROUP_FAMILIES],"Families"):
+                # yield from self.file[FamDB.GROUP_FAMILIES_BYACC].keys()
+                for name in self.__families_iterator(
+                    self.file[FamDB.GROUP_FAMILIES], "Families"
+                ):
                     yield name
             else:
-                lineage = self.get_lineage(tax_id, ancestors=ancestors, descendants=descendants)
+                lineage = self.get_lineage(
+                    tax_id, ancestors=ancestors, descendants=descendants
+                )
                 for node in walk_tree(lineage):
                     yield from self.get_families_for_taxon(node)
-
 
         for accession in iterate_accs():
             if accession in seen:
@@ -1337,6 +1501,7 @@ up with the 'names' command."""
             seen.add(accession)
 
             cached_family = None
+
             def family_getter():
                 nonlocal cached_family
                 if not cached_family:
@@ -1358,7 +1523,10 @@ up with the 'names' command."""
     # Currently I do not believe this is used by anyone?
     def get_family_accessions(self):
         """Returns a list of accessions for families in the database."""
-        return sorted(self.__families_iterator(self.file[FamDB.GROUP_FAMILIES],"Families"), key=str.lower)
+        return sorted(
+            self.__families_iterator(self.file[FamDB.GROUP_FAMILIES], "Families"),
+            key=str.lower,
+        )
 
     @staticmethod
     def __get_family(entry):
@@ -1393,6 +1561,7 @@ up with the 'names' command."""
 
 # Command-line utilities
 
+
 def command_info(args):
     """The 'info' command displays some of the stored metadata."""
 
@@ -1400,7 +1569,8 @@ def command_info(args):
     counts = args.file.get_counts()
     f_info = args.file.get_metadata()
 
-    print("""\
+    print(
+        """\
 File: {}
 FamDB Generator: {}
 FamDB Format Version: {}
@@ -1412,15 +1582,26 @@ Date: {}
 
 {}
 
+Partition Name: {}
+Partition Detail: {}
 Total consensus sequences: {}
 Total HMMs: {}
 """.format(
-    os.path.realpath(args.file.filename),
-    f_info["generator"], f_info["version"],
-    f_info["created"],
-    db_info["name"], db_info["version"],
-    db_info["date"], db_info["description"],
-    counts["consensus"], counts["hmm"]))
+            os.path.realpath(args.file.filename),
+            f_info["generator"],
+            f_info["version"],
+            f_info["created"],
+            db_info["name"],
+            db_info["version"],
+            db_info["date"],
+            db_info["description"],
+            f_info["partition_name"],
+            f_info["partition_detail"],
+            counts["consensus"],
+            counts["hmm"],
+        )
+    )
+
 
 def command_names(args):
     """The 'names' command displays all names of all taxa that match the search term."""
@@ -1460,7 +1641,7 @@ def print_lineage_tree(file, tree, gutter_self, gutter_children):
 
     tax_id = tree[0]
     children = tree[1:]
-    name = file.get_taxon_name(tax_id, 'scientific name')
+    name = file.get_taxon_name(tax_id, "scientific name")
     count = len(file.get_families_for_taxon(tax_id))
     print("{}{} {} [{}]".format(gutter_self, tax_id, name, count))
 
@@ -1468,10 +1649,14 @@ def print_lineage_tree(file, tree, gutter_self, gutter_children):
     # to the next child, so this is split into two cases
     if len(children) > 1:
         for child in children[:-1]:
-            print_lineage_tree(file, child, gutter_children + "├─", gutter_children + "│ ")
+            print_lineage_tree(
+                file, child, gutter_children + "├─", gutter_children + "│ "
+            )
 
     if children:
-        print_lineage_tree(file, children[-1], gutter_children + "└─", gutter_children + "  ")
+        print_lineage_tree(
+            file, children[-1], gutter_children + "└─", gutter_children + "  "
+        )
 
 
 def print_lineage_semicolons(file, tree, parent_name, starting_at):
@@ -1488,7 +1673,7 @@ def print_lineage_semicolons(file, tree, parent_name, starting_at):
 
     tax_id = tree[0]
     children = tree[1:]
-    name = file.get_taxon_name(tax_id, 'scientific name')
+    name = file.get_taxon_name(tax_id, "scientific name")
     if parent_name:
         name = parent_name + ";" + name
 
@@ -1501,6 +1686,7 @@ def print_lineage_semicolons(file, tree, parent_name, starting_at):
 
     for child in children:
         print_lineage_semicolons(file, child, name, starting_at)
+
 
 def get_lineage_totals(file, tree, target_id, seen=None):
     """
@@ -1540,6 +1726,7 @@ def get_lineage_totals(file, tree, target_id, seen=None):
 
     return counts
 
+
 def command_lineage(args):
     """The 'lineage' command outputs ancestors and/or descendants of the given taxon."""
 
@@ -1548,9 +1735,11 @@ def command_lineage(args):
     target_id = args.file.resolve_one_species(args.term)
     if not target_id:
         return
-    tree = args.file.get_lineage(target_id,
-                                 descendants=args.descendants,
-                                 ancestors=args.ancestors or args.format == "semicolon")
+    tree = args.file.get_lineage(
+        target_id,
+        descendants=args.descendants,
+        ancestors=args.ancestors or args.format == "semicolon",
+    )
 
     # TODO: prune branches with 0 total
     if args.format == "pretty":
@@ -1559,10 +1748,14 @@ def command_lineage(args):
         print_lineage_semicolons(args.file, tree, "", target_id)
     elif args.format == "totals":
         totals = get_lineage_totals(args.file, tree, target_id)
-        print("{} entries in ancestors; {} lineage-specific entries"
-              .format(totals[0], totals[1]))
+        print(
+            "{} entries in ancestors; {} lineage-specific entries".format(
+                totals[0], totals[1]
+            )
+        )
     else:
         raise ValueError("Unimplemented lineage format: %s" % args.format)
+
 
 def print_families(args, families, header, species=None):
     """
@@ -1602,23 +1795,40 @@ def print_families(args, families, header, species=None):
         if args.format == "summary":
             entry = str(family) + "\n"
         elif args.format == "hmm":
-            entry = family.to_dfam_hmm(args.file, include_class_in_name=include_class_in_name, require_general_threshold=require_general_threshold)
+            entry = family.to_dfam_hmm(
+                args.file,
+                include_class_in_name=include_class_in_name,
+                require_general_threshold=require_general_threshold,
+            )
         elif args.format == "hmm_species":
-            entry = family.to_dfam_hmm(args.file, species, include_class_in_name=include_class_in_name, require_general_threshold=require_general_threshold)
-        elif args.format == "fasta" or args.format == "fasta_name" or args.format == "fasta_acc":
-            use_accession = (args.format == "fasta_acc")
+            entry = family.to_dfam_hmm(
+                args.file,
+                species,
+                include_class_in_name=include_class_in_name,
+                require_general_threshold=require_general_threshold,
+            )
+        elif (
+            args.format == "fasta"
+            or args.format == "fasta_name"
+            or args.format == "fasta_acc"
+        ):
+            use_accession = args.format == "fasta_acc"
 
             buffers = []
             if stage and family.buffer_stages:
                 for spec in family.buffer_stages.split(","):
                     if "[" in spec:
-                        matches = re.match(r'(\d+)\[(\d+)-(\d+)\]', spec.strip())
+                        matches = re.match(r"(\d+)\[(\d+)-(\d+)\]", spec.strip())
                         if matches:
                             if stage == int(matches.group(1)):
-                                buffers += [[int(matches.group(2)), int(matches.group(3))]]
+                                buffers += [
+                                    [int(matches.group(2)), int(matches.group(3))]
+                                ]
                         else:
-                            LOGGER.warning("Ingored invalid buffer specification: '%s'",
-                                           spec.strip())
+                            LOGGER.warning(
+                                "Ingored invalid buffer specification: '%s'",
+                                spec.strip(),
+                            )
                     else:
                         buffers += [stage == int(spec)]
 
@@ -1627,19 +1837,27 @@ def print_families(args, families, header, species=None):
 
             entry = ""
             for buffer_spec in buffers:
-                entry += family.to_fasta(
-                    args.file,
-                    use_accession=use_accession,
-                    include_class_in_name=include_class_in_name,
-                    buffer=buffer_spec
-                ) or ""
+                entry += (
+                    family.to_fasta(
+                        args.file,
+                        use_accession=use_accession,
+                        include_class_in_name=include_class_in_name,
+                        buffer=buffer_spec,
+                    )
+                    or ""
+                )
 
                 if add_reverse_complement:
-                    entry += family.to_fasta(args.file,
-                                             use_accession=use_accession,
-                                             include_class_in_name=include_class_in_name,
-                                             do_reverse_complement=True,
-                                             buffer=buffer_spec) or ""
+                    entry += (
+                        family.to_fasta(
+                            args.file,
+                            use_accession=use_accession,
+                            include_class_in_name=include_class_in_name,
+                            do_reverse_complement=True,
+                            buffer=buffer_spec,
+                        )
+                        or ""
+                    )
         elif args.format == "embl":
             entry = family.to_embl(args.file)
         elif args.format == "embl_meta":
@@ -1677,19 +1895,24 @@ def command_families(args):
     # read the whole family data even though we read it again right after.
     # However it is *much* more memory-efficient than loading all the family
     # data at once and then sorting by accession.
-    accessions = sorted(args.file.get_accessions_filtered(tax_id=target_id,
-                                                          descendants=args.descendants,
-                                                          ancestors=args.ancestors,
-                                                          curated_only=args.curated,
-                                                          uncurated_only=args.uncurated,
-                                                          is_hmm=is_hmm,
-                                                          stage=args.stage,
-                                                          repeat_type=args.repeat_type,
-                                                          name=args.name))
+    accessions = sorted(
+        args.file.get_accessions_filtered(
+            tax_id=target_id,
+            descendants=args.descendants,
+            ancestors=args.ancestors,
+            curated_only=args.curated,
+            uncurated_only=args.uncurated,
+            is_hmm=is_hmm,
+            stage=args.stage,
+            repeat_type=args.repeat_type,
+            name=args.name,
+        )
+    )
 
     families = map(args.file.get_family_by_accession, accessions)
 
     print_families(args, families, True, target_id)
+
 
 def command_append(args):
     """
@@ -1705,6 +1928,7 @@ def command_append(args):
                 lookup[sanitized_name] = int(tax_id)
 
     header = None
+
     def set_header(val):
         nonlocal header
         header = val
@@ -1720,8 +1944,12 @@ def command_append(args):
         # "accession", but that accession may match the *name* of a family
         # already in Dfam. The accession may also match a family already in
         # Dfam, but with a "v" added.
-        if acc in seen_accs or acc in seen_names \
-            or acc + "v" in seen_accs or acc + "v" in seen_names:
+        if (
+            acc in seen_accs
+            or acc in seen_names
+            or acc + "v" in seen_accs
+            or acc + "v" in seen_names
+        ):
             LOGGER.debug("Ignoring duplicate entry %s", entry.accession)
         else:
             args.file.add_family(entry)
@@ -1736,19 +1964,77 @@ def command_append(args):
     db_info["copyright"] += "\n\n" + header
 
     args.file.set_db_info(
-                          db_info["name"], db_info["version"], db_info["date"],
-                          db_info["description"], db_info["copyright"]
+        db_info["name"],
+        db_info["version"],
+        db_info["date"],
+        db_info["description"],
+        db_info["copyright"],
     )
 
     # Write the updated counts and metadata
     args.file.finalize()
+
+
+def find_files():
+    F = None
+    if os.path.isdir("./partitions"):
+        LOGGER.info(f"Partition Directory found at {os.getcwd()}/partitions")
+        # try to load F
+        if os.path.isfile("./partitions/F.json"):
+            with open("./partitions/F_test.json") as F_file:  # TODO: change to F.json
+                F = json.load(F_file)
+        if F:
+            LOGGER.info("Partition Definition File F.json Loaded")
+        else:
+            LOGGER.error("Partition Definition File F.json Loading Failed")
+
+        # check for RepBase info
+        if os.path.isfile("./partitions/RMRB_spec_to_tax.json"):
+            LOGGER.info("RepBase Partition Data Found")
+        else:
+            LOGGER.info("RepBase Partition Data Not Found")
+
+        if F:
+            # find all partitions
+            keys = F.keys()
+            LOGGER.info(
+                f"{len(keys)} Partitions Found: {','.join([key for key in keys])}"
+            )
+
+            # identify root partition
+            root_partition = None
+            for key in keys:
+                if not F[key]["F_roots"]:
+                    root_partition = key
+            if root_partition is not None:
+                LOGGER.info(f"Root Partition: {root_partition}")
+            else:
+                LOGGER.error("No Root Partition Identified")
+
+            # find available files, identify absent files
+            absent_files = []
+            present_files = []
+            for key in keys:
+                for fname in os.listdir("."):
+                    if fname.endswith(f".{key}.h5"):
+                        present_files.append(fname)
+                        break
+                else:
+                    absent_files.append(f"<export>.{key}.h5")
+
+            LOGGER.info(f"Present Partition Files: {','.join(present_files)}")
+            LOGGER.info(f"Missing Partition Files: {','.join(absent_files)}")
+    else:
+        LOGGER.error(" Partitions Directory Not Found. Run DfamPartitions.py")
+
 
 def main():
     """Parses command-line arguments and runs the requested command."""
 
     logging.basicConfig()
 
-    parser = argparse.ArgumentParser(description="""This is famdb.py version 0.4.3.
+    parser = argparse.ArgumentParser(
+        description=f"""This is famdb.py version {FILE_VERSION}.
 
 example commands, including the most commonly used options:
 
@@ -1774,38 +2060,84 @@ example commands, including the most commonly used options:
   famdb.py [-i FILE] families -f hmm -ad --curated --class LTR 7227
     Searches and exports multiple families from the database, in one of several formats.
 
-""", formatter_class=argparse.RawDescriptionHelpFormatter)
+""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument("-l", "--log-level", default="INFO")
 
     parser.add_argument("-i", "--file", help="specifies the file to query")
 
-    subparsers = parser.add_subparsers(description="""Specifies the kind of query to perform.
+    subparsers = parser.add_subparsers(
+        description="""Specifies the kind of query to perform.
 For more information on all the possible options for a command, add the --help option after it:
 famdb.py families --help
-""")
+"""
+    )
 
-    p_info = subparsers.add_parser("info", description="List general information about the file.")
+    p_info = subparsers.add_parser(
+        "info", description="List general information about the file."
+    )
     p_info.set_defaults(func=command_info)
 
-    p_names = subparsers.add_parser("names", description="List the names and taxonomy identifiers of a clade.")
-    p_names.add_argument("-f", "--format", default="pretty", choices=["pretty", "json"],
-                         metavar="<format>",
-                         help="choose output format. The default is 'pretty'. 'json' is more appropriate for scripts.")
-    p_names.add_argument("term", nargs="+", help="search term. Can be an NCBI taxonomy identifier or part of a scientific or common name")
+    p_names = subparsers.add_parser(
+        "names", description="List the names and taxonomy identifiers of a clade."
+    )
+    p_names.add_argument(
+        "-f",
+        "--format",
+        default="pretty",
+        choices=["pretty", "json"],
+        metavar="<format>",
+        help="choose output format. The default is 'pretty'. 'json' is more appropriate for scripts.",
+    )
+    p_names.add_argument(
+        "term",
+        nargs="+",
+        help="search term. Can be an NCBI taxonomy identifier or part of a scientific or common name",
+    )
     p_names.set_defaults(func=command_names)
 
-    p_lineage = subparsers.add_parser("lineage", description="List the taxonomy tree including counts of families at each clade.")
-    p_lineage.add_argument("-a", "--ancestors", action="store_true",
-                           help="include all ancestors of the given clade")
-    p_lineage.add_argument("-d", "--descendants", action="store_true",
-                           help="include all descendants of the given clade")
-    p_lineage.add_argument("-f", "--format", default="pretty", choices=["pretty", "semicolon", "totals"],
-                           metavar="<format>",
-                           help="choose output format. The default is 'pretty'. 'semicolon' is more appropriate for scripts. 'totals' displays the number of ancestral and lineage-specific families found.")
-    p_lineage.add_argument("term", nargs="+", help="search term. Can be an NCBI taxonomy identifier or an unambiguous scientific or common name")
+    p_lineage = subparsers.add_parser(
+        "lineage",
+        description="List the taxonomy tree including counts of families at each clade.",
+    )
+    p_lineage.add_argument(
+        "-a",
+        "--ancestors",
+        action="store_true",
+        help="include all ancestors of the given clade",
+    )
+    p_lineage.add_argument(
+        "-d",
+        "--descendants",
+        action="store_true",
+        help="include all descendants of the given clade",
+    )
+    p_lineage.add_argument(
+        "-f",
+        "--format",
+        default="pretty",
+        choices=["pretty", "semicolon", "totals"],
+        metavar="<format>",
+        help="choose output format. The default is 'pretty'. 'semicolon' is more appropriate for scripts. 'totals' displays the number of ancestral and lineage-specific families found.",
+    )
+    p_lineage.add_argument(
+        "term",
+        nargs="+",
+        help="search term. Can be an NCBI taxonomy identifier or an unambiguous scientific or common name",
+    )
     p_lineage.set_defaults(func=command_lineage)
 
-    family_formats = ["summary", "hmm", "hmm_species", "fasta_name", "fasta_acc", "embl", "embl_meta", "embl_seq"]
+    family_formats = [
+        "summary",
+        "hmm",
+        "hmm_species",
+        "fasta_name",
+        "fasta_acc",
+        "embl",
+        "embl_meta",
+        "embl_seq",
+    ]
     family_formats_epilog = """
 Supported formats:
   * 'summary'     : (default) A human-readable summary format. Currently includes
@@ -1828,42 +2160,109 @@ Supported formats:
   * 'embl_seq'    : Same as 'embl', but with only the sequences included.
 """
 
-    p_families = subparsers.add_parser("families", description="Retrieve the families associated \
+    p_families = subparsers.add_parser(
+        "families",
+        description="Retrieve the families associated \
 with a given clade, optionally filtered by additional criteria",
-                                       epilog=family_formats_epilog, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p_families.add_argument("-a", "--ancestors", action="store_true",
-                            help="include all ancestors of the given clade")
-    p_families.add_argument("-d", "--descendants", action="store_true",
-                            help="include all descendants of the given clade")
-    p_families.add_argument("--stage", type=int,
-                            help="include only families that should be searched in the given stage")
-    p_families.add_argument("--class", dest="repeat_type", type=str,
-                            help="include only families that have the specified repeat Type/SubType")
-    p_families.add_argument("--name", type=str,
-                            help="include only families whose name begins with this search term")
-    p_families.add_argument("--uncurated", action="store_true",
-                            help="include only 'uncurated' families (i.e. named DRXXXXXXX)")
-    p_families.add_argument("--curated", action="store_true",
-                            help="include only 'curated' families (i.e. not named DRXXXXXXX)")
-    p_families.add_argument("-f", "--format", default="summary", choices=family_formats,
-                            metavar="<format>", help="choose output format.")
-    p_families.add_argument("--add-reverse-complement", action="store_true", help="include a reverse-complemented copy of each matching family; only suppported for fasta formats")
-    p_families.add_argument("--include-class-in-name", action="store_true", help="include the RepeatMasker type/subtype after the name (e.g. HERV16#LTR/ERVL); only supported for hmm and fasta formats")
-    p_families.add_argument("--require-general-threshold", action="store_true", help="skip families missing general thresholds (and log their accessions at the debug log level)")
-    p_families.add_argument("term", nargs="+", help="search term. Can be an NCBI taxonomy identifier or an unambiguous scientific or common name")
+        epilog=family_formats_epilog,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p_families.add_argument(
+        "-a",
+        "--ancestors",
+        action="store_true",
+        help="include all ancestors of the given clade",
+    )
+    p_families.add_argument(
+        "-d",
+        "--descendants",
+        action="store_true",
+        help="include all descendants of the given clade",
+    )
+    p_families.add_argument(
+        "--stage",
+        type=int,
+        help="include only families that should be searched in the given stage",
+    )
+    p_families.add_argument(
+        "--class",
+        dest="repeat_type",
+        type=str,
+        help="include only families that have the specified repeat Type/SubType",
+    )
+    p_families.add_argument(
+        "--name",
+        type=str,
+        help="include only families whose name begins with this search term",
+    )
+    p_families.add_argument(
+        "--uncurated",
+        action="store_true",
+        help="include only 'uncurated' families (i.e. named DRXXXXXXX)",
+    )
+    p_families.add_argument(
+        "--curated",
+        action="store_true",
+        help="include only 'curated' families (i.e. not named DRXXXXXXX)",
+    )
+    p_families.add_argument(
+        "-f",
+        "--format",
+        default="summary",
+        choices=family_formats,
+        metavar="<format>",
+        help="choose output format.",
+    )
+    p_families.add_argument(
+        "--add-reverse-complement",
+        action="store_true",
+        help="include a reverse-complemented copy of each matching family; only suppported for fasta formats",
+    )
+    p_families.add_argument(
+        "--include-class-in-name",
+        action="store_true",
+        help="include the RepeatMasker type/subtype after the name (e.g. HERV16#LTR/ERVL); only supported for hmm and fasta formats",
+    )
+    p_families.add_argument(
+        "--require-general-threshold",
+        action="store_true",
+        help="skip families missing general thresholds (and log their accessions at the debug log level)",
+    )
+    p_families.add_argument(
+        "term",
+        nargs="+",
+        help="search term. Can be an NCBI taxonomy identifier or an unambiguous scientific or common name",
+    )
     p_families.set_defaults(func=command_families)
 
-    p_family = subparsers.add_parser("family", description="Retrieve details of a single family.",
-                                     epilog=family_formats_epilog, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p_family.add_argument("-f", "--format", default="summary", choices=family_formats,
-                          metavar="<format>", help="choose output format.")
-    p_family.add_argument("accession", help="the accession of the family to be retrieved")
+    p_family = subparsers.add_parser(
+        "family",
+        description="Retrieve details of a single family.",
+        epilog=family_formats_epilog,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p_family.add_argument(
+        "-f",
+        "--format",
+        default="summary",
+        choices=family_formats,
+        metavar="<format>",
+        help="choose output format.",
+    )
+    p_family.add_argument(
+        "accession", help="the accession of the family to be retrieved"
+    )
     p_family.set_defaults(func=command_family)
 
     p_append = subparsers.add_parser("append")
     p_append.add_argument("infile", help="the name of the input file to be appended")
-    p_append.add_argument("--name", help="new name for the database (replaces the existing name)")
-    p_append.add_argument("--description", help="additional database description (added to the existing description)")
+    p_append.add_argument(
+        "--name", help="new name for the database (replaces the existing name)"
+    )
+    p_append.add_argument(
+        "--description",
+        help="additional database description (added to the existing description)",
+    )
     p_append.set_defaults(func=command_append)
 
     args = parser.parse_args()
@@ -1878,7 +2277,9 @@ with a given clade, optionally filtered by additional criteria",
         # sys.path[0], if non-empty, is initially set to the directory of the
         # originally-invoked script.
         if sys.path[0]:
-            default_file = os.path.join(sys.path[0], "Libraries/RepeatMaskerLib.h5")
+            default_file = os.path.join(
+                sys.path[0], "./test.0.h5"
+            )  # TODO: update file name
             if os.path.exists(default_file):
                 args.file = default_file
 
@@ -1907,6 +2308,7 @@ with a given clade, optionally filtered by additional criteria",
         args.func(args)
     else:
         parser.print_help()
+        find_files()
 
 
 if __name__ == "__main__":
