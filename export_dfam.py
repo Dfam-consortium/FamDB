@@ -753,7 +753,7 @@ def read_hmm_families(filename, tax_db, tax_lookup):
 
 
 def run_export(
-    args, session, tax_db, tax_lookup, chunk=None, taxa=[]
+    args, session, tax_db, tax_lookup, partition, partition_num=None
 ):  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
     """Exports from a Dfam database to a FamDB file."""
 
@@ -836,7 +836,7 @@ http://creativecommons.org/publicdomain/zero/1.0/legalcode
                 dfam.t_family_clade,
                 dfam.Family.id == dfam.t_family_clade.c.family_id,
             )
-            .filter(dfam.t_family_clade.c.dfam_taxdb_tax_id.in_(taxa))
+            .filter(dfam.t_family_clade.c.dfam_taxdb_tax_id.in_(partition['nodes']))
         )
 
         # TODO: assuming that partitioned chunk files will include uncurated data
@@ -929,6 +929,7 @@ http://creativecommons.org/publicdomain/zero/1.0/legalcode
     mark_used_threshold(tax_db, 200)
 
     args.outfile.write_taxonomy(tax_db)
+    args.outfile.set_partition(partition["T_root"], partition["F_roots"])
     args.outfile.finalize()
 
     LOGGER.info("Finished import")
@@ -971,11 +972,11 @@ def main():
 
     out_str = args.outfile
     for n in F:
-        taxa = F[n]["nodes"]
         LOGGER.info(f"\tExporting chunk {n}")
-        # LOGGER.info(f"Taxa: {taxa}")
         args.outfile = famdb.FamDB(f"{out_str}.{n}.h5", "w")
-        run_export(args, session, tax_db, tax_lookup, chunk=n, taxa=taxa)
+        for node in tax_db:
+            tax_db[node].used = False
+        run_export(args, session, tax_db, tax_lookup, partition =F[n], partition_num=n)
 
 
 if __name__ == "__main__":

@@ -801,7 +801,6 @@ class FamDB:
             self.seen = {}
             self.added = {"consensus": 0, "hmm": 0}
             self.__write_metadata()
-            self.__set_partition()
             if self.root:
                 self.__set_root_map()
         elif self.mode == "r+":
@@ -824,23 +823,21 @@ class FamDB:
         self.file.attrs["count_consensus"] = self.added["consensus"]
         self.file.attrs["count_hmm"] = self.added["hmm"]
 
-    def __set_partition(self):
-        T_root = None
-        F_roots = None
-        with open("./partitions/F_test.json") as F_file:
-            F = json.load(F_file)
-            T_root = int(F[self.partition_num]["T_root"])
-            F_roots = [int(root) for root in F[self.partition_num]["F_roots"]]
+    def set_partition(self, T_root, F_roots):
+        # with open("./partitions/F_test.json") as F_file:
+        #     F = json.load(F_file)
+        #     T_root = int(F[self.partition_num]["T_root"])
+        #     F_roots = [int(root) for root in F[self.partition_num]["F_roots"]]
         partition_info = {}
-        if T_root == 1 and F_roots == []:
+        if T_root == 1:
             partition_info["partition_name"] = "Root Partition"
-            partition_info["partition_detail"] = None
-        elif len(F_roots) == 1 and F_roots[0] == T_root:
-            partition_info["partition_name"] = T_root
-            partition_info["partition_detail"] = None
-        elif len(F_roots) > 1:
-            partition_info["partition_name"] = T_root
-            partition_info["partition_detail"] = F_roots
+        else:
+            partition_info["partition_name"] = self.get_sanitized_name(T_root)
+
+        if len(F_roots) > 1:
+            partition_info["partition_detail"] = [self.get_sanitized_name(root) for root in  F_roots]
+        else:
+            partition_info["partition_detail"] = []
         self.file.attrs["partition"] = json.dumps(partition_info)
 
     def __set_root_map(self):
@@ -888,23 +885,12 @@ class FamDB:
         'generator', 'version', 'created'
         """
         partition = json.loads(self.file.attrs["partition"])
-        if type(partition["partition_name"]) is int:
-            partition_name = self.get_sanitized_name(partition["partition_name"])
-        else:
-            partition_name = partition["partition_name"]
-        partition_detail = partition["partition_detail"]
-        if partition_detail is None:
-            partition_detail = "None"
-        else:
-            partition_detail = ", ".join(
-                [self.get_sanitized_name(node) for node in partition_detail]
-            )
         return {
             "generator": self.file.attrs["generator"],
             "version": self.file.attrs["version"],
             "created": self.file.attrs["created"],
-            "partition_name": partition_name,
-            "partition_detail": partition_detail,
+            "partition_name": partition['partition_name'],
+            "partition_detail": ", ".join(partition["partition_detail"]),
         }
 
     def get_counts(self):
