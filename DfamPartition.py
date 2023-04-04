@@ -300,6 +300,9 @@ def main(*args):
         LOGGER.info("Did not find Stashed Tree, Fetching Nodes")
         T = generate_T(args, session)
 
+    with open(f"{PREPPED_DIR}/T_orig.csv", "w") as outfile:
+        outfile.write("node, weight\n" + "\n".join([f"{n},{T[n]['tot_weight']}" for n in T]))
+
     # ~ CHUNK ASSIGNMENT ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     def label_chunk(n):
         # assign chunk label if unassigned
@@ -399,8 +402,8 @@ def main(*args):
         json.dump(F, outfile)
 
     # ~ NEWICK OUTPUT VISUALIZER ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    with open(f"{PREPPED_DIR}/T.csv", "w") as outfile:
-        outfile.write("node, chunk\n" + "\n".join([f"{n},{T[n]['chunk']}" for n in T]))
+    with open(f"{PREPPED_DIR}/T_partitioned.csv", "w") as outfile:
+        outfile.write("node, chunk, filesize\n" + "\n".join([f"{n},{T[n]['chunk']},{T[n]['filesize']}" for n in T]))
 
     def newick(i):
         n_str = ""
