@@ -836,7 +836,7 @@ http://creativecommons.org/publicdomain/zero/1.0/legalcode
                 dfam.t_family_clade,
                 dfam.Family.id == dfam.t_family_clade.c.family_id,
             )
-            .filter(dfam.t_family_clade.c.dfam_taxdb_tax_id.in_(partition['nodes']))
+            .filter(dfam.t_family_clade.c.dfam_taxdb_tax_id.in_(partition["nodes"]))
         )
 
         # TODO: assuming that partitioned chunk files will include uncurated data
@@ -944,6 +944,7 @@ def main():
     parser.add_argument("-l", "--log-level", default="INFO")
     parser.add_argument("--from-db")
     parser.add_argument("--db-partition", required=True)
+    parser.add_argument("-p", "--partition", nargs="+", default=[])
     parser.add_argument("--from-tax-dump")
     parser.add_argument("-r", "--include-uncurated", action="store_true")
     parser.add_argument("--from-embl", action="append", default=[])
@@ -971,12 +972,20 @@ def main():
         F = json.load(F_file)
 
     out_str = args.outfile
+    if args.partition:
+        LOGGER.info(f"Exporting Partitions {args.partition}")
+    else:
+        LOGGER.info("Exporting All Partitions")
+
     for n in F:
-        LOGGER.info(f"\tExporting chunk {n}")
-        args.outfile = famdb.FamDB(f"{out_str}.{n}.h5", "w")
-        for node in tax_db:
-            tax_db[node].used = False
-        run_export(args, session, tax_db, tax_lookup, partition =F[n], partition_num=n)
+        if args.partition and n in args.partition:
+            LOGGER.info(f"\tExporting chunk {n}")
+            args.outfile = famdb.FamDB(f"{out_str}.{n}.h5", "w")
+            for node in tax_db:
+                tax_db[node].used = False
+            run_export(
+                args, session, tax_db, tax_lookup, partition=F[n], partition_num=n
+            )
 
 
 if __name__ == "__main__":
