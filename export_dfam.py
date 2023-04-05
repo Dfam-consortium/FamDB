@@ -975,10 +975,11 @@ def main():
     if args.partition:
         LOGGER.info(f"Exporting Partitions {args.partition}")
     else:
+        args.partition = F.keys()
         LOGGER.info("Exporting All Partitions")
 
     for n in F:
-        if args.partition and n in args.partition:
+        if n in args.partition:
             LOGGER.info(f"\tExporting chunk {n}")
             args.outfile = famdb.FamDB(f"{out_str}.{n}.h5", "w")
             for node in tax_db:
