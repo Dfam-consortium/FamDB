@@ -21,7 +21,8 @@
 
     Data source options:
 
-    --db-partition           : Path to F file produced by DfamPartition.py. Outputs one file per partition
+    --db-partition           : Path to definition file (F) produced by DfamPartition.py. Outputs one file per partition
+    -p, --partition          : Specify which partitions in F to export. Defaults to all partitions.
     --from-db                : Connection string to MySQL database to import from
     -r, --include-uncurated  : Include uncurated families (DR*) records, not only DF* (the default)
     --from-tax-dump          : Use taxonomy from NCBI database dump, instead of the database
@@ -927,6 +928,10 @@ http://creativecommons.org/publicdomain/zero/1.0/legalcode
         count_extra_taxa(tax_db, tax_lookup, args.count_taxa_in)
     calculate_ancestral_totals(tax_db)
     mark_used_threshold(tax_db, 200)
+
+    # ensure that all relevant nodes are marked for inclusion
+    for node in partition["F_roots"]:
+        tax_db[node].used = True
 
     args.outfile.write_taxonomy(tax_db)
     args.outfile.set_partition(partition["T_root"], partition["F_roots"])

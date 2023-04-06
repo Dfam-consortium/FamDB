@@ -824,10 +824,6 @@ class FamDB:
         self.file.attrs["count_hmm"] = self.added["hmm"]
 
     def set_partition(self, T_root, F_roots):
-        # with open("./partitions/F_test.json") as F_file:
-        #     F = json.load(F_file)
-        #     T_root = int(F[self.partition_num]["T_root"])
-        #     F_roots = [int(root) for root in F[self.partition_num]["F_roots"]]
         partition_info = {}
         if T_root == 1:
             partition_info["partition_name"] = "Root Partition"
@@ -835,7 +831,9 @@ class FamDB:
             partition_info["partition_name"] = self.get_sanitized_name(T_root)
 
         if len(F_roots) > 1:
-            partition_info["partition_detail"] = [self.get_sanitized_name(root) for root in  F_roots]
+            partition_info["partition_detail"] = [
+                self.get_sanitized_name(root) for root in F_roots
+            ]
         else:
             partition_info["partition_detail"] = []
         self.file.attrs["partition"] = json.dumps(partition_info)
@@ -878,18 +876,21 @@ class FamDB:
             "description": self.file.attrs["db_description"],
             "copyright": self.file.attrs["db_copyright"],
         }
+    
+    def get_partition(self):
+        return json.loads(self.file.attrs["partition"])
 
     def get_metadata(self):
         """
         Gets file metadata for the current file as a dict with keys
-        'generator', 'version', 'created'
+        'generator', 'version', 'created', 'partition_name', 'partition_detail'
         """
-        partition = json.loads(self.file.attrs["partition"])
+        partition = self.get_partition()
         return {
             "generator": self.file.attrs["generator"],
             "version": self.file.attrs["version"],
             "created": self.file.attrs["created"],
-            "partition_name": partition['partition_name'],
+            "partition_name": partition["partition_name"],
             "partition_detail": ", ".join(partition["partition_detail"]),
         }
 
@@ -1033,7 +1034,6 @@ class FamDB:
         for taxon in tax_db.values():
             if taxon.used:
                 count += 1
-
                 self.names_dump[taxon.tax_id] = taxon.names
 
         def store_tree_links(taxon, parent_id):
@@ -1063,6 +1063,7 @@ class FamDB:
 
         delta = time.perf_counter() - start
         LOGGER.info("Wrote %d taxonomy nodes in %f", count, delta)
+        self.names_dump = json.loads(self.file["TaxaNames"][0])
 
     def finalize(self):
         """Writes some collected metadata, such as counts, to the database"""
@@ -1555,6 +1556,9 @@ def command_info(args):
     counts = args.file.get_counts()
     f_info = args.file.get_metadata()
 
+    if f_info["partition_detail"]:
+        f_info["partition_detail"] = f"\nPartition Detail: {f_info['partition_detail']}"
+
     print(
         """\
 File: {}
@@ -1568,8 +1572,7 @@ Date: {}
 
 {}
 
-Partition Name: {}
-Partition Detail: {}
+Partition Name: {}{}
 Total consensus sequences: {}
 Total HMMs: {}
 """.format(
