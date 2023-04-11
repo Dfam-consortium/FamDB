@@ -1072,8 +1072,10 @@ class FamDB:
 
     def has_taxon(self, tax_id):
         """Returns True if 'self' has a taxonomy entry for 'tax_id'"""
-        return str(tax_id) in self.file[FamDB.GROUP_NODES]
-
+        # test if file has families or just taxonomy info
+        families = "Families" in self.file[FamDB.GROUP_NODES][str(tax_id)]
+        return str(tax_id) in self.file[FamDB.GROUP_NODES] and families
+    
     def search_taxon_names(self, text, kind=None, search_similar=False):
         """
         Searches 'self' for taxons with a name containing 'text', returning an
@@ -1091,6 +1093,9 @@ class FamDB:
         text = text.lower()
 
         for tax_id, names in self.names_dump.items():
+            # test if file has families or just taxonomy info
+            if not str(tax_id) in self.file[FamDB.GROUP_NODES] or not "Families" in self.file[FamDB.GROUP_NODES][str(tax_id)]:
+                continue
             matches = False
             exact = False
             for name_cls, name_txt in names:
@@ -1590,15 +1595,47 @@ Total HMMs: {}
             counts["hmm"],
         )
     )
+    if args.file.root:
+        files = find_files()
+        print(f"Root Partition: " + get_file_name(files[0]))
+        for f in files:
+            if f != 0:
+                print(f"Partition {f}: " + get_file_name(files[f]))
+               
 
+def get_file_name(f_name):
+    if f_name is not None:
+        return FamDB(f_name, 'r').get_partition()['partition_name']
+    else:
+        return "Not Found"
+
+def resolve_names(file, term):
+    entries = []
+    for tax_id, is_exact in file.resolve_species(term):
+        names = file.get_taxon_names(tax_id)
+        entries += [[tax_id, is_exact, names]]
+    return entries
 
 def command_names(args):
     """The 'names' command displays all names of all taxa that match the search term."""
 
     entries = []
-    for tax_id, is_exact in args.file.resolve_species(args.term):
-        names = args.file.get_taxon_names(tax_id)
-        entries += [[tax_id, is_exact, names]]
+    entries += resolve_names(args.file, args.term)
+    locations = []
+    
+    if args.file.root:
+        if entries:
+            locations += [0]
+        files = find_files()
+        for f in files:
+            if f != 0 and files[f] is not None:
+                file_entries = resolve_names(FamDB(files[f], 'r'), args.term)
+                entries += file_entries
+                if file_entries:
+                    locations += [f]
+
+    if locations:
+        print(f"Matches Found In Files: {', '.join([str(loc) for loc in locations])}")
 
     if args.format == "pretty":
         prev_exact = None
@@ -1966,56 +2003,49 @@ def command_append(args):
 
 def find_files():
     F = None
+    partition_dir = None
+    repbase_file = "./partitions/RMRB_spec_to_tax.json"
+    partition_nums = None
+    root_partition = None
+    files = {}
     if os.path.isdir("./partitions"):
-        LOGGER.info(f"Partition Directory found at {os.getcwd()}/partitions")
+        partition_dir = f"{os.getcwd()}/partitions"
         # try to load F
         if os.path.isfile("./partitions/F.json"):
             with open("./partitions/F_test.json") as F_file:  # TODO: change to F.json
                 F = json.load(F_file)
-        if F:
-            LOGGER.info("Partition Definition File F.json Loaded")
-        else:
+        if not F:
             LOGGER.error("Partition Definition File F.json Loading Failed")
 
         # check for RepBase info
-        if os.path.isfile("./partitions/RMRB_spec_to_tax.json"):
-            LOGGER.info("RepBase Partition Data Found")
-        else:
+        if not os.path.isfile(repbase_file):
             LOGGER.info("RepBase Partition Data Not Found")
 
         if F:
             # find all partitions
-            keys = F.keys()
-            LOGGER.info(
-                f"{len(keys)} Partitions Found: {','.join([key for key in keys])}"
-            )
+            partition_nums = F.keys()
 
             # identify root partition
             root_partition = None
-            for key in keys:
+            for key in partition_nums:
                 if not F[key]["F_roots"]:
                     root_partition = key
-            if root_partition is not None:
-                LOGGER.info(f"Root Partition: {root_partition}")
-            else:
+            if root_partition is None:
                 LOGGER.error("No Root Partition Identified")
 
             # find available files, identify absent files
-            absent_files = []
-            present_files = []
-            for key in keys:
+
+            for key in partition_nums:
+                files[int(key)] = None
                 for fname in os.listdir("."):
                     if fname.endswith(f".{key}.h5"):
-                        present_files.append(fname)
+                        files[int(key)] = fname
                         break
-                else:
-                    absent_files.append(f"<export>.{key}.h5")
 
-            LOGGER.info(f"Present Partition Files: {','.join(present_files)}")
-            LOGGER.info(f"Missing Partition Files: {','.join(absent_files)}")
     else:
         LOGGER.error(" Partitions Directory Not Found. Run DfamPartitions.py")
-
+        
+    return files
 
 def main():
     """Parses command-line arguments and runs the requested command."""
