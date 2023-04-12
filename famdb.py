@@ -876,7 +876,7 @@ class FamDB:
             "description": self.file.attrs["db_description"],
             "copyright": self.file.attrs["db_copyright"],
         }
-    
+
     def get_partition(self):
         return json.loads(self.file.attrs["partition"])
 
@@ -1073,9 +1073,11 @@ class FamDB:
     def has_taxon(self, tax_id):
         """Returns True if 'self' has a taxonomy entry for 'tax_id'"""
         # test if file has families or just taxonomy info
-        families = "Families" in self.file[FamDB.GROUP_NODES][str(tax_id)]
-        return str(tax_id) in self.file[FamDB.GROUP_NODES] and families
-    
+        return (
+            str(tax_id) in self.file[FamDB.GROUP_NODES]
+            and "Families" in self.file[FamDB.GROUP_NODES][str(tax_id)]
+        )
+
     def search_taxon_names(self, text, kind=None, search_similar=False):
         """
         Searches 'self' for taxons with a name containing 'text', returning an
@@ -1094,7 +1096,10 @@ class FamDB:
 
         for tax_id, names in self.names_dump.items():
             # test if file has families or just taxonomy info
-            if not str(tax_id) in self.file[FamDB.GROUP_NODES] or not "Families" in self.file[FamDB.GROUP_NODES][str(tax_id)]:
+            if (
+                not str(tax_id) in self.file[FamDB.GROUP_NODES]
+                or not "Families" in self.file[FamDB.GROUP_NODES][str(tax_id)]
+            ):
                 continue
             matches = False
             exact = False
@@ -1194,11 +1199,9 @@ class FamDB:
         if len(exact_matches) == 1:
             return exact_matches[0]
 
-        if len(results) == 0:
-            print("No species found for search term '{}'".format(term), file=sys.stderr)
-        elif len(results) == 1:
+        if len(results) == 1:
             return results[0][0]
-        else:
+        elif len(results) > 1:
             print(
                 """Ambiguous search term '{}' (found {} results, {} exact).
 Please use a more specific name or taxa ID, which can be looked
@@ -1247,7 +1250,16 @@ up with the 'names' command.""".format(
         if group:
             return group.keys()
         else:
-            return []
+            # if querying a leaf node, also query root node
+            if not self.root:
+                files = find_files()
+                add_group = FamDB(files[0], "r").get_families_for_taxon(tax_id)
+                if add_group:
+                    return add_group
+                else:
+                    return []
+            else:
+                return []
 
     def get_lineage(self, tax_id, **kwargs):
         """
@@ -1601,13 +1613,14 @@ Total HMMs: {}
         for f in files:
             if f != 0:
                 print(f"Partition {f}: " + get_file_name(files[f]))
-               
+
 
 def get_file_name(f_name):
     if f_name is not None:
-        return FamDB(f_name, 'r').get_partition()['partition_name']
+        return FamDB(f_name, "r").get_partition()["partition_name"]
     else:
         return "Not Found"
+
 
 def resolve_names(file, term):
     entries = []
@@ -1616,20 +1629,21 @@ def resolve_names(file, term):
         entries += [[tax_id, is_exact, names]]
     return entries
 
+
 def command_names(args):
     """The 'names' command displays all names of all taxa that match the search term."""
 
     entries = []
     entries += resolve_names(args.file, args.term)
     locations = []
-    
+
     if args.file.root:
         if entries:
             locations += [0]
         files = find_files()
         for f in files:
             if f != 0 and files[f] is not None:
-                file_entries = resolve_names(FamDB(files[f], 'r'), args.term)
+                file_entries = resolve_names(FamDB(files[f], "r"), args.term)
                 entries += file_entries
                 if file_entries:
                     locations += [f]
@@ -1759,8 +1773,31 @@ def command_lineage(args):
     # TODO: like 'families', filter curated or uncurated (and other filters?)
 
     target_id = args.file.resolve_one_species(args.term)
+
+    # if querying root file and term not found, query other files
+    if not target_id and args.file.root:
+        locations = []
+        files = find_files()
+        for f in files:
+            if f != 0 and files[f] is not None:
+                check_file = FamDB(files[f], "r")
+                target_id = check_file.resolve_one_species(args.term)
+                if target_id:
+                    locations += [f]
+                    # switch active file reference, each partition has complete ancestry taxonomy
+                    args.file = check_file
+                    break
+        if locations:
+            print(
+                f"Lineage Found In File: {', '.join([str(loc) for loc in locations])}"
+            )
+
     if not target_id:
+        print(
+            "No species found for search term '{}'".format(args.term), file=sys.stderr
+        )
         return
+
     tree = args.file.get_lineage(
         target_id,
         descendants=args.descendants,
@@ -2044,8 +2081,9 @@ def find_files():
 
     else:
         LOGGER.error(" Partitions Directory Not Found. Run DfamPartitions.py")
-        
+
     return files
+
 
 def main():
     """Parses command-line arguments and runs the requested command."""
