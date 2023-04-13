@@ -1635,9 +1635,9 @@ def command_names(args):
 
     entries = []
     entries += resolve_names(args.file, args.term)
-    locations = []
 
     if args.file.root:
+        locations = []
         if entries:
             locations += [0]
         files = find_files()
@@ -1648,8 +1648,10 @@ def command_names(args):
                 if file_entries:
                     locations += [f]
 
-    if locations:
-        print(f"Matches Found In Files: {', '.join([str(loc) for loc in locations])}")
+        if locations:
+            print(
+                f"Matches Found In Files: {', '.join([str(loc) for loc in locations])}"
+            )
 
     if args.format == "pretty":
         prev_exact = None
@@ -1947,7 +1949,28 @@ def command_family(args):
 def command_families(args):
     """The 'families' command outputs all families associated with the given taxon."""
     target_id = args.file.resolve_one_species(args.term)
+    # if querying root file and term not found, query other files
+    if not target_id and args.file.root:
+        locations = []
+        files = find_files()
+        for f in files:
+            if f != 0 and files[f] is not None:
+                check_file = FamDB(files[f], "r")
+                target_id = check_file.resolve_one_species(args.term)
+                if target_id:
+                    locations += [f]
+                    # switch active file reference, each partition has complete ancestry taxonomy
+                    args.file = check_file
+                    break
+        if locations:
+            print(
+                f"Lineage Found In File: {', '.join([str(loc) for loc in locations])}"
+            )
+
     if not target_id:
+        print(
+            "No species found for search term '{}'".format(args.term), file=sys.stderr
+        )
         return
 
     families = []
