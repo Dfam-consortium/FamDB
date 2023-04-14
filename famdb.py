@@ -1559,7 +1559,7 @@ up with the 'names' command.""".format(
         # TODO: This will also suffer the performance issues seen with
         #       other groups that exceed 200-500k entries in a single group
         #       at some point.  This needs to be refactored to scale appropriately.
-        entry = self.file["Families/ByName"].get(name)
+        entry = self.file[FamDB.GROUP_FAMILIES_BYNAME].get(name)
         return self.__get_family(entry)
 
 
@@ -1939,9 +1939,22 @@ def print_families(args, families, header, species=None):
 def command_family(args):
     """The 'family' command outputs a single family by name or accession."""
     family = args.file.get_family_by_accession(args.accession)
-    if not family:
-        family = args.file.get_family_by_name(args.accession)
+    #TODO: get_family_by_name() is broken for now
+    # if not family:
+    #     family = args.file.get_family_by_name(args.accession)
 
+    if not family and args.file.root:
+        locations = []
+        files = find_files()
+        for f in files:
+            if f != 0 and files[f] is not None:
+                check_file = FamDB(files[f], "r")
+                family = check_file.get_family_by_accession(args.accession)
+                # if not family:
+                #     family = check_file.get_family_by_name(args.accession)
+                if family:
+                    locations += [f]
+                    break
     if family:
         print_families(args, [family], False)
 
