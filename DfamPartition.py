@@ -75,6 +75,8 @@ from sqlalchemy.orm import sessionmaker
 # TODO rm
 tempwork = "/Dfam-umbrella"
 
+import dfam_35 as dfam
+
 # Import our Libs
 sys.path.append(os.path.join(os.path.dirname(__file__), f"..{tempwork}/Lib"))
 import DfamConfig as dc
@@ -135,7 +137,7 @@ def parse_RMRB(args, session):
         output.write(json.dumps(sec_to_tax))
 
 
-def generate_T(args, session):
+def generate_T(args, session, db_version, db_date):
     # query nodes from Dfam
     node_query = "SELECT dfam_taxdb.tax_id, parent_id FROM `ncbi_taxdb_nodes` JOIN dfam_taxdb ON dfam_taxdb.tax_id = ncbi_taxdb_nodes.tax_id"  # ORDER BY dfam_taxdb.tax_id ASC"
 
@@ -224,9 +226,11 @@ def generate_T(args, session):
     assign_total_weights(1)
 
     LOGGER.info("Stashing Tree")
+    T_dump = {"meta": {"db_version": db_version, "db_date": db_date}, "T": T}
+
     with open(T_file, "wb") as phandle:
         # pickle with protocol 4 since we require python 3.6.8 or later
-        pickle.dump(T, phandle, protocol=4)
+        pickle.dump(T_dump, phandle, protocol=4)
     return T
 
 
@@ -283,6 +287,10 @@ def main(*args):
     dfamdb_sfactory = sessionmaker(dfamdb)
     session = dfamdb_sfactory()
 
+    version_info = session.query(dfam.DbVersion).one()
+    db_version = version_info.dfam_version
+    db_date = version_info.dfam_release_date.strftime("%Y-%m-%d")
+
     # ~ PARSE RMRB.emble ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     if args.rep_base:
         if os.path.exists(rb_taxa_file) and os.path.exists(RB_file):
@@ -293,13 +301,21 @@ def main(*args):
 
     # ~ GENERATE T ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # check to see if tree has been cached
+    T = None
+    T_meta = {"db_version": db_version, "db_date": db_date}
     if os.path.exists(T_file):
-        LOGGER.info("Found Stashed T")
+        LOGGER.info("Found Stashed Tree")
         with open(T_file, "rb") as phandle:
-            T = pickle.load(phandle)
-    else:
-        LOGGER.info("Did not find Stashed Tree, Fetching Nodes")
-        T = generate_T(args, session)
+            T_dump = pickle.load(phandle)
+            T_meta = T_dump["meta"]
+            # ensure that T file is up to date
+            if T_meta["db_date"] == db_date and T_meta["db_version"] == db_version:
+                LOGGER.info("Stashed Tree Is Out Of Date")
+                T = T_dump["T"]
+
+    if T is None:
+        LOGGER.info("Did Not Find Valid Stashed Tree, Fetching Nodes")
+        T = generate_T(args, session, db_version, db_date)
 
     with open(f"{PREPPED_DIR}/T_orig.csv", "w") as outfile:
         outfile.write(
@@ -401,7 +417,7 @@ def main(*args):
 
     # ~ OUTPUTS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # save F
-    F_file = {"meta": {"partition_id": str(uuid.uuid4())}, "F": F}
+    F_file = {"meta": {"partition_id": str(uuid.uuid4()), "db_version": T_meta['db_version'], 'db_date': T_meta['db_date']}, "F": F}
     with open(f"{PREPPED_DIR}/F.json", "w") as outfile:
         json.dump(F_file, outfile)
 

@@ -8,6 +8,7 @@ import pickle
 import os
 import sys
 import json
+import uuid
 
 # SQL Alchemy
 from sqlalchemy import create_engine
@@ -15,6 +16,8 @@ from sqlalchemy.orm import sessionmaker
 
 # TODO rm
 tempwork = "/Dfam-umbrella"
+
+import dfam_35 as dfam
 
 # Import our Libs
 sys.path.append(os.path.join(os.path.dirname(__file__), f"..{tempwork}/Lib"))
@@ -33,7 +36,7 @@ def _usage():
     help(os.path.splitext(os.path.basename(__file__))[0])
     sys.exit(0)
 
-def generate_T(args, session):
+def generate_T(args, session, db_version, db_date):
     # query nodes from Dfam
     node_query = f"SELECT tax_id, parent_id FROM `ncbi_taxdb_nodes` WHERE tax_id = {root_node}" 
 
@@ -105,9 +108,11 @@ def generate_T(args, session):
     assign_total_weights(root_node)
 
     LOGGER.info("Stashing Tree")
+    T_dump = {"meta": {"db_version": db_version, "db_date": db_date}, "T": T}
+
     with open(T_file, "wb") as phandle:
         # pickle with protocol 4 since we require python 3.6.8 or later
-        pickle.dump(T, phandle, protocol=4)
+        pickle.dump(T_dump, phandle, protocol=4)
     return T
 
 
@@ -164,15 +169,27 @@ def main(*args):
     dfamdb_sfactory = sessionmaker(dfamdb)
     session = dfamdb_sfactory()
 
+    version_info = session.query(dfam.DbVersion).one()
+    db_version = version_info.dfam_version
+    db_date = version_info.dfam_release_date.strftime("%Y-%m-%d")
+
     # ~ GENERATE T ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # check to see if tree has been cached
+    T = None
+    T_meta = {"db_version": db_version, "db_date": db_date}
     if os.path.exists(T_file):
-        LOGGER.info("Found Stashed T")
+        LOGGER.info("Found Stashed Tree")
         with open(T_file, "rb") as phandle:
-            T = pickle.load(phandle)
-    else:
-        LOGGER.info("Did not find Stashed Tree, Fetching Nodes")
-        T = generate_T(args, session)
+            T_dump = pickle.load(phandle)
+            T_meta = T_dump["meta"]
+            # ensure that T file is up to date
+            if T_meta["db_date"] == db_date and T_meta["db_version"] == db_version:
+                LOGGER.info("Stashed Tree Is Out Of Date")
+                T = T_dump["T"]
+
+    if T is None:
+        LOGGER.info("Did Not Find Valid Stashed Tree, Fetching Nodes")
+        T = generate_T(args, session, db_version, db_date)
 
     # ~ CHUNK ASSIGNMENT ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     def label_chunk(n):
@@ -269,8 +286,9 @@ def main(*args):
 
     # ~ OUTPUTS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # save F
+    F_complete = {"meta": {"partition_id": str(uuid.uuid4()), "db_version": T_meta['db_version'], 'db_date': T_meta['db_date']}, "F": F}
     with open(F_file, "w") as outfile:
-        json.dump(F, outfile)
+        json.dump(F_complete, outfile)
 
 
     # ~ NEWICK OUTPUT VISUALIZER ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
