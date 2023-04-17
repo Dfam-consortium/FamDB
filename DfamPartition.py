@@ -66,6 +66,7 @@ import pickle
 import os
 import sys
 import json
+import uuid
 
 # SQL Alchemy
 from sqlalchemy import create_engine
@@ -301,7 +302,9 @@ def main(*args):
         T = generate_T(args, session)
 
     with open(f"{PREPPED_DIR}/T_orig.csv", "w") as outfile:
-        outfile.write("node, weight\n" + "\n".join([f"{n},{T[n]['tot_weight']}" for n in T]))
+        outfile.write(
+            "node, weight\n" + "\n".join([f"{n},{T[n]['tot_weight']}" for n in T])
+        )
 
     # ~ CHUNK ASSIGNMENT ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     def label_chunk(n):
@@ -398,12 +401,16 @@ def main(*args):
 
     # ~ OUTPUTS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # save F
+    F_file = {"meta": {"partition_id": str(uuid.uuid4())}, "F": F}
     with open(f"{PREPPED_DIR}/F.json", "w") as outfile:
-        json.dump(F, outfile)
+        json.dump(F_file, outfile)
 
     # ~ NEWICK OUTPUT VISUALIZER ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     with open(f"{PREPPED_DIR}/T_partitioned.csv", "w") as outfile:
-        outfile.write("node, chunk, filesize\n" + "\n".join([f"{n},{T[n]['chunk']},{T[n]['filesize']}" for n in T]))
+        outfile.write(
+            "node, chunk, filesize\n"
+            + "\n".join([f"{n},{T[n]['chunk']},{T[n]['filesize']}" for n in T])
+        )
 
     def newick(i):
         n_str = ""

@@ -776,12 +776,6 @@ class FamDB:
         self.file = h5py.File(filename, mode)
         self.mode = mode
 
-        self.partition_num = filename.split(".")[-2]
-        if self.partition_num == "0":
-            self.root = True
-        else:
-            self.root = False
-
         try:
             if reading and self.file.attrs["version"] != FILE_VERSION:
                 raise Exception(
@@ -801,8 +795,6 @@ class FamDB:
             self.seen = {}
             self.added = {"consensus": 0, "hmm": 0}
             self.__write_metadata()
-            if self.root:
-                self.__set_root_map()
         elif self.mode == "r+":
             self.seen = {}
             self.seen["name"] = set(self.file[FamDB.GROUP_FAMILIES_BYNAME].keys())
@@ -823,35 +815,40 @@ class FamDB:
         self.file.attrs["count_consensus"] = self.added["consensus"]
         self.file.attrs["count_hmm"] = self.added["hmm"]
 
-    def set_partition(self, T_root, F_roots):
-        partition_info = {}
-        if T_root == 1:
-            partition_info["partition_name"] = "Root Partition"
-        else:
-            partition_info["partition_name"] = self.get_sanitized_name(T_root)
+    def set_partition_info(self, partition_num):
+        self.get_partition_num = partition_num
+        self.root = partition_num == 0
 
-        if len(F_roots) > 1:
-            partition_info["partition_detail"] = [
-                self.get_sanitized_name(root) for root in F_roots
-            ]
-        else:
-            partition_info["partition_detail"] = []
-        self.file.attrs["partition"] = json.dumps(partition_info)
+    # def set_partition_name(self, T_root, F_roots):
+    #     partition_info = {}
+    #     if T_root == 1:
+    #         partition_info["partition_name"] = "Root Partition"
+    #     else:
+    #         partition_info["partition_name"] = self.get_sanitized_name(T_root)
 
-    def __set_root_map(self):
-        with open("./partitions/F_test.json") as F_file:
-            F = json.load(F_file)
-        tax_to_file = {}
-        file_labels = {}
-        for chunk in F:
-            file_labels[int(chunk)] = {
-                "T_root": F[chunk]["T_root"],
-                "F_roots": F[chunk]["F_roots"],
-            }
-            for node in F[chunk]["nodes"]:
-                tax_to_file[node] = int(chunk)
-        self.file.attrs["tax_to_file"] = json.dumps(tax_to_file)
-        self.file.attrs["file_labels"] = json.dumps(file_labels)
+    #     if len(F_roots) > 1:
+    #         partition_info["partition_detail"] = [
+    #             self.get_sanitized_name(root) for root in F_roots
+    #         ]
+    #     else:
+    #         partition_info["partition_detail"] = []
+    #     self.file.attrs["partition"] = json.dumps(partition_info)
+
+    def set_file_info(self, map_str):
+        # with open("./partitions/F_test.json") as F_file:
+        #     F = json.load(F_file)
+        # tax_to_file = {}
+        # file_labels = {}
+        # for chunk in F:
+        #     file_labels[int(chunk)] = {
+        #         "T_root": F[chunk]["T_root"],
+        #         "F_roots": F[chunk]["F_roots"],
+        #     }
+        #     for node in F[chunk]["nodes"]:
+        #         tax_to_file[node] = int(chunk)
+        # self.file.attrs["tax_to_file"] = json.dumps(tax_to_file)
+        # self.file.attrs["file_labels"] = json.dumps(file_labels)
+        self.file.attrs["file_info"] = json.dumps(map_str)
 
     def set_db_info(self, name, version, date, desc, copyright_text):
         """Sets database metadata for the current file"""
@@ -1939,7 +1936,7 @@ def print_families(args, families, header, species=None):
 def command_family(args):
     """The 'family' command outputs a single family by name or accession."""
     family = args.file.get_family_by_accession(args.accession)
-    #TODO: get_family_by_name() is broken for now
+    # TODO: get_family_by_name() is broken for now
     # if not family:
     #     family = args.file.get_family_by_name(args.accession)
 

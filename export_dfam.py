@@ -754,7 +754,7 @@ def read_hmm_families(filename, tax_db, tax_lookup):
 
 
 def run_export(
-    args, session, tax_db, tax_lookup, partition, partition_num=None
+    args, session, tax_db, tax_lookup, partition, file_info
 ):  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
     """Exports from a Dfam database to a FamDB file."""
 
@@ -934,7 +934,7 @@ http://creativecommons.org/publicdomain/zero/1.0/legalcode
         tax_db[node].used = True
 
     args.outfile.write_taxonomy(tax_db)
-    args.outfile.set_partition(partition["T_root"], partition["F_roots"])
+    args.outfile.set_file_info(file_info)
     args.outfile.finalize()
 
     LOGGER.info("Finished import")
@@ -963,6 +963,7 @@ def main():
     logging.getLogger().setLevel(getattr(logging, args.log_level.upper()))
 
     # establish session, tax_db and tax_lookup to prevent restablishing for each chunk
+    tax_db, tax_lookup = {}, {}
     if args.from_db:
         engine = sqlalchemy.create_engine(args.from_db)
         session = sqlalchemy.orm.Session(bind=engine)
@@ -974,7 +975,10 @@ def main():
         tax_db, tax_lookup = load_taxonomy_from_dump(args.from_tax_dump)
 
     with open(args.db_partition, "r") as F_file:
-        F = json.load(F_file)
+        F_file = json.load(F_file)
+
+    F = F_file["F"]
+    F_meta = F_file["meta"]
 
     out_str = args.outfile
     if args.partition:
@@ -983,14 +987,43 @@ def main():
         args.partition = F.keys()
         LOGGER.info("Exporting All Partitions")
 
+    # Look up names for the
+    file_map = {
+        int(f): {
+            "T_root": F[f]["T_root"],
+            "filename": f"{out_str}.{f}.h5",
+            "F_roots": F[f]["F_roots"],
+        }
+        for f in F
+    }
+    for file in file_map:
+        file_map[file]["T_root_name"] = [
+            name[1]
+            for name in tax_db[file_map[file]["T_root"]].names
+            if name[0] == "scientific name"
+        ][0]
+        F_roots_names = []
+        F_roots = file_map[file]["F_roots"]
+        if len(F_roots) > 1:
+            for root in F_roots:
+                F_roots_names += [
+                    name[1]
+                    for name in tax_db[root].names
+                    if name[0] == "scientific name"
+                ]
+        file_map[file]["F_roots_names"] = F_roots_names
+    file_info = {"meta": F_meta, "file_map": file_map}
+
     for n in F:
         if n in args.partition:
             LOGGER.info(f"\tExporting chunk {n}")
             args.outfile = famdb.FamDB(f"{out_str}.{n}.h5", "w")
+            args.outfile.set_partition_info(int(n))
+            # reset tax_db for each file
             for node in tax_db:
                 tax_db[node].used = False
             run_export(
-                args, session, tax_db, tax_lookup, partition=F[n], partition_num=n
+                args, session, tax_db, tax_lookup, partition=F[n], file_info=file_info
             )
 
 
