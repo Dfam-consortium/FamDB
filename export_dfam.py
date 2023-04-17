@@ -758,74 +758,6 @@ def run_export(
 ):  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
     """Exports from a Dfam database to a FamDB file."""
 
-    db_version = None
-    db_date = None
-    if args.from_db:
-        version_info = session.query(dfam.DbVersion).one()
-        db_version = version_info.dfam_version
-        db_date = version_info.dfam_release_date.strftime("%Y-%m-%d")
-
-    # Command-line overrides from db_version, db_date
-    if args.db_version:
-        db_version = args.db_version
-    if args.db_date:
-        db_date = args.db_date
-
-    if not db_version:
-        raise Exception(
-            "Could not determine database version. Please use --from-db or --db-version."
-        )
-    if not db_date:
-        db_date = datetime.date.today().strftime("%Y-%m-%d")
-
-    year_match = re.match(r"(\d{4})-", db_date)
-    if year_match:
-        db_year = year_match.group(1)
-    else:
-        raise Exception("Date should be in YYYY-MM-DD format, got: " + db_date)
-
-    # TODO: make command-line options to customize these
-    description = (
-        "Dfam - A database of transposable element (TE) sequence alignments and HMMs."
-    )
-    copyright_text = """Dfam - A database of transposable element (TE) sequence alignments and HMMs
-Copyright (C) %s The Dfam consortium.
-
-Release: Dfam_%s
-Date   : %s
-
-This database is free; you can redistribute it and/or modify it
-as you wish, under the terms of the CC0 1.0 license, a
-'no copyright' license:
-
-The Dfam consortium has dedicated the work to the public domain, waiving
-all rights to the work worldwide under copyright law, including all related
-and neighboring rights, to the extent allowed by law.
-
-You can copy, modify, distribute and perform the work, even for
-commercial purposes, all without asking permission.
-See Other Information below.
-
-
-Other Information
-
-o In no way are the patent or trademark rights of any person affected by
-  CC0, nor are the rights that other persons may have in the work or in how
-  the work is used, such as publicity or privacy rights.
-o Makes no warranties about the work, and disclaims liability for all uses of the
-  work, to the fullest extent permitted by applicable law.
-o When using or citing the work, you should not imply endorsement by the Dfam consortium.
-
-You may also obtain a copy of the CC0 license here:
-http://creativecommons.org/publicdomain/zero/1.0/legalcode
-""" % (
-        db_year,
-        db_version,
-        db_date,
-    )
-
-    args.outfile.set_db_info("Dfam", db_version, db_date, description, copyright_text)
-
     to_import = []
     target_count = 0
 
@@ -940,6 +872,42 @@ http://creativecommons.org/publicdomain/zero/1.0/legalcode
     LOGGER.info("Finished import")
 
 
+# TODO: make command-line options to customize these
+DESCRIPTION = (
+    "Dfam - A database of transposable element (TE) sequence alignments and HMMs."
+)
+COPYRIGHT_TEXT = """Dfam - A database of transposable element (TE) sequence alignments and HMMs
+Copyright (C) %s The Dfam consortium.
+
+Release: Dfam_%s
+Date   : %s
+
+This database is free; you can redistribute it and/or modify it
+as you wish, under the terms of the CC0 1.0 license, a
+'no copyright' license:
+
+The Dfam consortium has dedicated the work to the public domain, waiving
+all rights to the work worldwide under copyright law, including all related
+and neighboring rights, to the extent allowed by law.
+
+You can copy, modify, distribute and perform the work, even for
+commercial purposes, all without asking permission.
+See Other Information below.
+
+
+Other Information
+
+o In no way are the patent or trademark rights of any person affected by
+  CC0, nor are the rights that other persons may have in the work or in how
+  the work is used, such as publicity or privacy rights.
+o Makes no warranties about the work, and disclaims liability for all uses of the
+  work, to the fullest extent permitted by applicable law.
+o When using or citing the work, you should not imply endorsement by the Dfam consortium.
+
+You may also obtain a copy of the CC0 license here:
+http://creativecommons.org/publicdomain/zero/1.0/legalcode
+""" 
+    
 def main():
     """Parses command-line arguments and runs the import."""
 
@@ -963,22 +931,54 @@ def main():
     logging.getLogger().setLevel(getattr(logging, args.log_level.upper()))
 
     # establish session, tax_db and tax_lookup to prevent restablishing for each chunk
-    tax_db, tax_lookup = {}, {}
-    if args.from_db:
-        engine = sqlalchemy.create_engine(args.from_db)
-        session = sqlalchemy.orm.Session(bind=engine)
+    engine = sqlalchemy.create_engine(args.from_db)
+    session = sqlalchemy.orm.Session(bind=engine)
 
-        if not args.from_tax_dump:
-            tax_db, tax_lookup = load_taxonomy_from_db(session)
-
-    if args.from_tax_dump:
+    if not args.from_tax_dump:
+        tax_db, tax_lookup = load_taxonomy_from_db(session)
+    else:
         tax_db, tax_lookup = load_taxonomy_from_dump(args.from_tax_dump)
+
+    db_version = None
+    db_date = None
+    if args.from_db:
+        version_info = session.query(dfam.DbVersion).one()
+        db_version = version_info.dfam_version
+        db_date = version_info.dfam_release_date.strftime("%Y-%m-%d")
+
+    # Command-line overrides from db_version, db_date
+    if args.db_version:
+        db_version = args.db_version
+    if args.db_date:
+        db_date = args.db_date
+
+    if not db_version:
+        raise Exception(
+            "Could not determine database version. Please use --from-db or --db-version."
+        )
+    if not db_date:
+        db_date = datetime.date.today().strftime("%Y-%m-%d")
+
+    year_match = re.match(r"(\d{4})-", db_date)
+    if year_match:
+        db_year = year_match.group(1)
+    else:
+        raise Exception("Date should be in YYYY-MM-DD format, got: " + db_date)
+
+    copyright_text = COPYRIGHT_TEXT.format(
+        db_year,
+        db_version,
+        db_date,
+    )
 
     with open(args.db_partition, "r") as F_file:
         F_file = json.load(F_file)
 
     F = F_file["F"]
     F_meta = F_file["meta"]
+
+    if F_meta["db_version"] != db_version or F_meta["db_date"] != db_date:
+        LOGGER.error("The partition information does not match the current database. Re-partition before export.")
 
     out_str = args.outfile
     if args.partition:
@@ -1019,6 +1019,8 @@ def main():
             LOGGER.info(f"\tExporting chunk {n}")
             args.outfile = famdb.FamDB(f"{out_str}.{n}.h5", "w")
             args.outfile.set_partition_info(int(n))
+            args.outfile.set_db_info("Dfam", db_version, db_date, DESCRIPTION, copyright_text)
+
             # reset tax_db for each file
             for node in tax_db:
                 tax_db[node].used = False
