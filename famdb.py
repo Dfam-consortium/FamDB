@@ -1224,9 +1224,11 @@ up with the 'names' command.""".format(
             return group.keys()
         else:
             # if querying a leaf node, also query root node
-            if not self.file.root:
-                files = find_files()
-                add_group = FamDB(files[0], "r").get_families_for_taxon(tax_id)
+            if not self.is_root():
+                files = self.find_files()
+                add_group = FamDB(files["0"]["filename"], "r").get_families_for_taxon(
+                    tax_id
+                )
                 if add_group:
                     return add_group
                 else:
@@ -1542,33 +1544,32 @@ up with the 'names' command.""".format(
         file_map = file_info["file_map"]
         files = {}
         for file in file_map:
-            if file != "0":
-                partition_name = file_map[file]["T_root_name"]
-                partition_detail = file_map[file]["F_roots_names"]
-                filename = file_map[file]["filename"]
-                counts = None
-                status = "Missing"
-                if os.path.isfile(filename):
-                    checkfile = FamDB(filename, "r")
-                    db_info = checkfile.get_db_info()
-                    same_dfam, same_partition = False, False
-                    # test if database versions were the same
-                    if (
-                        meta["db_version"] == db_info["version"]
-                        and meta["db_date"] == db_info["date"]
-                    ):
-                        same_dfam = True
-                    # test if files are from the same partitioning run
-                    if meta["id"] == checkfile.get_file_info()["meta"]["id"]:
-                        same_partition = True
-                    # update status
-                    if not same_partition:
-                        status = "File From Different Partition"
-                    elif not same_dfam:
-                        status = "File From Previous Dfam Release"
-                    else:
-                        status = "Present"
-                        counts = checkfile.get_counts()
+            partition_name = file_map[file]["T_root_name"]
+            partition_detail = file_map[file]["F_roots_names"]
+            filename = file_map[file]["filename"]
+            counts = None
+            status = "Missing"
+            if os.path.isfile(filename):
+                checkfile = FamDB(filename, "r")
+                db_info = checkfile.get_db_info()
+                same_dfam, same_partition = False, False
+                # test if database versions were the same
+                if (
+                    meta["db_version"] == db_info["version"]
+                    and meta["db_date"] == db_info["date"]
+                ):
+                    same_dfam = True
+                # test if files are from the same partitioning run
+                if meta["id"] == checkfile.get_file_info()["meta"]["id"]:
+                    same_partition = True
+                # update status
+                if not same_partition:
+                    status = "File From Different Partition"
+                elif not same_dfam:
+                    status = "File From Previous Dfam Release"
+                else:
+                    status = "Present"
+                    counts = checkfile.get_counts()
                 files[file] = {
                     "partition_name": partition_name,
                     "partition_detail": partition_detail,
@@ -1625,16 +1626,19 @@ Total HMMs: {}
         files = args.file.find_files()
         print("Other Files:")
         for f in files:
-            file = files[f]
-            outstr = f"File {file['filename']}: {file['partition_name']}"
-            detail = file["partition_detail"]
-            if detail:
-                outstr += " - " + ", ".join(detail[:2]) + f", {len(detail)-2} others..."
-            if file["counts"]:
-                outstr += f"\n\tConsensi: {file['counts']['consensus']}, HMMs: {file['counts']['hmm']}"
-            else:
-                outstr += f"\n\t {file['status']}"
-            print(outstr)
+            if f != "0":
+                file = files[f]
+                outstr = f"File: {file['filename']}: {file['partition_name']}"
+                detail = file["partition_detail"]
+                if detail:
+                    outstr += (
+                        " - " + ", ".join(detail[:2]) + f", {len(detail)-2} others..."
+                    )
+                if file["counts"]:
+                    outstr += f"\n      Consensi: {file['counts']['consensus']}, HMMs: {file['counts']['hmm']}"
+                else:
+                    outstr += f"\n      {file['status']}"
+                print(outstr)
 
 
 def resolve_names(file, term):
@@ -1655,17 +1659,18 @@ def command_names(args):
         locations = []
         if entries:
             locations += [0]
-        files = find_files()
+        files = args.file.find_files()
         for f in files:
-            if f != 0 and files[f] is not None:
-                file_entries = resolve_names(FamDB(files[f], "r"), args.term)
+            file = files[f]
+            if file["status"] == "Present":
+                file_entries = resolve_names(FamDB(file["filename"], "r"), args.term)
                 entries += file_entries
                 if file_entries:
                     locations += [f]
 
         if locations:
             print(
-                f"Matches Found In Files: {', '.join([str(loc) for loc in locations])}"
+                f"Matches Found In Files: {', '.join([str(files[loc]['filename']) for loc in locations])}"
             )
 
     if args.format == "pretty":
@@ -1794,10 +1799,11 @@ def command_lineage(args):
     # if querying root file and term not found, query other files
     if not target_id and args.file.is_root():
         locations = []
-        files = find_files()
+        files = args.file.find_files()
         for f in files:
-            if f != 0 and files[f] is not None:
-                check_file = FamDB(files[f], "r")
+            file = files[f]
+            if file["status"] == "Present":
+                check_file = FamDB(file["filename"], "r")
                 target_id = check_file.resolve_one_species(args.term)
                 if target_id:
                     locations += [f]
@@ -1806,7 +1812,7 @@ def command_lineage(args):
                     break
         if locations:
             print(
-                f"Lineage Found In File: {', '.join([str(loc) for loc in locations])}"
+                f"Lineage Found In File: {', '.join([str(files[loc]['filename']) for loc in locations])}"
             )
 
     if not target_id:
@@ -1960,16 +1966,21 @@ def command_family(args):
 
     if not family and args.file.is_root():
         locations = []
-        files = find_files()
+        files = args.file.find_files()
         for f in files:
-            if f != 0 and files[f] is not None:
-                check_file = FamDB(files[f], "r")
+            file = files[f]
+            if f != "0" and file["status"] == "Present":
+                check_file = FamDB(file["filename"], "r")
                 family = check_file.get_family_by_accession(args.accession)
                 # if not family:
                 #     family = check_file.get_family_by_name(args.accession)
                 if family:
                     locations += [f]
                     break
+        if locations:
+            print(
+                f"Family Found In File: {', '.join([str(files[loc]['filename']) for loc in locations])}"
+            )
     if family:
         print_families(args, [family], False)
 
@@ -1980,10 +1991,11 @@ def command_families(args):
     # if querying root file and term not found, query other files
     if not target_id and args.file.is_root():
         locations = []
-        files = find_files()
+        files = args.file.find_files()
         for f in files:
-            if f != 0 and files[f] is not None:
-                check_file = FamDB(files[f], "r")
+            file = files[f]
+            if f != "0" and file["status"] == "Present":
+                check_file = FamDB(file["filename"], "r")
                 target_id = check_file.resolve_one_species(args.term)
                 if target_id:
                     locations += [f]
@@ -1992,7 +2004,7 @@ def command_families(args):
                     break
         if locations:
             print(
-                f"Lineage Found In File: {', '.join([str(loc) for loc in locations])}"
+                f"Families Found In File: {', '.join([str(files[loc]['filename']) for loc in locations])}"
             )
 
     if not target_id:
@@ -2075,7 +2087,7 @@ def command_append(args):
     if args.description:
         db_info["description"] += "\n" + args.description
 
-    db_info["copyright"] += "\n\n" + header
+    db_info["copyright"] += f"\n\n{header}"
 
     args.file.set_db_info(
         db_info["name"],
@@ -2369,7 +2381,7 @@ with a given clade, optionally filtered by additional criteria",
         args.func(args)
     else:
         parser.print_help()
-        find_files()
+        args.file.find_files()
 
 
 if __name__ == "__main__":
