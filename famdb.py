@@ -816,38 +816,13 @@ class FamDB:
         self.file.attrs["count_hmm"] = self.added["hmm"]
 
     def set_partition_info(self, partition_num):
-        self.get_partition_num = partition_num
-        self.root = partition_num == 0
+        self.file.attrs["partition_num"] = partition_num
+        self.file.attrs["root"] = partition_num == "0" or partition_num == 0
 
-    # def set_partition_name(self, T_root, F_roots):
-    #     partition_info = {}
-    #     if T_root == 1:
-    #         partition_info["partition_name"] = "Root Partition"
-    #     else:
-    #         partition_info["partition_name"] = self.get_sanitized_name(T_root)
-
-    #     if len(F_roots) > 1:
-    #         partition_info["partition_detail"] = [
-    #             self.get_sanitized_name(root) for root in F_roots
-    #         ]
-    #     else:
-    #         partition_info["partition_detail"] = []
-    #     self.file.attrs["partition"] = json.dumps(partition_info)
-
+    def is_root(self):
+        return self.file.attrs["root"]
+    
     def set_file_info(self, map_str):
-        # with open("./partitions/F_test.json") as F_file:
-        #     F = json.load(F_file)
-        # tax_to_file = {}
-        # file_labels = {}
-        # for chunk in F:
-        #     file_labels[int(chunk)] = {
-        #         "T_root": F[chunk]["T_root"],
-        #         "F_roots": F[chunk]["F_roots"],
-        #     }
-        #     for node in F[chunk]["nodes"]:
-        #         tax_to_file[node] = int(chunk)
-        # self.file.attrs["tax_to_file"] = json.dumps(tax_to_file)
-        # self.file.attrs["file_labels"] = json.dumps(file_labels)
         self.file.attrs["file_info"] = json.dumps(map_str)
 
     def set_db_info(self, name, version, date, desc, copyright_text):
@@ -874,21 +849,22 @@ class FamDB:
             "copyright": self.file.attrs["db_copyright"],
         }
 
-    def get_partition(self):
-        return json.loads(self.file.attrs["partition"])
+    def get_file_info(self):
+        return json.loads(self.file.attrs["file_info"])
 
     def get_metadata(self):
         """
         Gets file metadata for the current file as a dict with keys
         'generator', 'version', 'created', 'partition_name', 'partition_detail'
         """
-        partition = self.get_partition()
+        num = self.file.attrs["partition_num"]
+        partition = self.get_file_info()["file_map"][num]
         return {
             "generator": self.file.attrs["generator"],
             "version": self.file.attrs["version"],
             "created": self.file.attrs["created"],
-            "partition_name": partition["partition_name"],
-            "partition_detail": ", ".join(partition["partition_detail"]),
+            "partition_name": partition["T_root_name"],
+            "partition_detail": ", ".join(partition["F_roots_names"]),
         }
 
     def get_counts(self):
@@ -1248,7 +1224,7 @@ up with the 'names' command.""".format(
             return group.keys()
         else:
             # if querying a leaf node, also query root node
-            if not self.root:
+            if not self.file.root:
                 files = find_files()
                 add_group = FamDB(files[0], "r").get_families_for_taxon(tax_id)
                 if add_group:
@@ -1560,9 +1536,41 @@ up with the 'names' command.""".format(
         return self.__get_family(entry)
 
 
+    def find_files(self):
+        # repbase_file = "./partitions/RMRB_spec_to_tax.json" TODO
+        file_info = self.get_file_info()
+        meta = file_info["meta"]
+        file_map = file_info["file_map"]
+        files = {}
+        for file in file_map:
+            if file != "0":
+                partition_name = file_map[file]["T_root_name"]
+                partition_detail = file_map[file]["F_roots_names"]
+                filename = file_map[file]["filename"]
+                counts = None
+                status = "Missing"
+                if os.path.isfile(filename):
+                    checkfile = FamDB(filename, 'r')
+                    db_info = checkfile.get_db_info()
+                    same_dfam, same_partition = False, False
+                    # test if database versions were the same
+                    if meta["db_version"] == db_info["version"] and meta["db_date"] == db_info["date"]:
+                        same_dfam = True
+                    # test if files are from the same partitioning run
+                    if meta["id"] == checkfile.get_file_info()['meta']['id']:
+                        same_partition = True
+                    # update status
+                    if not same_partition:
+                        status = "File From Different Partition"
+                    elif not same_dfam:
+                        status = "File From Previous Dfam Release"
+                    else:
+                        status = "Present"
+                        counts = checkfile.get_counts()
+                files[file] = {'partition_name': partition_name, 'partition_detail': partition_detail, 'filename': filename, 'counts': counts, 'status': status}
+        return files
+
 # Command-line utilities
-
-
 def command_info(args):
     """The 'info' command displays some of the stored metadata."""
 
@@ -1604,19 +1612,20 @@ Total HMMs: {}
             counts["hmm"],
         )
     )
-    if args.file.root:
-        files = find_files()
-        print(f"Root Partition: " + get_file_name(files[0]))
+    if args.file.is_root():
+        files = args.file.find_files()
+        print("Other Files:")
         for f in files:
-            if f != 0:
-                print(f"Partition {f}: " + get_file_name(files[f]))
-
-
-def get_file_name(f_name):
-    if f_name is not None:
-        return FamDB(f_name, "r").get_partition()["partition_name"]
-    else:
-        return "Not Found"
+            file = files[f]
+            outstr = f"File {file['filename']}: {file['partition_name']}"
+            detail = file['partition_detail']
+            if detail:
+                outstr += " - " + ", ".join(detail[:2]) + f", {len(detail)-2} others..."
+            if file['counts']:
+                outstr += f"\n\tConsensi: {file['counts']['consensus']}, HMMs: {file['counts']['hmm']}"
+            else:
+                outstr += f"\n\t {file['status']}"
+            print(outstr)
 
 
 def resolve_names(file, term):
@@ -1633,7 +1642,7 @@ def command_names(args):
     entries = []
     entries += resolve_names(args.file, args.term)
 
-    if args.file.root:
+    if args.file.is_root():
         locations = []
         if entries:
             locations += [0]
@@ -1774,7 +1783,7 @@ def command_lineage(args):
     target_id = args.file.resolve_one_species(args.term)
 
     # if querying root file and term not found, query other files
-    if not target_id and args.file.root:
+    if not target_id and args.file.is_root():
         locations = []
         files = find_files()
         for f in files:
@@ -1940,7 +1949,7 @@ def command_family(args):
     # if not family:
     #     family = args.file.get_family_by_name(args.accession)
 
-    if not family and args.file.root:
+    if not family and args.file.is_root():
         locations = []
         files = find_files()
         for f in files:
@@ -1960,7 +1969,7 @@ def command_families(args):
     """The 'families' command outputs all families associated with the given taxon."""
     target_id = args.file.resolve_one_species(args.term)
     # if querying root file and term not found, query other files
-    if not target_id and args.file.root:
+    if not target_id and args.file.is_root():
         locations = []
         files = find_files()
         for f in files:
@@ -2069,54 +2078,6 @@ def command_append(args):
 
     # Write the updated counts and metadata
     args.file.finalize()
-
-
-def find_files():
-    F = None
-    partition_dir = None
-    repbase_file = "./partitions/RMRB_spec_to_tax.json"
-    partition_nums = None
-    root_partition = None
-    files = {}
-    if os.path.isdir("./partitions"):
-        partition_dir = f"{os.getcwd()}/partitions"
-        # try to load F
-        if os.path.isfile("./partitions/F.json"):
-            with open("./partitions/F_test.json") as F_file:  # TODO: change to F.json
-                F = json.load(F_file)
-        if not F:
-            LOGGER.error("Partition Definition File F.json Loading Failed")
-
-        # check for RepBase info
-        if not os.path.isfile(repbase_file):
-            LOGGER.info("RepBase Partition Data Not Found")
-
-        if F:
-            # find all partitions
-            partition_nums = F.keys()
-
-            # identify root partition
-            root_partition = None
-            for key in partition_nums:
-                if not F[key]["F_roots"]:
-                    root_partition = key
-            if root_partition is None:
-                LOGGER.error("No Root Partition Identified")
-
-            # find available files, identify absent files
-
-            for key in partition_nums:
-                files[int(key)] = None
-                for fname in os.listdir("."):
-                    if fname.endswith(f".{key}.h5"):
-                        files[int(key)] = fname
-                        break
-
-    else:
-        LOGGER.error(" Partitions Directory Not Found. Run DfamPartitions.py")
-
-    return files
-
 
 def main():
     """Parses command-line arguments and runs the requested command."""

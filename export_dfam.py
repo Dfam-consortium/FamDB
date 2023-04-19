@@ -866,7 +866,6 @@ def run_export(
         tax_db[node].used = True
 
     args.outfile.write_taxonomy(tax_db)
-    args.outfile.set_file_info(file_info)
     args.outfile.finalize()
 
     LOGGER.info("Finished import")
@@ -934,11 +933,6 @@ def main():
     engine = sqlalchemy.create_engine(args.from_db)
     session = sqlalchemy.orm.Session(bind=engine)
 
-    if not args.from_tax_dump:
-        tax_db, tax_lookup = load_taxonomy_from_db(session)
-    else:
-        tax_db, tax_lookup = load_taxonomy_from_dump(args.from_tax_dump)
-
     db_version = None
     db_date = None
     if args.from_db:
@@ -979,6 +973,12 @@ def main():
 
     if F_meta["db_version"] != db_version or F_meta["db_date"] != db_date:
         LOGGER.error("The partition information does not match the current database. Re-partition before export.")
+        exit()
+
+    if not args.from_tax_dump:
+        tax_db, tax_lookup = load_taxonomy_from_db(session)
+    else:
+        tax_db, tax_lookup = load_taxonomy_from_dump(args.from_tax_dump)
 
     out_str = args.outfile
     if args.partition:
@@ -1018,7 +1018,8 @@ def main():
         if n in args.partition:
             LOGGER.info(f"\tExporting chunk {n}")
             args.outfile = famdb.FamDB(f"{out_str}.{n}.h5", "w")
-            args.outfile.set_partition_info(int(n))
+            args.outfile.set_partition_info(n)
+            args.outfile.set_file_info(file_info)
             args.outfile.set_db_info("Dfam", db_version, db_date, DESCRIPTION, copyright_text)
 
             # reset tax_db for each file
