@@ -821,7 +821,7 @@ class FamDB:
 
     def is_root(self):
         return self.file.attrs["root"]
-    
+
     def set_file_info(self, map_str):
         self.file.attrs["file_info"] = json.dumps(map_str)
 
@@ -1535,7 +1535,6 @@ up with the 'names' command.""".format(
         entry = self.file[FamDB.GROUP_FAMILIES_BYNAME].get(name)
         return self.__get_family(entry)
 
-
     def find_files(self):
         # repbase_file = "./partitions/RMRB_spec_to_tax.json" TODO
         file_info = self.get_file_info()
@@ -1550,14 +1549,17 @@ up with the 'names' command.""".format(
                 counts = None
                 status = "Missing"
                 if os.path.isfile(filename):
-                    checkfile = FamDB(filename, 'r')
+                    checkfile = FamDB(filename, "r")
                     db_info = checkfile.get_db_info()
                     same_dfam, same_partition = False, False
                     # test if database versions were the same
-                    if meta["db_version"] == db_info["version"] and meta["db_date"] == db_info["date"]:
+                    if (
+                        meta["db_version"] == db_info["version"]
+                        and meta["db_date"] == db_info["date"]
+                    ):
                         same_dfam = True
                     # test if files are from the same partitioning run
-                    if meta["id"] == checkfile.get_file_info()['meta']['id']:
+                    if meta["id"] == checkfile.get_file_info()["meta"]["id"]:
                         same_partition = True
                     # update status
                     if not same_partition:
@@ -1567,8 +1569,15 @@ up with the 'names' command.""".format(
                     else:
                         status = "Present"
                         counts = checkfile.get_counts()
-                files[file] = {'partition_name': partition_name, 'partition_detail': partition_detail, 'filename': filename, 'counts': counts, 'status': status}
+                files[file] = {
+                    "partition_name": partition_name,
+                    "partition_detail": partition_detail,
+                    "filename": filename,
+                    "counts": counts,
+                    "status": status,
+                }
         return files
+
 
 # Command-line utilities
 def command_info(args):
@@ -1618,10 +1627,10 @@ Total HMMs: {}
         for f in files:
             file = files[f]
             outstr = f"File {file['filename']}: {file['partition_name']}"
-            detail = file['partition_detail']
+            detail = file["partition_detail"]
             if detail:
                 outstr += " - " + ", ".join(detail[:2]) + f", {len(detail)-2} others..."
-            if file['counts']:
+            if file["counts"]:
                 outstr += f"\n\tConsensi: {file['counts']['consensus']}, HMMs: {file['counts']['hmm']}"
             else:
                 outstr += f"\n\t {file['status']}"
@@ -2078,6 +2087,7 @@ def command_append(args):
 
     # Write the updated counts and metadata
     args.file.finalize()
+
 
 def main():
     """Parses command-line arguments and runs the requested command."""

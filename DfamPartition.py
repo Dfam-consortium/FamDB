@@ -417,7 +417,14 @@ def main(*args):
 
     # ~ OUTPUTS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # save F
-    F_file = {"meta": {"partition_id": str(uuid.uuid4()), "db_version": T_meta['db_version'], 'db_date': T_meta['db_date']}, "F": F}
+    F_file = {
+        "meta": {
+            "partition_id": str(uuid.uuid4()),
+            "db_version": T_meta["db_version"],
+            "db_date": T_meta["db_date"],
+        },
+        "F": F,
+    }
     with open(f"{PREPPED_DIR}/F.json", "w") as outfile:
         json.dump(F_file, outfile)
 

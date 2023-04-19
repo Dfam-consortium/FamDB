@@ -905,8 +905,9 @@ o When using or citing the work, you should not imply endorsement by the Dfam co
 
 You may also obtain a copy of the CC0 license here:
 http://creativecommons.org/publicdomain/zero/1.0/legalcode
-""" 
-    
+"""
+
+
 def main():
     """Parses command-line arguments and runs the import."""
 
@@ -972,7 +973,9 @@ def main():
     F_meta = F_file["meta"]
 
     if F_meta["db_version"] != db_version or F_meta["db_date"] != db_date:
-        LOGGER.error("The partition information does not match the current database. Re-partition before export.")
+        LOGGER.error(
+            "The partition information does not match the current database. Re-partition before export."
+        )
         exit()
 
     if not args.from_tax_dump:
@@ -1020,7 +1023,9 @@ def main():
             args.outfile = famdb.FamDB(f"{out_str}.{n}.h5", "w")
             args.outfile.set_partition_info(n)
             args.outfile.set_file_info(file_info)
-            args.outfile.set_db_info("Dfam", db_version, db_date, DESCRIPTION, copyright_text)
+            args.outfile.set_db_info(
+                "Dfam", db_version, db_date, DESCRIPTION, copyright_text
+            )
 
             # reset tax_db for each file
             for node in tax_db:
