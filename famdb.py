@@ -416,7 +416,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
                 identifier += "_%d_%d" % (buffer[0], buffer[1])
 
             sequence = sequence[buffer[0] - 1 : buffer[1]]
-            identifier = identifier + "#buffer"
+            identifier = f"{identifier}#buffer"
 
         if do_reverse_complement:
             sequence = sequence.translate(self.__COMPLEMENT_TABLE)
@@ -426,7 +426,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
             rm_class = self.repeat_type
             if self.repeat_subtype:
                 rm_class += "/" + self.repeat_subtype
-            identifier = identifier + "#" + rm_class
+            identifier = f"{identifier}#{rm_class}"
 
         header = ">" + identifier
 
@@ -818,6 +818,9 @@ class FamDB:
     def set_partition_info(self, partition_num):
         self.file.attrs["partition_num"] = partition_num
         self.file.attrs["root"] = partition_num == "0" or partition_num == 0
+
+    def get_partition_num(self):
+        return self.file.attrs["partition_num"]
 
     def is_root(self):
         return self.file.attrs["root"]
@@ -1622,23 +1625,20 @@ Total HMMs: {}
             counts["hmm"],
         )
     )
-    if args.file.is_root():
-        files = args.file.find_files()
-        print("Other Files:")
-        for f in files:
-            if f != "0":
-                file = files[f]
-                outstr = f"File: {file['filename']}: {file['partition_name']}"
-                detail = file["partition_detail"]
-                if detail:
-                    outstr += (
-                        " - " + ", ".join(detail[:2]) + f", {len(detail)-2} others..."
-                    )
-                if file["counts"]:
-                    outstr += f"\n      Consensi: {file['counts']['consensus']}, HMMs: {file['counts']['hmm']}"
-                else:
-                    outstr += f"\n      {file['status']}"
-                print(outstr)
+    files = args.file.find_files()
+    print("Other Files:")
+    for f in files:
+        if f != args.file.get_partition_num():
+            file = files[f]
+            outstr = f"File: {file['filename']}: {file['partition_name']}"
+            detail = file["partition_detail"]
+            if detail:
+                outstr += " - " + ", ".join(detail[:2]) + f", {len(detail)-2} others..."
+            if file["counts"]:
+                outstr += f"\n      Consensi: {file['counts']['consensus']}, HMMs: {file['counts']['hmm']}"
+            else:
+                outstr += f"\n      {file['status']}"
+            print(outstr)
 
 
 def resolve_names(file, term):

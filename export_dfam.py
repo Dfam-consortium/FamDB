@@ -960,12 +960,11 @@ def main():
     else:
         raise Exception("Date should be in YYYY-MM-DD format, got: " + db_date)
 
-    copyright_text = COPYRIGHT_TEXT.format(
+    copyright_text = COPYRIGHT_TEXT % (
         db_year,
         db_version,
         db_date,
     )
-
     with open(args.db_partition, "r") as F_file:
         F_file = json.load(F_file)
 
