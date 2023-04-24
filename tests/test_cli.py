@@ -5,6 +5,7 @@ import unittest
 
 from .doubles import init_db_file
 
+
 def test_one(t, filename, spec_path):
     out_path = spec_path.replace(".args", ".out")
     err_path = spec_path.replace(".args", ".err")

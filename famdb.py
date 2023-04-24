@@ -1007,10 +1007,17 @@ class FamDB:
         self.names_dump = {}
 
         count = 0
+        # is_root_file = self.is_root()
+        # file_map = self.get_file_info()["file_map"]
+        # partition_roots = set([file_map[file]["T_root"] for file in file_map])
+        # LOGGER.info(partition_roots)
+        #TODO
         for taxon in tax_db.values():
             if taxon.used:
                 count += 1
                 self.names_dump[taxon.tax_id] = taxon.names
+            # elif is_root_file and taxon in partition_roots:
+            #     self.names_dump[taxon.tax_id] = taxon.names
 
         def store_tree_links(taxon, parent_id):
             group = self.file.require_group(FamDB.GROUP_NODES).require_group(
@@ -1661,16 +1668,17 @@ def command_names(args):
             locations += [0]
         files = args.file.find_files()
         for f in files:
-            file = files[f]
-            if file["status"] == "Present":
-                file_entries = resolve_names(FamDB(file["filename"], "r"), args.term)
-                entries += file_entries
-                if file_entries:
-                    locations += [f]
+            if f != '0':
+                file = files[f]
+                if file["status"] == "Present":
+                    file_entries = resolve_names(FamDB(file["filename"], "r"), args.term)
+                    entries += file_entries
+                    if file_entries:
+                        locations += [f]
 
         if locations:
             print(
-                f"Matches Found In Files: {', '.join([str(files[loc]['filename']) for loc in locations])}"
+                f"Matches Found In Files: {', '.join([str(files[str(loc)]['filename']) for loc in locations])}"
             )
 
     if args.format == "pretty":

@@ -754,7 +754,7 @@ def read_hmm_families(filename, tax_db, tax_lookup):
 
 
 def run_export(
-    args, session, tax_db, tax_lookup, partition, file_info
+    args, session, tax_db, tax_lookup, partition
 ):  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
     """Exports from a Dfam database to a FamDB file."""
 
@@ -1030,7 +1030,7 @@ def main():
             for node in tax_db:
                 tax_db[node].used = False
             run_export(
-                args, session, tax_db, tax_lookup, partition=F[n], file_info=file_info
+                args, session, tax_db, tax_lookup, partition=F[n]
             )
 
 

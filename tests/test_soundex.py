@@ -2,6 +2,7 @@ import unittest
 
 from famdb import soundex, sounds_like
 
+
 class TestSoundex(unittest.TestCase):
     def test_soundex(self):
         # Some examples from https://en.wikipedia.org/wiki/Soundex
@@ -14,11 +15,9 @@ class TestSoundex(unittest.TestCase):
         self.assertEqual(soundex("Pfister"), "P236")
         self.assertEqual(soundex("Honeyman"), "H555")
 
-
         # A few typos we should be able to catch
         self.assertTrue(sounds_like("Homo", "Humo"))
         self.assertTrue(sounds_like("Musculs", "Musculus"))
-
 
         # A few difficult-to-spell names.
         #

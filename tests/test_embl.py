@@ -4,6 +4,7 @@ import unittest
 from famdb import Family
 from .doubles import fakedb
 
+
 class TestEMBL(unittest.TestCase):
     def setUp(self):
         self.maxDiff = None
@@ -43,7 +44,7 @@ XX
 SQ   Sequence 8 BP; 5 A; 1 C; 1 G; 1 T; 0 other;
      acgtaaaa                                                           8
 //
-"""
+""",
         )
 
     def test_multiline(self):
@@ -52,7 +53,7 @@ SQ   Sequence 8 BP; 5 A; 1 C; 1 G; 1 T; 0 other;
         fam.accession = "TEST0002"
         fam.version = 2
         fam.clades = [5]
-        fam.consensus = "ACGTTGCA" * 20 # 160 bp total
+        fam.consensus = "ACGTTGCA" * 20  # 160 bp total
         fam.repeat_type = "Test"
         fam.repeat_subtype = "Multiline"
 
@@ -83,7 +84,7 @@ SQ   Sequence 160 BP; 40 A; 40 C; 40 G; 40 T; 0 other;
      tgcaacgttg caacgttgca acgttgcaac gttgcaacgt tgcaacgttg caacgttgca  120
      acgttgcaac gttgcaacgt tgcaacgttg caacgttgca                        160
 //
-"""
+""",
         )
 
     def test_metaonly(self):
@@ -119,7 +120,7 @@ CC        SearchStages:
 CC        BufferStages: 
 XX
 //
-"""
+""",
         )
 
     def test_seqonly(self):
@@ -144,7 +145,7 @@ XX
 SQ   Sequence 8 BP; 2 A; 2 C; 2 G; 2 T; 0 other;
      acgttgca                                                           8
 //
-"""
+""",
         )
 
     def test_special_metadata(self):
@@ -189,7 +190,7 @@ XX
 SQ   Sequence 18 BP; 4 A; 4 C; 4 G; 4 T; 2 other;
      acgttgcaga gakwctct                                                18
 //
-"""
+""",
         )
 
     def test_attached_to_root(self):
@@ -223,7 +224,7 @@ CC        SearchStages:
 CC        BufferStages: 
 XX
 //
-"""
+""",
         )
 
     def test_citations(self):
@@ -236,20 +237,22 @@ XX
         fam.length = 16
         fam.repeat_type = "Test"
         fam.repeat_subtype = "HasCitations"
-        fam.citations = json.dumps([
-            {
-                "order_added": 1,
-                "authors": "John Doe",
-                "title": "Testing Citation Export Formatting",
-                "journal": "Unit Tests 7(2), 2020.",
-            },
-            {
-                "order_added": 2,
-                "authors": "Jane Doe",
-                "title": "Testing Citation Export Formatting",
-                "journal": "Unit Tests 7(2), 2020.",
-            },
-        ])
+        fam.citations = json.dumps(
+            [
+                {
+                    "order_added": 1,
+                    "authors": "John Doe",
+                    "title": "Testing Citation Export Formatting",
+                    "journal": "Unit Tests 7(2), 2020.",
+                },
+                {
+                    "order_added": 2,
+                    "authors": "Jane Doe",
+                    "title": "Testing Citation Export Formatting",
+                    "journal": "Unit Tests 7(2), 2020.",
+                },
+            ]
+        )
 
         self.assertEqual(
             fam.to_embl(fakedb(), include_seq=False),
@@ -284,7 +287,7 @@ CC        SearchStages:
 CC        BufferStages: 
 XX
 //
-"""
+""",
         )
 
     def test_cds(self):
@@ -296,24 +299,26 @@ XX
         fam.consensus = "ACGTTGCAGAGACTCT"
         fam.repeat_type = "Test"
         fam.repeat_subtype = "CodingSequence"
-        fam.coding_sequences = json.dumps([
-            {
-                "cds_start": 1,
-                "cds_end": 6,
-                "product": "FAKE",
-                "exon_count": 1,
-                "description": "Example coding sequence",
-                "translation": "TL",
-            },
-            {
-                "cds_start": 5,
-                "cds_end": 16,
-                "product": "FAKE2",
-                "exon_count": 1,
-                "description": "Another example coding sequence",
-                "translation": "CRDS",
-            },
-        ])
+        fam.coding_sequences = json.dumps(
+            [
+                {
+                    "cds_start": 1,
+                    "cds_end": 6,
+                    "product": "FAKE",
+                    "exon_count": 1,
+                    "description": "Example coding sequence",
+                    "translation": "TL",
+                },
+                {
+                    "cds_start": 5,
+                    "cds_end": 16,
+                    "product": "FAKE2",
+                    "exon_count": 1,
+                    "description": "Another example coding sequence",
+                    "translation": "CRDS",
+                },
+            ]
+        )
 
         self.assertEqual(
             fam.to_embl(fakedb(), include_seq=False),
@@ -351,7 +356,7 @@ FT                   /note="Another example coding sequence"
 FT                   /translation="CRDS"
 XX
 //
-"""
+""",
         )
 
     def test_no_consensus(self):

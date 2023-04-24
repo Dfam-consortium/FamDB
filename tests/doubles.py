@@ -11,6 +11,7 @@ class Node:
         self.parent = parent
         self.children = []
 
+
 # A fake FamDB instance that satisfies some method calls with fake data.
 # Should be kept in sync with FamDB as necessary.
 class FakeFamDB(famdb.FamDB):
@@ -34,11 +35,13 @@ class FakeFamDB(famdb.FamDB):
 
     def get_lineage(self, tax_id, **kwargs):
         if kwargs.get("descendants"):
+
             def descendants_of(node):
                 descendants = [node.id]
                 for child in node.children:
                     descendants += [descendants_of(child)]
                 return descendants
+
             tree = descendants_of(self.taxa[tax_id])
         else:
             tree = [tax_id]
@@ -54,15 +57,20 @@ class FakeFamDB(famdb.FamDB):
 
         return tree
 
+
 # Returns a FakeFamDB with a particular set of fake clades in a hierarchy
 def fakedb():
-    return FakeFamDB({
-        "1": [["scientific name", "root"]],
-        "2": [["scientific name", "A Clade"]],
-        "3": [["scientific name", "Another Clade (3.)"]],
-        "4": [["scientific name", "Parent Clade"]],
-        "5": [["scientific name", "Species 1"]],
-    }, [1, [4, [2, [5]]], [3]])
+    return FakeFamDB(
+        {
+            "1": [["scientific name", "root"]],
+            "2": [["scientific name", "A Clade"]],
+            "3": [["scientific name", "Another Clade (3.)"]],
+            "4": [["scientific name", "Parent Clade"]],
+            "5": [["scientific name", "Species 1"]],
+        },
+        [1, [4, [2, [5]]], [3]],
+    )
+
 
 # taxonomy node with the minimum properties required by FamDB
 class FakeTaxNode:
@@ -81,6 +89,7 @@ class FakeTaxNode:
         if parent:
             parent.children.append(self)
 
+
 # convenience function to generate a test family
 def make_family(acc, clades, consensus, model):
     fam = famdb.Family()
@@ -93,15 +102,17 @@ def make_family(acc, clades, consensus, model):
 
     return fam
 
+
 def init_db_file(filename):
     with famdb.FamDB(filename, "w") as db:
-        db.set_db_info("Test", "V1", "2020-07-15", "Test Database", "<copyright header>")
+        db.set_db_info(
+            "Test", "V1", "2020-07-15", "Test Database", "<copyright header>"
+        )
 
         # Override setting of format metadata for testing
-        db.file.attrs['generator'] = "famdb.py v0.4.3"
-        db.file.attrs['version'] = "0.5"
-        db.file.attrs['created'] = "2023-01-09 09:57:56.026443"
-
+        db.file.attrs["generator"] = "famdb.py v0.4.3"
+        db.file.attrs["version"] = "0.5"
+        db.file.attrs["created"] = "2023-01-09 09:57:56.026443"
 
         families = [
             make_family("TEST0001", [1], "ACGT", "<model1>"),

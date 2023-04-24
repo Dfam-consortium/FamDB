@@ -4,6 +4,7 @@ import unittest
 from famdb import Family
 from .doubles import fakedb
 
+
 def test_family():
     fam = Family()
     fam.accession = "TEST0001"
@@ -37,6 +38,7 @@ HMM          A        C        G        T
 """
 
     return fam
+
 
 class TestHMM(unittest.TestCase):
     def setUp(self):
@@ -79,7 +81,7 @@ STATS LOCAL FORWARD   -4.5297  0.70202
 HMM          A        C        G        T   
             m->m     m->i     m->d     i->m     i->i     d->m     d->d
 <snip>
-"""
+""",
         )
 
     def test_special_metadata(self):
@@ -132,7 +134,7 @@ STATS LOCAL FORWARD   -4.5297  0.70202
 HMM          A        C        G        T   
             m->m     m->i     m->d     i->m     i->i     d->m     d->d
 <snip>
-"""
+""",
         )
 
     def test_no_model(self):
@@ -183,7 +185,7 @@ STATS LOCAL FORWARD   -4.5297  0.70202
 HMM          A        C        G        T   
             m->m     m->i     m->d     i->m     i->i     d->m     d->d
 <snip>
-"""
+""",
         )
 
     def test_class_in_name(self):
@@ -223,6 +225,5 @@ STATS LOCAL FORWARD   -4.5297  0.70202
 HMM          A        C        G        T   
             m->m     m->i     m->d     i->m     i->i     d->m     d->d
 <snip>
-"""
+""",
         )
-
