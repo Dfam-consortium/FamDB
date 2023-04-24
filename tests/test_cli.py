@@ -58,16 +58,17 @@ class TestCliOutput(unittest.TestCase):
     # Set up a single database file shared by all tests in this class
     @classmethod
     def setUpClass(cls):
-        filename = "/tmp/famdbtestfile.h5"
-        init_db_file(filename)
-        TestCliOutput.filename = filename
+        filenames = ["/tmp/unittest.0.h5", "/tmp/unittest.1.h5", "/tmp/unittest.2.h5"]
+        init_db_file()
+        TestCliOutput.filenames = filenames
 
     @classmethod
     def tearDownClass(cls):
-        filename = TestCliOutput.filename
-        TestCliOutput.filename = None
+        filenames = TestCliOutput.filenames
+        TestCliOutput.filenames = None
 
-        os.remove(filename)
+        for name in filenames:
+            os.remove(name)
 
     def test_cli_output(self):
         tests_dir = os.path.join(os.path.dirname(__file__), "cli")
@@ -75,4 +76,4 @@ class TestCliOutput(unittest.TestCase):
         with os.scandir(tests_dir) as entries:
             for entry in entries:
                 if entry.is_file() and entry.name.endswith(".args"):
-                    test_one(self, self.filename, entry.path)
+                    test_one(self, self.filenames[0], entry.path)
