@@ -60,18 +60,17 @@ class FakeFamDB(famdb.FamDB):
 
 
 # Returns a FakeFamDB with a particular set of fake clades in a hierarchy
-def fakedb():
-    return FakeFamDB(
-        {
-            "1": [["scientific name", "root"]],
-            "2": [["scientific name", "A Clade"]],
-            "3": [["scientific name", "Missing Clade (3.)"]],
-            "4": [["scientific name", "Parent Clade"]],
-            "5": [["scientific name", "Species 1"]],
-            "6": [["scientific name", "Another Clade"]],
-        },
-        [1, [4, [2, [5]], [6]], [3]],
-    )
+# def fakedb(): TODO: decide if this is still useful
+#     return FakeFamDB(
+#         {
+#             "1": [["scientific name", "root"]],
+#             "2": [["scientific name", "A Clade"]],
+#             "3": [["scientific name", "Missing Clade (3.)"]],
+#             "4": [["scientific name", "Parent Clade"]],
+#             "5": [["scientific name", "Species 1"]],
+#         },
+#         [1, [4, [2, [5]]], [3]],
+#     )
 
 
 # taxonomy node with the minimum properties required by FamDB
@@ -146,8 +145,8 @@ def init_db_file():
 
     families = [
         make_family("TEST0001", [1], "ACGT", "<model1>"),
-        make_family("TEST0002", [2, 3], None, "<model2>"),
-        make_family("TEST0003", [3], "GGTC", "<model3>"),
+        make_family("TEST0002", [2, 6], None, "<model2>"),
+        make_family("TEST0003", [6], "GGTC", "<model3>"),
         make_family("TEST0004", [2], "CCCCTTTT", None),
         make_family("DR0000001", [6], "GCATATCG", None),
         make_family("DR_Repeat1", [5], "CGACTAT", None),
@@ -190,6 +189,8 @@ def init_db_file():
 
         taxa = {}
         taxa[1] = FakeTaxNode(1, None, "root")
+        taxa[4] = FakeTaxNode(4, taxa[1], "Unused Clade")
+        taxa[4].used = False
         taxa[2] = FakeTaxNode(2, taxa[1], "Clade 2")
         taxa[5] = FakeTaxNode(5, taxa[2], "Drosophila <flies>")
 

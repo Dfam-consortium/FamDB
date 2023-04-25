@@ -908,6 +908,34 @@ http://creativecommons.org/publicdomain/zero/1.0/legalcode
 """
 
 
+def build_file_map(F, out_str, tax_db):
+    file_map = {
+        int(f): {
+            "T_root": F[f]["T_root"],
+            "filename": f"{out_str}.{f}.h5",
+            "F_roots": F[f]["F_roots"],
+        }
+        for f in F
+    }
+    for file in file_map:
+        file_map[file]["T_root_name"] = [
+            name[1]
+            for name in tax_db[file_map[file]["T_root"]].names
+            if name[0] == "scientific name"
+        ][0]
+        F_roots_names = []
+        F_roots = file_map[file]["F_roots"]
+        if len(F_roots) > 1:
+            for root in F_roots:
+                F_roots_names += [
+                    name[1]
+                    for name in tax_db[root].names
+                    if name[0] == "scientific name"
+                ]
+        file_map[file]["F_roots_names"] = F_roots_names
+    return file_map
+
+
 def main():
     """Parses command-line arguments and runs the import."""
 
@@ -968,52 +996,29 @@ def main():
     with open(args.db_partition, "r") as F_file:
         F_file = json.load(F_file)
 
+    # load F, check if metadata matches
     F = F_file["F"]
     F_meta = F_file["meta"]
-
     if F_meta["db_version"] != db_version or F_meta["db_date"] != db_date:
         LOGGER.error(
             "The partition information does not match the current database. Re-partition before export."
         )
         exit()
 
+    # load taxonomy data
     if not args.from_tax_dump:
         tax_db, tax_lookup = load_taxonomy_from_db(session)
     else:
         tax_db, tax_lookup = load_taxonomy_from_dump(args.from_tax_dump)
 
-    out_str = args.outfile
     if args.partition:
         LOGGER.info(f"Exporting Partitions {args.partition}")
     else:
         args.partition = F.keys()
         LOGGER.info("Exporting All Partitions")
 
-    # Look up names for the
-    file_map = {
-        int(f): {
-            "T_root": F[f]["T_root"],
-            "filename": f"{out_str}.{f}.h5",
-            "F_roots": F[f]["F_roots"],
-        }
-        for f in F
-    }
-    for file in file_map:
-        file_map[file]["T_root_name"] = [
-            name[1]
-            for name in tax_db[file_map[file]["T_root"]].names
-            if name[0] == "scientific name"
-        ][0]
-        F_roots_names = []
-        F_roots = file_map[file]["F_roots"]
-        if len(F_roots) > 1:
-            for root in F_roots:
-                F_roots_names += [
-                    name[1]
-                    for name in tax_db[root].names
-                    if name[0] == "scientific name"
-                ]
-        file_map[file]["F_roots_names"] = F_roots_names
+    out_str = args.outfile
+    file_map = build_file_map(F, out_str, tax_db)
     file_info = {"meta": F_meta, "file_map": file_map}
 
     for n in F:
@@ -1029,9 +1034,7 @@ def main():
             # reset tax_db for each file
             for node in tax_db:
                 tax_db[node].used = False
-            run_export(
-                args, session, tax_db, tax_lookup, partition=F[n]
-            )
+            run_export(args, session, tax_db, tax_lookup, partition=F[n])
 
 
 if __name__ == "__main__":
