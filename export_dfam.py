@@ -762,6 +762,7 @@ def run_export(
     target_count = 0
 
     if args.from_db:
+        limit = 5 if args.test_set else None
         # SELECT * FROM `family` JOIN `family_clade` ON family_id=id WHERE dfam_taxdb_tax_id IN (taxa)
         query = (
             session.query(dfam.Family)
@@ -770,7 +771,7 @@ def run_export(
                 dfam.Family.id == dfam.t_family_clade.c.family_id,
             )
             .filter(dfam.t_family_clade.c.dfam_taxdb_tax_id.in_(partition["nodes"]))
-        )
+        ).limit(limit)
 
         # TODO: assuming that partitioned chunk files will include uncurated data
         if not args.include_uncurated and not args.db_partition:
@@ -800,7 +801,7 @@ def run_export(
 
     start = time.perf_counter()
 
-    show_progress = LOGGER.getEffectiveLevel() > logging.DEBUG
+    # show_progress = LOGGER.getEffectiveLevel() > logging.DEBUG TODO remove?
     count = 0
 
     if args.from_embl or args.from_hmm:
@@ -946,6 +947,7 @@ def main():
     parser.add_argument("--from-db")
     parser.add_argument("--db-partition", required=True)
     parser.add_argument("-p", "--partition", nargs="+", default=[])
+    parser.add_argument('-t', '--test_set', default=False)
     parser.add_argument("--from-tax-dump")
     parser.add_argument("-r", "--include-uncurated", action="store_true")
     parser.add_argument("--from-embl", action="append", default=[])
