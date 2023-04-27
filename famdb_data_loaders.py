@@ -1,19 +1,16 @@
-import logging
 import time
 import os
 import gzip
 import json
 import re
 
-
 from sqlalchemy import bindparam
 from sqlalchemy.ext import baked
 
 import dfam_35 as dfam
-from .famdb_helper_classes import TaxNode, ClassificationNode
+from famdb_helper_classes import TaxNode, ClassificationNode
+from famdb_globals import LOGGER
 import famdb
-
-LOGGER = logging.getLogger(__name__)
 
 
 def load_taxonomy_from_db(session):
