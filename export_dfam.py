@@ -90,7 +90,7 @@ from famdb_data_loaders import (
     read_hmm_families,
 )
 from famdb_globals import LOGGER, DESCRIPTION, COPYRIGHT_TEXT
-
+from famdb_helper_classes import Family
 
 def build_file_map(F, out_str, tax_db):
     file_map = {
@@ -120,7 +120,7 @@ def build_file_map(F, out_str, tax_db):
     return file_map
 
 
-def run_export(
+def export_families(
     args, session, tax_db, tax_lookup, partition
 ):  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
     """Exports from a Dfam database to a FamDB file."""
@@ -139,7 +139,7 @@ def run_export(
             )
             .filter(dfam.t_family_clade.c.dfam_taxdb_tax_id.in_(partition["nodes"]))
         ).limit(limit)
-
+       
         # TODO: assuming that partitioned chunk files will include uncurated data
         if not args.include_uncurated and not args.db_partition:
             query = query.filter(dfam.Family.accession.like("DF%"))
@@ -154,17 +154,17 @@ def run_export(
             to_import, iterate_db_families(session, tax_db, query)
         )
 
-        for embl_file in args.from_embl:
-            LOGGER.info("Including all families from file: %s", embl_file)
-            to_import = itertools.chain(
-                to_import, famdb.Family.read_embl_families(embl_file, tax_lookup)
-            )
+    for embl_file in args.from_embl:
+        LOGGER.info("Including all families from file: %s", embl_file)
+        to_import = itertools.chain(
+            to_import, Family.read_embl_families(embl_file, tax_lookup)
+        )
 
-        for hmm_file in args.from_hmm:
-            LOGGER.info("Including all families from file: %s", hmm_file)
-            to_import = itertools.chain(
-                to_import, read_hmm_families(hmm_file, tax_db, tax_lookup)
-            )
+    for hmm_file in args.from_hmm:
+        LOGGER.info("Including all families from file: %s", hmm_file)
+        to_import = itertools.chain(
+            to_import, read_hmm_families(hmm_file, tax_db, tax_lookup)
+        )
 
     start = time.perf_counter()
 
@@ -178,7 +178,7 @@ def run_export(
 
     start = time.perf_counter()
     report_start = start
-    # Note about timining.  At this stage we haven't executed the iterate_db_families function yet
+    # Note about timing.  At this stage we haven't executed the iterate_db_families function yet
     # to iterate over the yielded family objects.  Therefore, the first time through this loop there
     # will be some overhead while it loads the classification nodes.  The remaining cycles will only
     # include the inner yeild loop in iterate_db_families.
@@ -188,12 +188,9 @@ def run_export(
 
     for family in to_import:
         count += 1
-        # print("count = " + str(count), flush=True)
         for clade_id in family.clades:
-            # Associate the family to its relevant taxa and mark them as "used"
+            # Associate the family to its relevant taxa
             tax_db[clade_id].families += [family.accession]
-            # tax_db[clade_id].mark_ancestry_used()
-            # tax_db[clade_id].used = True
 
         args.outfile.add_family(family)
         LOGGER.debug("Imported family %s (%s)", family.name, family.accession)
@@ -233,11 +230,6 @@ def run_export(
     # ensure that all relevant nodes are marked for inclusion
     # for node in partition["F_roots"]:
     #     tax_db[node].used = True
-
-    args.outfile.write_taxonomy(tax_db)
-    args.outfile.finalize()
-
-    LOGGER.info("Finished import")
 
 
 def main():
@@ -336,11 +328,12 @@ def main():
             args.outfile.set_db_info(
                 "Dfam", db_version, db_date, DESCRIPTION, copyright_text
             )
+            nodes = F[n]['nodes']
+            export_families(args, session, tax_db, tax_lookup, partition=F[n])
+            args.outfile.write_taxonomy(tax_db, nodes)
+            args.outfile.finalize()
 
-            # reset tax_db for each file
-            # for node in tax_db:
-            #     tax_db[node].used = False
-            run_export(args, session, tax_db, tax_lookup, partition=F[n])
+    LOGGER.info("Finished import")
 
 
 if __name__ == "__main__":

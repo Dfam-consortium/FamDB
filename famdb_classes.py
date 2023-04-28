@@ -23,7 +23,6 @@ class FamDB:
     GROUP_FAMILIES_BYACC = "Families/ByAccession"
     GROUP_FAMILIES_BYSTAGE = "Families/ByStage"
     GROUP_NODES = "Taxonomy/Nodes"
-    GROUP_FILEMAP = "FileMap"
 
     # DF####### or DF########## or DR####### or DR##########
     dfam_acc_pat = re.compile("^(D[FR])([0-9]{2})([0-9]{2})[0-9]{3,6}$")
@@ -81,26 +80,14 @@ class FamDB:
         if reading:
             self.names_dump = json.loads(self.file["TaxaNames"][0])
 
-    def __write_metadata(self):
-        self.file.attrs["generator"] = f"famdb.py v{FILE_VERSION}"
-        self.file.attrs["version"] = FILE_VERSION
-        self.file.attrs["created"] = str(datetime.datetime.now())
-
-    def __write_counts(self):
-        self.file.attrs["count_consensus"] = self.added["consensus"]
-        self.file.attrs["count_hmm"] = self.added["hmm"]
-
+    # Export Setters -----------------------------------------------------------------------------------------------------------------
     def set_partition_info(self, partition_num):
+        """Sets partition number (key to file info) and bool if is root file or not"""  # TODO move to root class?
         self.file.attrs["partition_num"] = partition_num
         self.file.attrs["root"] = partition_num == "0" or partition_num == 0
 
-    def get_partition_num(self):
-        return self.file.attrs["partition_num"]
-
-    def is_root(self):
-        return self.file.attrs["root"]
-
     def set_file_info(self, map_str):
+        """Stores information about other files as json string"""
         self.file.attrs["file_info"] = json.dumps(map_str)
 
     def set_db_info(self, name, version, date, desc, copyright_text):
@@ -110,6 +97,30 @@ class FamDB:
         self.file.attrs["db_date"] = date
         self.file.attrs["db_description"] = desc
         self.file.attrs["db_copyright"] = copyright_text
+
+    def __write_metadata(self):
+        """Sets file data during writing"""
+        self.file.attrs["generator"] = f"famdb.py v{FILE_VERSION}"
+        self.file.attrs["version"] = FILE_VERSION
+        self.file.attrs["created"] = str(datetime.datetime.now())
+
+    def finalize(self):
+        """Writes some collected metadata, such as counts, to the database"""
+        self.file.attrs["count_consensus"] = self.added["consensus"]
+        self.file.attrs["count_hmm"] = self.added["hmm"]
+
+    # Attribute Getters ----------------------------------------------------------------------------------------------------------------------
+    def get_partition_num(self):
+        """Partition num is used as the key in file_info"""
+        return self.file.attrs["partition_num"]
+
+    def get_file_info(self):
+        """returns dictionary containing information regarding other related files"""
+        return json.loads(self.file.attrs["file_info"])
+
+    def is_root(self):
+        """Tests if file is root file"""  # TODO remove to subclass
+        return self.file.attrs["root"]
 
     def get_db_info(self):
         """
@@ -126,9 +137,6 @@ class FamDB:
             "description": self.file.attrs["db_description"],
             "copyright": self.file.attrs["db_copyright"],
         }
-
-    def get_file_info(self):
-        return json.loads(self.file.attrs["file_info"])
 
     def get_metadata(self):
         """
@@ -155,6 +163,7 @@ class FamDB:
             "hmm": self.file.attrs["count_hmm"],
         }
 
+    # File Utils
     def close(self):
         """Closes this FamDB instance, making further use invalid."""
         self.file.close()
@@ -165,6 +174,8 @@ class FamDB:
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()
 
+    # Data Writing Methods -----------------------------------------------------------------------------------------------------------------
+    # Family Methods
     def __check_unique(self, family, key):
         """Verifies that 'family' is uniquely identified by its value of 'key'."""
 
@@ -232,11 +243,7 @@ class FamDB:
         for k in Family.META_LOOKUP:
             value = getattr(family, k)
             if value:
-                if k == "model":
-                    # self.file['hmm_dataset'][self.added['hmm']] = value
-                    dset.attrs[k] = value
-                else:
-                    dset.attrs[k] = value
+                dset.attrs[k] = value
 
         # Create links
         if family.name:
@@ -274,60 +281,30 @@ class FamDB:
 
         LOGGER.debug("Added family %s (%s)", family.name, family.accession)
 
-    def write_taxonomy(self, tax_db):
+    # Taxonomy Nodes
+    def write_taxonomy(self, tax_db, nodes):
         """Writes taxonomy nodes in 'tax_db' to the database."""
-        LOGGER.info("Writing taxonomy nodes to database")
+        LOGGER.info("Writing taxonomy nodes")
         start = time.perf_counter()
 
-        self.names_dump = {}
-
         count = 0
-        # is_root_file = self.is_root()
-        # file_map = self.get_file_info()["file_map"]
-        # partition_roots = set([file_map[file]["T_root"] for file in file_map])
-        # LOGGER.info(partition_roots)
-        # TODO
-        for taxon in tax_db.values():
-            if taxon.used:
-                count += 1
-                self.names_dump[taxon.tax_id] = taxon.names
-            # elif is_root_file and taxon in partition_roots:
-            #     self.names_dump[taxon.tax_id] = taxon.names
-
-        def store_tree_links(taxon, parent_id):
+        for node in nodes:
+            count += 1
             group = self.file.require_group(FamDB.GROUP_NODES).require_group(
-                str(taxon.tax_id)
+                str(tax_db[node].tax_id)
             )
+            parent_id = int(tax_db[node].parent_id)
             if parent_id:
-                group.create_dataset("Parent", data=[parent_id])
+                group.create_dataset("Parent", data=numpy.array([parent_id]))
 
             child_ids = []
-            for child in taxon.children:
-                if child.used:
-                    child_ids += [child.tax_id]
-                    store_tree_links(child, taxon.tax_id)
-
-            group.create_dataset("Children", data=child_ids)
-
-        names_data = numpy.array([json.dumps(self.names_dump)])
-        names_dset = self.file.create_dataset(
-            "TaxaNames", shape=names_data.shape, dtype=FamDB.dtype_str
-        )
-        names_dset[:] = names_data
-
-        LOGGER.info("Writing taxonomy tree")
-        # 1 is the "root" taxon
-        store_tree_links(tax_db[1], None)
-
+            for child in tax_db[node].children:
+                child_ids += [int(child.tax_id)]
+            group.create_dataset("Children", data=numpy.array(child_ids))
         delta = time.perf_counter() - start
         LOGGER.info("Wrote %d taxonomy nodes in %f", count, delta)
-        self.names_dump = json.loads(self.file["TaxaNames"][0])
 
-    def finalize(self):
-        """Writes some collected metadata, such as counts, to the database"""
-
-        self.__write_counts()
-
+    # Data Access Methods --------------------------------------------------------------------------------------------------------------------
     def has_taxon(self, tax_id):
         """Returns True if 'self' has a taxonomy entry for 'tax_id'"""
         # test if file has families or just taxonomy info
@@ -820,44 +797,58 @@ up with the 'names' command.""".format(
         entry = self.file[FamDB.GROUP_FAMILIES_BYNAME].get(name)
         return self.__get_family(entry)
 
-    def find_files(self):
-        # repbase_file = "./partitions/RMRB_spec_to_tax.json" TODO
-        file_info = self.get_file_info()
-        meta = file_info["meta"]
-        file_map = file_info["file_map"]
-        files = {}
-        for file in file_map:
-            partition_name = file_map[file]["T_root_name"]
-            partition_detail = file_map[file]["F_roots_names"]
-            filename = file_map[file]["filename"]
-            counts = None
-            status = "Missing"
-            if os.path.isfile(filename):
-                checkfile = FamDB(filename, "r")
-                db_info = checkfile.get_db_info()
-                same_dfam, same_partition = False, False
-                # test if database versions were the same
-                if (
-                    meta["db_version"] == db_info["version"]
-                    and meta["db_date"] == db_info["date"]
-                ):
-                    same_dfam = True
-                # test if files are from the same partitioning run
-                if meta["id"] == checkfile.get_file_info()["meta"]["id"]:
-                    same_partition = True
-                # update status
-                if not same_partition:
-                    status = "File From Different Partition"
-                elif not same_dfam:
-                    status = "File From Previous Dfam Release"
-                else:
-                    status = "Present"
-                    counts = checkfile.get_counts()
-                files[file] = {
-                    "partition_name": partition_name,
-                    "partition_detail": partition_detail,
-                    "filename": filename,
-                    "counts": counts,
-                    "status": status,
-                }
-        return files
+
+# TODO methods for root file
+# def write_TaxaNames(self, tax_db, nodes):
+#     LOGGER.info("Writing TaxaNames")
+#     self.names_dump = {}
+#     for node in nodes:
+#         self.names_dump[node] = tax_db[node].names
+#     names_data = numpy.array([json.dumps(self.names_dump)])
+#     names_dset = self.file.create_dataset(
+#         "TaxaNames", shape=names_data.shape, dtype=FamDB.dtype_str
+#     )
+#     names_dset[:] = names_data
+#     # self.names_dump = json.loads(self.file["TaxaNames"][0])
+
+# def find_files(self):
+#     # repbase_file = "./partitions/RMRB_spec_to_tax.json" TODO
+#     file_info = self.get_file_info()
+#     meta = file_info["meta"]
+#     file_map = file_info["file_map"]
+#     files = {}
+#     for file in file_map:
+#         partition_name = file_map[file]["T_root_name"]
+#         partition_detail = file_map[file]["F_roots_names"]
+#         filename = file_map[file]["filename"]
+#         counts = None
+#         status = "Missing"
+#         if os.path.isfile(filename):
+#             checkfile = FamDB(filename, "r")
+#             db_info = checkfile.get_db_info()
+#             same_dfam, same_partition = False, False
+#             # test if database versions were the same
+#             if (
+#                 meta["db_version"] == db_info["version"]
+#                 and meta["db_date"] == db_info["date"]
+#             ):
+#                 same_dfam = True
+#             # test if files are from the same partitioning run
+#             if meta["id"] == checkfile.get_file_info()["meta"]["id"]:
+#                 same_partition = True
+#             # update status
+#             if not same_partition:
+#                 status = "File From Different Partition"
+#             elif not same_dfam:
+#                 status = "File From Previous Dfam Release"
+#             else:
+#                 status = "Present"
+#                 counts = checkfile.get_counts()
+#             files[file] = {
+#                 "partition_name": partition_name,
+#                 "partition_detail": partition_detail,
+#                 "filename": filename,
+#                 "counts": counts,
+#                 "status": status,
+#             }
+#     return files

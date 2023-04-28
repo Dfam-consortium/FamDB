@@ -18,7 +18,6 @@ class TaxNode:  # pylint: disable=too-few-public-methods
         self.parent_node = None
         self.families = []
         self.children = []
-        self.used = False
         self.ancestral = 0
 
 
