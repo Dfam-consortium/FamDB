@@ -82,7 +82,7 @@ import time
 import sqlalchemy
 
 import dfam_35 as dfam
-import famdb
+from famdb_classes import FamDB, FamDBRoot
 from famdb_data_loaders import (
     load_taxonomy_from_db,
     load_taxonomy_from_dump,
@@ -91,6 +91,7 @@ from famdb_data_loaders import (
 )
 from famdb_globals import LOGGER, DESCRIPTION, COPYRIGHT_TEXT
 from famdb_helper_classes import Family
+
 
 def build_file_map(F, out_str, tax_db):
     file_map = {
@@ -139,7 +140,7 @@ def export_families(
             )
             .filter(dfam.t_family_clade.c.dfam_taxdb_tax_id.in_(partition["nodes"]))
         ).limit(limit)
-       
+
         # TODO: assuming that partitioned chunk files will include uncurated data
         if not args.include_uncurated and not args.db_partition:
             query = query.filter(dfam.Family.accession.like("DF%"))
@@ -166,11 +167,6 @@ def export_families(
             to_import, read_hmm_families(hmm_file, tax_db, tax_lookup)
         )
 
-    start = time.perf_counter()
-
-    # show_progress = LOGGER.getEffectiveLevel() > logging.DEBUG TODO remove?
-    count = 0
-
     if args.from_embl or args.from_hmm:
         LOGGER.info(
             "File sources are not counted in advance; only progress for db families will be reported."
@@ -186,6 +182,7 @@ def export_families(
     if target_count > 1000000:
         report_every = int(target_count / 10000)
 
+    count = 0
     for family in to_import:
         count += 1
         for clade_id in family.clades:
@@ -221,15 +218,6 @@ def export_families(
     LOGGER.info(
         "Imported %d families in %s", count, str(datetime.timedelta(seconds=delta))
     )
-
-    # if args.count_taxa_in:
-    #     count_extra_taxa(tax_db, tax_lookup, args.count_taxa_in)
-    # calculate_ancestral_totals(tax_db)
-    # # mark_used_threshold(tax_db, 200)
-
-    # ensure that all relevant nodes are marked for inclusion
-    # for node in partition["F_roots"]:
-    #     tax_db[node].used = True
 
 
 def main():
@@ -322,13 +310,17 @@ def main():
     for n in F:
         if n in args.partition:
             LOGGER.info(f"\tExporting chunk {n}")
-            args.outfile = famdb.FamDB(f"{out_str}.{n}.h5", "w")
+            if n == "0":
+                args.outfile = FamDBRoot(f"{out_str}.{n}.h5", "w")
+                args.outfile.write_taxa_names(tax_db, {n: F[n]["nodes"] for n in F})
+            else:
+                args.outfile = FamDB(f"{out_str}.{n}.h5", "w")
             args.outfile.set_partition_info(n)
             args.outfile.set_file_info(file_info)
             args.outfile.set_db_info(
                 "Dfam", db_version, db_date, DESCRIPTION, copyright_text
             )
-            nodes = F[n]['nodes']
+            nodes = F[n]["nodes"]
             export_families(args, session, tax_db, tax_lookup, partition=F[n])
             args.outfile.write_taxonomy(tax_db, nodes)
             args.outfile.finalize()

@@ -23,6 +23,7 @@ class FamDB:
     GROUP_FAMILIES_BYACC = "Families/ByAccession"
     GROUP_FAMILIES_BYSTAGE = "Families/ByStage"
     GROUP_NODES = "Taxonomy/Nodes"
+    GROUP_TAXANAMES = "TaxaNames"
 
     # DF####### or DF########## or DR####### or DR##########
     dfam_acc_pat = re.compile("^(D[FR])([0-9]{2})([0-9]{2})[0-9]{3,6}$")
@@ -283,7 +284,7 @@ class FamDB:
 
     # Taxonomy Nodes
     def write_taxonomy(self, tax_db, nodes):
-        """Writes taxonomy nodes in 'tax_db' to the database."""
+        """Writes taxonomy nodes in 'nodes' to the database."""
         LOGGER.info("Writing taxonomy nodes")
         start = time.perf_counter()
 
@@ -484,17 +485,6 @@ up with the 'names' command.""".format(
         group = self.file[FamDB.GROUP_NODES][str(tax_id)].get("Families")
         if group:
             return group.keys()
-        else:
-            # if querying a leaf node, also query root node
-            if not self.is_root():
-                # files = self.find_files()
-                add_group = root_file.get_families_for_taxon(tax_id)
-                if add_group:
-                    return add_group
-                else:
-                    return []
-            else:
-                return []
 
     def get_lineage(self, tax_id, **kwargs):
         """
@@ -553,6 +543,7 @@ up with the 'names' command.""".format(
 
         return lineage
 
+    # Filter methods --------------------------------------------------------------------------
     @staticmethod
     def __filter_name(family, name):
         """Returns True if the family's name begins with 'name'."""
@@ -755,17 +746,10 @@ up with the 'names' command.""".format(
             if match:
                 yield accession
 
+    # Family Getters --------------------------------------------------------------------------
     def get_family_names(self):
         """Returns a list of names of families in the database."""
         return sorted(self.file[FamDB.GROUP_FAMILIES_BYNAME].keys(), key=str.lower)
-
-    # Currently I do not believe this is used by anyone?
-    def get_family_accessions(self):
-        """Returns a list of accessions for families in the database."""
-        return sorted(
-            self.__families_iterator(self.file[FamDB.GROUP_FAMILIES], "Families"),
-            key=str.lower,
-        )
 
     @staticmethod
     def __get_family(entry):
@@ -798,57 +782,61 @@ up with the 'names' command.""".format(
         return self.__get_family(entry)
 
 
-# TODO methods for root file
-# def write_TaxaNames(self, tax_db, nodes):
-#     LOGGER.info("Writing TaxaNames")
-#     self.names_dump = {}
-#     for node in nodes:
-#         self.names_dump[node] = tax_db[node].names
-#     names_data = numpy.array([json.dumps(self.names_dump)])
-#     names_dset = self.file.create_dataset(
-#         "TaxaNames", shape=names_data.shape, dtype=FamDB.dtype_str
-#     )
-#     names_dset[:] = names_data
-#     # self.names_dump = json.loads(self.file["TaxaNames"][0])
+class FamDBRoot(FamDB):
+    def write_taxa_names(self, tax_db, nodes):
+        LOGGER.info("Writing TaxaNames")
+        for partition in nodes:
+            taxnames_group = self.file.require_group(
+                FamDB.GROUP_TAXANAMES + f"/{partition}"
+            )
+            names_dump = {}
+            for node in nodes[partition]:
+                names_dump[node] = tax_db[node].names
+            names_data = numpy.array([json.dumps(names_dump)])
+            names_dset = taxnames_group.create_dataset(
+                "TaxaNames", shape=names_data.shape, dtype=FamDB.dtype_str
+            )
+            names_dset[:] = names_data
+            # self.names_dump = json.loads(self.file["TaxaNames"][0])
 
-# def find_files(self):
-#     # repbase_file = "./partitions/RMRB_spec_to_tax.json" TODO
-#     file_info = self.get_file_info()
-#     meta = file_info["meta"]
-#     file_map = file_info["file_map"]
-#     files = {}
-#     for file in file_map:
-#         partition_name = file_map[file]["T_root_name"]
-#         partition_detail = file_map[file]["F_roots_names"]
-#         filename = file_map[file]["filename"]
-#         counts = None
-#         status = "Missing"
-#         if os.path.isfile(filename):
-#             checkfile = FamDB(filename, "r")
-#             db_info = checkfile.get_db_info()
-#             same_dfam, same_partition = False, False
-#             # test if database versions were the same
-#             if (
-#                 meta["db_version"] == db_info["version"]
-#                 and meta["db_date"] == db_info["date"]
-#             ):
-#                 same_dfam = True
-#             # test if files are from the same partitioning run
-#             if meta["id"] == checkfile.get_file_info()["meta"]["id"]:
-#                 same_partition = True
-#             # update status
-#             if not same_partition:
-#                 status = "File From Different Partition"
-#             elif not same_dfam:
-#                 status = "File From Previous Dfam Release"
-#             else:
-#                 status = "Present"
-#                 counts = checkfile.get_counts()
-#             files[file] = {
-#                 "partition_name": partition_name,
-#                 "partition_detail": partition_detail,
-#                 "filename": filename,
-#                 "counts": counts,
-#                 "status": status,
-#             }
-#     return files
+    # def find_files(self):
+    #     # repbase_file = "./partitions/RMRB_spec_to_tax.json" TODO
+    #     file_info = self.get_file_info()
+    #     meta = file_info["meta"]
+    #     file_map = file_info["file_map"]
+    #     files = {}
+    #     for file in file_map:
+    #         partition_name = file_map[file]["T_root_name"]
+    #         partition_detail = file_map[file]["F_roots_names"]
+    #         filename = file_map[file]["filename"]
+    #         counts = None
+    #         status = "Missing"
+    #         if os.path.isfile(filename):
+    #             checkfile = FamDB(filename, "r")
+    #             db_info = checkfile.get_db_info()
+    #             same_dfam, same_partition = False, False
+    #             # test if database versions were the same
+    #             if (
+    #                 meta["db_version"] == db_info["version"]
+    #                 and meta["db_date"] == db_info["date"]
+    #             ):
+    #                 same_dfam = True
+    #             # test if files are from the same partitioning run
+    #             if meta["id"] == checkfile.get_file_info()["meta"]["id"]:
+    #                 same_partition = True
+    #             # update status
+    #             if not same_partition:
+    #                 status = "File From Different Partition"
+    #             elif not same_dfam:
+    #                 status = "File From Previous Dfam Release"
+    #             else:
+    #                 status = "Present"
+    #                 counts = checkfile.get_counts()
+    #             files[file] = {
+    #                 "partition_name": partition_name,
+    #                 "partition_detail": partition_detail,
+    #                 "filename": filename,
+    #                 "counts": counts,
+    #                 "status": status,
+    #             }
+    #     return files
