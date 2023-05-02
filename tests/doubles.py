@@ -5,90 +5,8 @@ Fakes, stubs, etc. for use in testing FamDB
 import famdb
 import json
 
-# lightweight taxonomy node suitable for FakeFamDB
-class Node:
-    def __init__(self, id, parent):
-        self.id = id
-        self.parent = parent
-        self.children = []
-
-
-# A fake FamDB instance that satisfies some method calls with fake data.
-# Should be kept in sync with FamDB as necessary.
-class FakeFamDB(famdb.FamDB):
-    def __init__(self, names_dump, tree):
-        self.names_dump = names_dump
-        self.taxa = {}
-
-        def objectize(tree, parent, into):
-            id = tree[0]
-            node = Node(id, parent)
-            for subtree in tree[1:]:
-                node.children.append(objectize(subtree, node, into))
-
-            into[tree[0]] = node
-            return node
-
-        objectize(tree, None, self.taxa)
-
-        # TODO: ugly
-        self._FamDB__lineage_cache = {}
-
-    def get_lineage(self, tax_id, **kwargs):
-        if kwargs.get("descendants"):
-
-            def descendants_of(node):
-                descendants = [node.id]
-                for child in node.children:
-                    descendants += [descendants_of(child)]
-                return descendants
-
-            tree = descendants_of(self.taxa[tax_id])
-        else:
-            tree = [tax_id]
-
-        if kwargs.get("ancestors"):
-            while tax_id:
-                node = self.taxa[tax_id]
-                if node.parent is not None:
-                    tax_id = node.parent.id
-                    tree = [tax_id, tree]
-                else:
-                    tax_id = None
-
-        return tree
-
-
-# Returns a FakeFamDB with a particular set of fake clades in a hierarchy
-# def fakedb(): TODO: decide if this is still useful
-#     return FakeFamDB(
-#         {
-#             "1": [["scientific name", "root"]],
-#             "2": [["scientific name", "A Clade"]],
-#             "3": [["scientific name", "Missing Clade (3.)"]],
-#             "4": [["scientific name", "Parent Clade"]],
-#             "5": [["scientific name", "Species 1"]],
-#         },
-#         [1, [4, [2, [5]]], [3]],
-#     )
-
-
-# taxonomy node with the minimum properties required by FamDB
-class FakeTaxNode:
-    def __init__(self, tax_id, parent, sci_name):
-        self.tax_id = tax_id
-        if parent is None:
-            self.parent_id = None
-        else:
-            self.parent_id = parent.tax_id
-        self.names = [["scientific name", sci_name]]
-
-        self.parent_node = parent
-        self.children = []
-        self.used = True
-
-        if parent:
-            parent.children.append(self)
+from famdb_classes import FamDB, FamDBRoot
+from famdb_helper_classes import TaxNode
 
 
 # convenience function to generate a test family
@@ -104,9 +22,47 @@ def make_family(acc, clades, consensus, model):
     return fam
 
 
+"""
+       1
+     /   \\
+    4     3
+   /  \\
+  2	  *6
+ /
+5
+"""
+tax_db = {
+    1: TaxNode(1, None),
+    2: TaxNode(2, 4),
+    3: TaxNode(3, 1),
+    4: TaxNode(4, 1),
+    5: TaxNode(5, 2),
+    6: TaxNode(6, 4),
+}
+tax_names = {
+    1: "root",
+    2: "Genus",
+    3: "Other Order",
+    4: "Order",
+    5: "Species",
+    6: "Other Genus",
+}
+
+nodes = {0: [1, 3, 4], 1: [2, 5], 2: [6]}
+
+
+def build_taxa(nodes):
+    for node in nodes.values():
+        if node.tax_id != 1:
+            node.parent_node = nodes[node.parent_id]
+            node.parent_node.children += [node]
+        node.names += [["scientific name", tax_names[node.tax_id]]]
+    return nodes
+
+
 def init_db_file():
-    filename = '/tmp/unittest'
-    # 0 - root, 1 - search, 2 - other, 3 - missing
+    filename = "/tmp/unittest"
+    # 0 - root, 1 - search, 2 - other
     file_info = {
         "meta": {"id": "uuidXX", "db_version": "V1", "db_date": "2020-07-15"},
         "file_map": {
@@ -131,13 +87,6 @@ def init_db_file():
                 "T_root_name": "Other Node",
                 "F_roots_names": ["Other Node"],
             },
-            3: {
-                "T_root": 3,
-                "filename": "unittest.3.h5",
-                "F_roots": [],
-                "T_root_name": "Missing Node",
-                "F_roots_names": [],
-            },
         },
     }
 
@@ -157,28 +106,26 @@ def init_db_file():
     families[3].search_stages = "35"
     families[3].repeat_type = "SINE"
 
+    taxa = build_taxa(tax_db)
+
     def write_test_metadata(db):
         # Override setting of format metadata for testing
         db.file.attrs["generator"] = "famdb.py v0.4.3"
         db.file.attrs["version"] = "0.5"
         db.file.attrs["created"] = "2023-01-09 09:57:56.026443"
 
-    with famdb.FamDB(f"{filename}.0.h5", "w") as db:
+    with FamDBRoot(f"{filename}.0.h5", "w") as db:
         db.set_db_info(*db_info)
         db.set_file_info(file_info)
         write_test_metadata(db)
 
         db.add_family(families[0])
 
-        taxa = {}
-        taxa[1] = FakeTaxNode(1, None, "root")
-        taxa[4] = FakeTaxNode(4, taxa[1], "Unused Clade")
-        taxa[4].used = False
-
-        db.write_taxonomy(taxa)
+        db.write_taxonomy(taxa, nodes[0])
+        db.write_taxa_names(taxa, nodes)
         db.finalize()
 
-    with famdb.FamDB(f"{filename}.1.h5", "w") as db:
+    with FamDB(f"{filename}.1.h5", "w") as db:
         db.set_db_info(*db_info)
         db.set_file_info(file_info)
         write_test_metadata(db)
@@ -187,17 +134,10 @@ def init_db_file():
         db.add_family(families[3])
         db.add_family(families[5])
 
-        taxa = {}
-        taxa[1] = FakeTaxNode(1, None, "root")
-        taxa[4] = FakeTaxNode(4, taxa[1], "Unused Clade")
-        taxa[4].used = False
-        taxa[2] = FakeTaxNode(2, taxa[1], "Clade 2")
-        taxa[5] = FakeTaxNode(5, taxa[2], "Drosophila <flies>")
-
-        db.write_taxonomy(taxa)
+        db.write_taxonomy(taxa, nodes[1])
         db.finalize()
 
-    with famdb.FamDB(f"{filename}.2.h5", "w") as db:
+    with FamDB(f"{filename}.2.h5", "w") as db:
         db.set_db_info(*db_info)
         db.set_file_info(file_info)
         write_test_metadata(db)
@@ -205,13 +145,5 @@ def init_db_file():
         db.add_family(families[0])
         db.add_family(families[4])
 
-        taxa = {}
-        taxa[1] = FakeTaxNode(1, None, "root")
-        taxa[4] = FakeTaxNode(4, taxa[1], "Unused Clade")
-        taxa[6] = FakeTaxNode(6, taxa[4], "Drosophila <fungus>")
-
-        db.write_taxonomy(taxa)
+        db.write_taxonomy(taxa, nodes[2])
         db.finalize()
-
-        # taxa[3] = FakeTaxNode(3, taxa[1], "Third Clade")
-        # taxa[7] = FakeTaxNode(7, taxa[5], "Drosophila melanogaster")

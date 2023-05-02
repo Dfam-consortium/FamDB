@@ -78,9 +78,6 @@ class FamDB:
             )
             self.added = self.get_counts()
 
-        if reading:
-            self.names_dump = json.loads(self.file["TaxaNames"][0])
-
     # Export Setters -----------------------------------------------------------------------------------------------------------------
     def set_partition_info(self, partition_num):
         """Sets partition number (key to file info) and bool if is root file or not"""  # TODO move to root class?
@@ -294,7 +291,7 @@ class FamDB:
             group = self.file.require_group(FamDB.GROUP_NODES).require_group(
                 str(tax_db[node].tax_id)
             )
-            parent_id = int(tax_db[node].parent_id)
+            parent_id = int(tax_db[node].parent_id) if tax_db[node].parent_id else None
             if parent_id:
                 group.create_dataset("Parent", data=numpy.array([parent_id]))
 
@@ -783,6 +780,9 @@ up with the 'names' command.""".format(
 
 
 class FamDBRoot(FamDB):
+    # def __init__(self, filename, mode="r"):
+    #     super(FamDBRoot, self).__init__(filename, mode)
+
     def write_taxa_names(self, tax_db, nodes):
         LOGGER.info("Writing TaxaNames")
         for partition in nodes:

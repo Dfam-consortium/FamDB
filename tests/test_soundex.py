@@ -1,6 +1,6 @@
 import unittest
 
-from famdb import soundex, sounds_like
+from famdb_helper_methods import soundex, sounds_like
 
 
 class TestSoundex(unittest.TestCase):
