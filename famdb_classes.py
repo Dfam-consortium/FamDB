@@ -78,7 +78,7 @@ class FamDB:
             )
             self.added = self.get_counts()
 
-    # Export Setters -----------------------------------------------------------------------------------------------------------------
+    # Export Setters ----------------------------------------------------------------------------------------------------
     def set_partition_info(self, partition_num):
         """Sets partition number (key to file info) and bool if is root file or not"""  # TODO move to root class?
         self.file.attrs["partition_num"] = partition_num
@@ -107,7 +107,7 @@ class FamDB:
         self.file.attrs["count_consensus"] = self.added["consensus"]
         self.file.attrs["count_hmm"] = self.added["hmm"]
 
-    # Attribute Getters ----------------------------------------------------------------------------------------------------------------------
+    # Attribute Getters -----------------------------------------------------------------------------------------------
     def get_partition_num(self):
         """Partition num is used as the key in file_info"""
         return self.file.attrs["partition_num"]
@@ -172,7 +172,7 @@ class FamDB:
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()
 
-    # Data Writing Methods -----------------------------------------------------------------------------------------------------------------
+    # Data Writing Methods ---------------------------------------------------------------------------------------------
     # Family Methods
     def __check_unique(self, family, key):
         """Verifies that 'family' is uniquely identified by its value of 'key'."""
@@ -302,7 +302,7 @@ class FamDB:
         delta = time.perf_counter() - start
         LOGGER.info("Wrote %d taxonomy nodes in %f", count, delta)
 
-    # Data Access Methods --------------------------------------------------------------------------------------------------------------------
+    # Data Access Methods ------------------------------------------------------------------------------------------------
     def has_taxon(self, tax_id):
         """Returns True if 'self' has a taxonomy entry for 'tax_id'"""
         # test if file has families or just taxonomy info
@@ -310,172 +310,6 @@ class FamDB:
             str(tax_id) in self.file[FamDB.GROUP_NODES]
             and "Families" in self.file[FamDB.GROUP_NODES][str(tax_id)]
         )
-
-    def search_taxon_names(self, text, kind=None, search_similar=False):
-        """
-        Searches 'self' for taxons with a name containing 'text', returning an
-        iterator that yields a tuple of (id, is_exact) for each matching node.
-        Each id is returned at most once, and if any of its names are an exact
-        match the whole node is treated as an exact match.
-
-        If 'similar' is True, names that sound similar will also be considered
-        eligible.
-
-        A list of strings may be passed as 'kind' to restrict what kinds of
-        names will be searched.
-        """
-
-        text = text.lower()
-
-        for tax_id, names in self.names_dump.items():
-            # test if file has families or just taxonomy info
-            if (
-                not str(tax_id) in self.file[FamDB.GROUP_NODES]
-                or not "Families" in self.file[FamDB.GROUP_NODES][str(tax_id)]
-            ):
-                continue
-            matches = False
-            exact = False
-            for name_cls, name_txt in names:
-                name_txt = name_txt.lower()
-                if kind is None or kind == name_cls:
-                    if text == name_txt:
-                        matches = True
-                        exact = True
-                    elif name_txt.startswith(text + " <"):
-                        matches = True
-                        exact = True
-                    elif text == sanitize_name(name_txt):
-                        matches = True
-                        exact = True
-                    elif text in name_txt:
-                        matches = True
-                    elif search_similar and sounds_like(text, name_txt):
-                        matches = True
-
-            if matches:
-                yield [int(tax_id), exact]
-
-    def resolve_species(self, term, kind=None, search_similar=False):
-        """
-        Resolves 'term' as a species or clade in 'self'. If 'term' is a number,
-        it is a taxon id. Otherwise, it will be searched for in 'self' in the
-        name fields of all taxa. A list of strings may be passed as 'kind' to
-        restrict what kinds of names will be searched.
-
-        If 'search_similar' is True, a "sounds like" search will be tried
-        first. If it is False, a "sounds like" search will still be performed
-
-        if no results were found.
-
-        This function returns a list of tuples (taxon_id, is_exact) that match
-        the query. The list will be empty if no matches were found.
-        """
-
-        # Try as a number
-        try:
-            tax_id = int(term)
-            if self.has_taxon(tax_id):
-                return [[tax_id, True]]
-
-            return []
-        except ValueError:
-            pass
-
-        # Perform a search by name, splitting between exact and inexact matches for sorting
-        exact = []
-        inexact = []
-        for tax_id, is_exact in self.search_taxon_names(term, kind, search_similar):
-            if is_exact:
-                exact += [tax_id]
-            else:
-                inexact += [tax_id]
-
-        # Combine back into one list, with exact matches first
-        results = [[tax_id, True] for tax_id in exact]
-        for tax_id in inexact:
-            results += [[tax_id, False]]
-
-        if len(results) == 0 and not search_similar:
-            # Try a sounds-like search (currently soundex)
-            similar_results = self.resolve_species(term, kind, True)
-            if similar_results:
-                print(
-                    "No results were found for that name, but some names sound similar:",
-                    file=sys.stderr,
-                )
-                for tax_id, _ in similar_results:
-                    names = self.get_taxon_names(tax_id)
-                    print(
-                        tax_id,
-                        ", ".join(["{1}".format(*n) for n in names]),
-                        file=sys.stderr,
-                    )
-
-        return results
-
-    def resolve_one_species(self, term, kind=None):
-        """
-        Resolves 'term' in 'dbfile' as a taxon id or search term unambiguously.
-        Parameters are as in the 'resolve_species' method.
-        Returns None if not exactly one result is found,
-        and prints details to the screen.
-        """
-
-        results = self.resolve_species(term, kind)
-
-        # Check for a single exact match first, to any field
-        exact_matches = []
-        for nid, is_exact in results:
-            if is_exact:
-                exact_matches += [nid]
-        if len(exact_matches) == 1:
-            return exact_matches[0]
-
-        if len(results) == 1:
-            return results[0][0]
-        elif len(results) > 1:
-            print(
-                """Ambiguous search term '{}' (found {} results, {} exact).
-Please use a more specific name or taxa ID, which can be looked
-up with the 'names' command.""".format(
-                    term, len(results), len(exact_matches)
-                ),
-                file=sys.stderr,
-            )
-
-        return None
-
-    def get_taxon_names(self, tax_id):
-        """
-        Returns a list of [name_class, name_value] of the taxon given by 'tax_id'.
-        """
-
-        return self.names_dump[str(tax_id)]
-
-    def get_taxon_name(self, tax_id, kind="scientific name"):
-        """
-        Returns the first name of the given 'kind' for the taxon given by 'tax_id',
-        or None if no such name was found.
-        """
-
-        names = self.names_dump[str(tax_id)]
-        for name in names:
-            if name[0] == kind:
-                return name[1]
-
-        return None
-
-    def get_sanitized_name(self, tax_id):
-        """
-        Returns the "sanitized name" of tax_id, which is the sanitized version
-        of the scientific name.
-        """
-
-        name = self.get_taxon_name(tax_id, "scientific name")
-        if name:
-            name = sanitize_name(name)
-        return name
 
     def get_families_for_taxon(self, tax_id, root_file=None):
         """Returns a list of the accessions for each family directly associated with 'tax_id'."""
@@ -516,29 +350,6 @@ up with the 'names' command.""".format(
                     tax_id = None
 
         return tree
-
-    def get_lineage_path(self, tax_id, cache=True):
-        """
-        Returns a list of strings encoding the lineage for 'tax_id'.
-        """
-
-        if cache and tax_id in self.__lineage_cache:
-            return self.__lineage_cache[tax_id]
-
-        tree = self.get_lineage(tax_id, ancestors=True)
-        lineage = []
-
-        while tree:
-            node = tree[0]
-            tree = tree[1] if len(tree) > 1 else None
-
-            tax_name = self.get_taxon_name(node, "scientific name")
-            lineage += [tax_name]
-
-        if cache:
-            self.__lineage_cache[tax_id] = lineage
-
-        return lineage
 
     # Filter methods --------------------------------------------------------------------------
     @staticmethod
@@ -780,8 +591,18 @@ up with the 'names' command.""".format(
 
 
 class FamDBRoot(FamDB):
-    # def __init__(self, filename, mode="r"):
-    #     super(FamDBRoot, self).__init__(filename, mode)
+    def __init__(self, filename, mode="r"):
+        super(FamDBRoot, self).__init__(filename, mode)
+
+        if mode == "r" or mode == "r+":
+            self.names_dump = {
+                partition: json.loads(
+                    self.file[f"{FamDBRoot.GROUP_TAXANAMES}/{partition}"]["TaxaNames"][
+                        0
+                    ]
+                )
+                for partition in self.file[FamDBRoot.GROUP_TAXANAMES]
+            }
 
     def write_taxa_names(self, tax_db, nodes):
         LOGGER.info("Writing TaxaNames")
@@ -797,46 +618,234 @@ class FamDBRoot(FamDB):
                 "TaxaNames", shape=names_data.shape, dtype=FamDB.dtype_str
             )
             names_dset[:] = names_data
-            # self.names_dump = json.loads(self.file["TaxaNames"][0])
 
-    # def find_files(self):
-    #     # repbase_file = "./partitions/RMRB_spec_to_tax.json" TODO
-    #     file_info = self.get_file_info()
-    #     meta = file_info["meta"]
-    #     file_map = file_info["file_map"]
-    #     files = {}
-    #     for file in file_map:
-    #         partition_name = file_map[file]["T_root_name"]
-    #         partition_detail = file_map[file]["F_roots_names"]
-    #         filename = file_map[file]["filename"]
-    #         counts = None
-    #         status = "Missing"
-    #         if os.path.isfile(filename):
-    #             checkfile = FamDB(filename, "r")
-    #             db_info = checkfile.get_db_info()
-    #             same_dfam, same_partition = False, False
-    #             # test if database versions were the same
-    #             if (
-    #                 meta["db_version"] == db_info["version"]
-    #                 and meta["db_date"] == db_info["date"]
-    #             ):
-    #                 same_dfam = True
-    #             # test if files are from the same partitioning run
-    #             if meta["id"] == checkfile.get_file_info()["meta"]["id"]:
-    #                 same_partition = True
-    #             # update status
-    #             if not same_partition:
-    #                 status = "File From Different Partition"
-    #             elif not same_dfam:
-    #                 status = "File From Previous Dfam Release"
-    #             else:
-    #                 status = "Present"
-    #                 counts = checkfile.get_counts()
-    #             files[file] = {
-    #                 "partition_name": partition_name,
-    #                 "partition_detail": partition_detail,
-    #                 "filename": filename,
-    #                 "counts": counts,
-    #                 "status": status,
-    #             }
-    #     return files
+    def get_taxon_names(self, tax_id):
+        """
+        Checks names_dump for each partition and returns a list of [name_class, name_value, partition]
+        of the taxon given by 'tax_id'.
+        """
+        names_list = []
+        for partition in self.names_dump:
+            names = self.names_dump[partition].get(str(tax_id))
+            if names:
+                names += [int(partition)]
+                names_list += names
+        return names_list
+
+    def get_taxon_name(self, tax_id, kind="scientific name"):
+        """
+        Checks names_dump for each partition and returns eturns the first name of the given 'kind'
+        for the taxon given by 'tax_id', or None if no such name was found.
+        """
+        for partition in self.names_dump:
+            names = self.names_dump[partition].get(str(tax_id))
+            if names:
+                for name in names:
+                    if name[0] == kind:
+                        return [name[1], int(partition)]
+        return None
+
+    def search_taxon_names(self, text, kind=None, search_similar=False):
+        """
+        Searches 'self' for taxons with a name containing 'text', returning an
+        iterator that yields a tuple of (id, is_exact, partition) for each matching node.
+        Each id is returned at most once, and if any of its names are an exact
+        match the whole node is treated as an exact match.
+
+        If 'similar' is True, names that sound similar will also be considered
+        eligible.
+
+        A list of strings may be passed as 'kind' to restrict what kinds of
+        names will be searched.
+        """
+
+        text = text.lower()
+        for partition in self.names_dump:
+            for tax_id, names in self.names_dump[partition].items():
+                matches = False
+                exact = False
+                for name_cls, name_txt in names:
+                    name_txt = name_txt.lower()
+                    if kind is None or kind == name_cls:
+                        if text == name_txt:
+                            matches = True
+                            exact = True
+                        elif name_txt.startswith(text + " <"):
+                            matches = True
+                            exact = True
+                        elif text == sanitize_name(name_txt):
+                            matches = True
+                            exact = True
+                        elif text in name_txt:
+                            matches = True
+                        elif search_similar and sounds_like(text, name_txt):
+                            matches = True
+
+                if matches:
+                    yield [int(tax_id), exact, int(partition)]
+
+    def resolve_species(self, term, kind=None, search_similar=False):
+        """
+        Resolves 'term' as a species or clade in 'self'. If 'term' is a number,
+        it is a taxon id. Otherwise, it will be searched for in 'self' in the
+        name fields of all taxa. A list of strings may be passed as 'kind' to
+        restrict what kinds of names will be searched.
+
+        If 'search_similar' is True, a "sounds like" search will be tried
+        first. If it is False, a "sounds like" search will still be performed
+
+        if no results were found.
+
+        This function returns a list of tuples (taxon_id, is_exact) that match
+        the query. The list will be empty if no matches were found.
+        """
+
+        # Try as a number
+        try:
+            tax_id = int(term)
+            if self.has_taxon(tax_id):
+                return [[tax_id, True]]
+
+            return []
+        except ValueError:
+            pass
+
+        # Perform a search by name, splitting between exact and inexact matches for sorting
+        exact = []
+        inexact = []
+        for tax_id, is_exact in self.search_taxon_names(term, kind, search_similar):
+            if is_exact:
+                exact += [tax_id]
+            else:
+                inexact += [tax_id]
+
+        # Combine back into one list, with exact matches first
+        results = [[tax_id, True] for tax_id in exact]
+        for tax_id in inexact:
+            results += [[tax_id, False]]
+
+        if len(results) == 0 and not search_similar:
+            # Try a sounds-like search (currently soundex)
+            similar_results = self.resolve_species(term, kind, True)
+            if similar_results:
+                print(
+                    "No results were found for that name, but some names sound similar:",
+                    file=sys.stderr,
+                )
+                for tax_id, _ in similar_results:
+                    names = self.get_taxon_names(tax_id)
+                    print(
+                        tax_id,
+                        ", ".join(["{1}".format(*n) for n in names]),
+                        file=sys.stderr,
+                    )
+
+        return results
+
+    def resolve_one_species(self, term, kind=None):
+        """
+        Resolves 'term' in 'dbfile' as a taxon id or search term unambiguously.
+        Parameters are as in the 'resolve_species' method.
+        Returns None if not exactly one result is found,
+        and prints details to the screen.
+        """
+
+        results = self.resolve_species(term, kind)
+
+        # Check for a single exact match first, to any field
+        exact_matches = []
+        for nid, is_exact in results:
+            if is_exact:
+                exact_matches += [nid]
+        if len(exact_matches) == 1:
+            return exact_matches[0]
+
+        if len(results) == 1:
+            return results[0][0]
+        elif len(results) > 1:
+            print(
+                """Ambiguous search term '{}' (found {} results, {} exact).
+Please use a more specific name or taxa ID, which can be looked
+up with the 'names' command.""".format(
+                    term, len(results), len(exact_matches)
+                ),
+                file=sys.stderr,
+            )
+
+        return None
+
+    def get_sanitized_name(self, tax_id):
+        """
+        Returns the "sanitized name" of tax_id, which is the sanitized version
+        of the scientific name.
+        """
+
+        name = self.get_taxon_name(tax_id, "scientific name")
+        if name:
+            name = sanitize_name(name)
+        return name
+
+    def get_lineage_path(self, tax_id, cache=True):
+        """
+        Returns a list of strings encoding the lineage for 'tax_id'.
+        """
+
+        if cache and tax_id in self.__lineage_cache:
+            return self.__lineage_cache[tax_id]
+
+        tree = self.get_lineage(tax_id, ancestors=True)
+        lineage = []
+
+        while tree:
+            node = tree[0]
+            tree = tree[1] if len(tree) > 1 else None
+
+            tax_name = self.get_taxon_name(node, "scientific name")
+            lineage += [tax_name]
+
+        if cache:
+            self.__lineage_cache[tax_id] = lineage
+
+        return lineage
+
+    def find_files(self):
+        # repbase_file = "./partitions/RMRB_spec_to_tax.json" TODO
+        file_info = self.get_file_info()
+        meta = file_info["meta"]
+        file_map = file_info["file_map"]
+        files = {}
+        for file in file_map:
+            partition_name = file_map[file]["T_root_name"]
+            partition_detail = file_map[file]["F_roots_names"]
+            filename = file_map[file]["filename"]
+            counts = None
+            status = "Missing"
+            if os.path.isfile(filename):
+                checkfile = FamDB(filename, "r")
+                db_info = checkfile.get_db_info()
+                same_dfam, same_partition = False, False
+                # test if database versions were the same
+                if (
+                    meta["db_version"] == db_info["version"]
+                    and meta["db_date"] == db_info["date"]
+                ):
+                    same_dfam = True
+                # test if files are from the same partitioning run
+                if meta["id"] == checkfile.get_file_info()["meta"]["id"]:
+                    same_partition = True
+                # update status
+                if not same_partition:
+                    status = "File From Different Partition"
+                elif not same_dfam:
+                    status = "File From Previous Dfam Release"
+                else:
+                    status = "Present"
+                    counts = checkfile.get_counts()
+                files[file] = {
+                    "partition_name": partition_name,
+                    "partition_detail": partition_detail,
+                    "filename": filename,
+                    "counts": counts,
+                    "status": status,
+                }
+        return files
