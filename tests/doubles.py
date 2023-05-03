@@ -4,7 +4,7 @@ Fakes, stubs, etc. for use in testing FamDB
 
 import famdb
 from famdb_classes import FamDB, FamDBRoot
-from famdb_helper_classes import TaxNode
+from famdb_helper_classes import TaxNode, Family
 
 """
        1
@@ -45,24 +45,24 @@ NODES = {0: [1, 2, 3], 1: [4, 5], 2: [6]}
 FILE_INFO = {
     "meta": {"id": "uuidXX", "db_version": "V1", "db_date": "2020-07-15"},
     "file_map": {
-        0: {
+        "0": {
             "T_root": 1,
             "filename": "unittest.0.h5",
             "F_roots": [],
             "T_root_name": "Root Node",
             "F_roots_names": [],
         },
-        1: {
+        "1": {
             "T_root": 4,
             "filename": "unittest.1.h5",
             "F_roots": [4],
             "T_root_name": "Search Node",
             "F_roots_names": [],
         },
-        2: {
-            "T_root": 5,
+        "2": {
+            "T_root": 6,
             "filename": "unittest.2.h5",
-            "F_roots": [5],
+            "F_roots": [6],
             "T_root_name": "Other Node",
             "F_roots_names": ["Other Node"],
         },
@@ -84,7 +84,7 @@ def build_taxa(nodes):
 
 # convenience function to generate a test family
 def make_family(acc, clades, consensus, model):
-    fam = famdb.Family()
+    fam = Family()
     fam.accession = acc
     fam.name = "Test family " + acc
     fam.version = 1
@@ -95,17 +95,21 @@ def make_family(acc, clades, consensus, model):
     return fam
 
 
+FAMILIES = [
+    make_family("TEST0001", [1], "ACGT", "<model1>"),
+    make_family("TEST0002", [2, 3], None, "<model2>"),
+    make_family("TEST0003", [3], "GGTC", "<model3>"),
+    make_family("TEST0004", [4], "CCCCTTTT", None),
+    make_family("DR0000001", [5], "GCATATCG", None),
+    make_family("DR_Repeat1", [6], "CGACTAT", None),
+]
+
+
 def init_db_file():
     filename = "/tmp/unittest"
 
-    families = [
-        make_family("TEST0001", [1], "ACGT", "<model1>"),
-        make_family("TEST0002", [2, 6], None, "<model2>"),
-        make_family("TEST0003", [6], "GGTC", "<model3>"),
-        make_family("TEST0004", [2], "CCCCTTTT", None),
-        make_family("DR0000001", [6], "GCATATCG", None),
-        make_family("DR_Repeat1", [5], "CGACTAT", None),
-    ]
+    families = FAMILIES
+
     families[1].name = None
     families[2].search_stages = "30,40"
     families[3].buffer_stages = "10[1-2],10[5-8],20"
@@ -123,9 +127,12 @@ def init_db_file():
     with FamDBRoot(f"{filename}.0.h5", "w") as db:
         db.set_db_info(*DB_INFO)
         db.set_file_info(FILE_INFO)
+        db.set_partition_info(0)
         write_test_metadata(db)
 
         db.add_family(families[0])
+        db.add_family(families[1])
+        db.add_family(families[2])
 
         db.write_taxonomy(taxa, NODES[0])
         db.write_taxa_names(taxa, NODES)
@@ -134,11 +141,11 @@ def init_db_file():
     with FamDB(f"{filename}.1.h5", "w") as db:
         db.set_db_info(*DB_INFO)
         db.set_file_info(FILE_INFO)
+        db.set_partition_info(1)
         write_test_metadata(db)
 
-        db.add_family(families[1])
         db.add_family(families[3])
-        db.add_family(families[5])
+        db.add_family(families[4])
 
         db.write_taxonomy(taxa, NODES[1])
         db.finalize()
@@ -146,10 +153,10 @@ def init_db_file():
     with FamDB(f"{filename}.2.h5", "w") as db:
         db.set_db_info(*DB_INFO)
         db.set_file_info(FILE_INFO)
+        db.set_partition_info(2)
         write_test_metadata(db)
 
-        db.add_family(families[0])
-        db.add_family(families[4])
+        db.add_family(families[5])
 
         db.write_taxonomy(taxa, NODES[2])
         db.finalize()

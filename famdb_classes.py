@@ -80,7 +80,7 @@ class FamDB:
 
     # Export Setters ----------------------------------------------------------------------------------------------------
     def set_partition_info(self, partition_num):
-        """Sets partition number (key to file info) and bool if is root file or not"""  # TODO move to root class?
+        """Sets partition number (key to file info) and bool if is root file or not"""
         self.file.attrs["partition_num"] = partition_num
         self.file.attrs["root"] = partition_num == "0" or partition_num == 0
 
@@ -142,7 +142,7 @@ class FamDB:
         'generator', 'version', 'created', 'partition_name', 'partition_detail'
         """
         num = self.file.attrs["partition_num"]
-        partition = self.get_file_info()["file_map"][num]
+        partition = self.get_file_info()["file_map"][str(num)]
         return {
             "generator": self.file.attrs["generator"],
             "version": self.file.attrs["version"],
@@ -315,7 +315,7 @@ class FamDB:
         """Returns a list of the accessions for each family directly associated with 'tax_id'."""
         group = self.file[FamDB.GROUP_NODES][str(tax_id)].get("Families")
         if group:
-            return group.keys()
+            return list(group.keys())
 
     def get_lineage(self, tax_id, **kwargs):
         """
