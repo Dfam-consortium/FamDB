@@ -7,13 +7,14 @@ from famdb_classes import FamDB, FamDBRoot
 from famdb_helper_classes import TaxNode, Family
 
 """
-       1
-     /   \\
-    2     3
-   /  \\
-  4	  *5
- /
-6
+        1
+      /   \\
+ (0) 2     3
+--------------
+(1)/ |\\ (2)
+  4	 | *5
+ /   |
+6    |
 """
 TAX_DB = {
     1: TaxNode(1, None),
@@ -40,7 +41,7 @@ COMMON_NAMES = {
     6: "Leaf Dummy 6",
 }
 # 0 - root, 1 - search, 2 - other
-NODES = {0: [1, 2, 3], 1: [4, 5], 2: [6]}
+NODES = {0: [1, 2, 3], 1: [4, 6], 2: [5]}
 
 FILE_INFO = {
     "meta": {"id": "uuidXX", "db_version": "V1", "db_date": "2020-07-15"},
@@ -60,9 +61,9 @@ FILE_INFO = {
             "F_roots_names": [],
         },
         "2": {
-            "T_root": 6,
+            "T_root": 5,
             "filename": "unittest.2.h5",
-            "F_roots": [6],
+            "F_roots": [5],
             "T_root_name": "Other Node",
             "F_roots_names": ["Other Node"],
         },
@@ -145,7 +146,7 @@ def init_db_file():
         write_test_metadata(db)
 
         db.add_family(families[3])
-        db.add_family(families[4])
+        db.add_family(families[5])
 
         db.write_taxonomy(taxa, NODES[1])
         db.finalize()
@@ -156,7 +157,7 @@ def init_db_file():
         db.set_partition_info(2)
         write_test_metadata(db)
 
-        db.add_family(families[5])
+        db.add_family(families[4])
 
         db.write_taxonomy(taxa, NODES[2])
         db.finalize()

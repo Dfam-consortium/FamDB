@@ -4,11 +4,10 @@ import unittest
 from famdb_classes import FamDB, FamDBRoot
 from .doubles import init_db_file, FILE_INFO, FAMILIES
 
-# from famdb_helper_classes import Family
+from famdb_helper_classes import Family
 
 
 class TestDatabase(unittest.TestCase):
-    # Set up a single database file shared by all tests in this class
     @classmethod
     def setUpClass(cls):
 
@@ -96,25 +95,28 @@ class TestDatabase(unittest.TestCase):
                 },
             )
 
-    # def test_get_family_names(self):
+    def test_get_family_by_accession(self):
+        with FamDBRoot(TestDatabase.filenames[0], "r") as db:
+            test_fam = db.get_family_by_accession("TEST0001")
+            self.assertIsInstance(test_fam, Family)
+            self.assertEqual(test_fam.name, "Test family TEST0001")
+            self.assertEqual(db.get_family_by_accession("TEST0000"), None)
+
+    # def test_get_family_names(self): # TODO SoftLinks are broken in GROUP_FAMILIES_BYNAME
     #     with FamDBRoot(TestDatabase.filenames[0], "r") as db:
-    #         self.assertCountEqual(db.get_family_names(), ['Test family TEST0001','Test family TEST0002', 'Test family TEST0003']) # TODO solve this
+    #         self.assertCountEqual(db.get_family_names(), ['Test family TEST0001','Test family TEST0002', 'Test family TEST0003'])
     #     with FamDB(TestDatabase.filenames[1], "r") as db:
     #         self.assertCountEqual(db.get_family_names(), ['Test family TEST0004', 'Test family DR0000001'])
     #     with FamDB(TestDatabase.filenames[2], "r") as db:
     #         self.assertCountEqual(db.get_family_names(), ['Test family DR_Repeat1'])
 
-    # def test_get_family_by_accession(self):
+    # def test_get_family_by_name(self): # TODO SoftLinks are broken in GROUP_FAMILIES_BYNAME
     #     with FamDBRoot(TestDatabase.filenames[0], "r") as db:
-    #         self.assertEqual(db.get_family_by_accession('TEST0001'), FAMILIES[0]) # TODO
+    #         self.assertEqual(db.get_family_by_name('Test family TEST0002'), None)
     #     with FamDB(TestDatabase.filenames[1], "r") as db:
-    #         self.assertEqual(db.get_family_by_accession('TEST0004'), 'Test family TEST0004')
-
-    # def test_get_family_by_name(self):
-    # with FamDBRoot(TestDatabase.filenames[0], "r") as db:
-    #     self.assertEqual(db.get_family_by_name('Test family TEST0001'), 'Test family TEST0001') # TODO
-    # with FamDB(TestDatabase.filenames[1], "r") as db:
-    #     self.assertEqual(db.get_family_by_name('Test family TEST0004'), 'Test family TEST0004')
+    #         test_fam = db.get_family_by_name('Test family TEST0004')
+    #         self.assertIsInstance(test_fam, Family)
+    #         self.assertEqual(test_fam.name, 'Test family TEST0004')
 
     def test_get_families_for_taxon(self):
         with FamDBRoot(TestDatabase.filenames[0], "r") as db:
@@ -124,59 +126,78 @@ class TestDatabase(unittest.TestCase):
             self.assertEqual(db.get_families_for_taxon(4), ["TEST0004"])
 
     def test_get_accessions_filtered(self):
-        pass
+        with FamDBRoot(TestDatabase.filenames[0], "r") as db:
+            self.assertEqual(
+                list(db.get_accessions_filtered(tax_id=3)),
+                ["TEST0002", "TEST0003"],
+            )
+            self.assertEqual(
+                list(db.get_accessions_filtered(tax_id=3, ancestors=True)),
+                ["TEST0001", "TEST0002", "TEST0003"],
+            )
+            self.assertEqual(
+                sorted(list(db.get_accessions_filtered())),
+                [
+                    "TEST0001",
+                    "TEST0002",
+                    "TEST0003",
+                ],
+            )
+            self.assertEqual(list(db.get_accessions_filtered(stage=30)), ["TEST0003"])
+            self.assertEqual(list(db.get_accessions_filtered(stage=20)), [])
+            self.assertEqual(
+                list(db.get_accessions_filtered(is_hmm=True)),
+                ["TEST0001", "TEST0002", "TEST0003"],
+            )
 
-    # self.assertEqual(
-    #         #     list(db.get_accessions_filtered(tax_id=3)),
-    #         #     ["TEST0002", "TEST0003"],
-    #         # )
-    #         # self.assertEqual(
-    #         #     list(db.get_accessions_filtered(tax_id=3, ancestors=True)),
-    #         #     ["TEST0001", "TEST0002", "TEST0003"],
-    #         # )
+        with FamDB(TestDatabase.filenames[1], "r") as db:
+            self.assertEqual(
+                sorted(list(db.get_accessions_filtered())),
+                [
+                    "DR_Repeat1",
+                    "TEST0004",
+                ],
+            )
+            self.assertEqual(
+                list(db.get_accessions_filtered(stage=10, is_hmm=True)), []
+            )
+            self.assertEqual(
+                list(db.get_accessions_filtered(name="Test family TEST0004")),
+                ["TEST0004"],
+            )
+            self.assertEqual(
+                list(db.get_accessions_filtered(repeat_type="SINE")), ["TEST0004"]
+            )
 
-    #         #
-    #         # self.assertEqual(
-    #         #     sorted(list(db.get_accessions_filtered())),
-    #         #     [
-    #         #         "DR0000001",
-    #         #         "DR_Repeat1",
-    #         #         "TEST0001",
-    #         #         "TEST0002",
-    #         #         "TEST0003",
-    #         #         "TEST0004",
-    #         #     ],
-    #         # )
-    #         # self.assertEqual(list(db.get_accessions_filtered(stage=30)), ["TEST0003"])
-    #         # self.assertEqual(list(db.get_accessions_filtered(stage=10)), ["TEST0004"])
-    #         # self.assertEqual(
-    #         #     list(db.get_accessions_filtered(stage=10, is_hmm=True)), []
-    #         # )
+            self.assertEqual(
+                list(db.get_accessions_filtered(tax_id=4, descendants=True)),
+                ["TEST0004", "DR_Repeat1"],
+            )
+        with FamDB(TestDatabase.filenames[2], "r") as db:
+            self.assertEqual(
+                list(db.get_accessions_filtered(curated_only=True)),
+                [],
+            )
+            self.assertEqual(
+                list(db.get_accessions_filtered(uncurated_only=True)),
+                ["DR0000001"],
+            )
+
+    # def test_get_lineage(self):
+    #     with FamDBRoot(TestDatabase.filenames[0], "r") as db:
     #         self.assertEqual(
-    #             list(db.get_accessions_filtered(name="Test family TEST0004")),
-    #             ["TEST0004"],
+    #             db.get_lineage(1, descendants=True), [1, [4, [2, [5]], [6]], [3]]
     #         )
-    #         self.assertEqual(
-    #             list(db.get_accessions_filtered(repeat_type="SINE")), ["TEST0004"]
-    #         )
-    #         # self.assertEqual(
-    #         #     list(db.get_accessions_filtered(stage=80, tax_id=2)),
-    #         #     ["TEST0002", "TEST0004"],
-    #         # )
-    #         # self.assertEqual(
-    #         #     list(db.get_accessions_filtered(stage=95, tax_id=2)), ["TEST0004"]
-    #         # )
-    #         self.assertEqual(
-    #             list(db.get_accessions_filtered(tax_id=6, curated_only=True)), []
-    #         )
-    #         self.assertEqual(
-    #             list(db.get_accessions_filtered(tax_id=6, curated_only=False)),
-    #             ["DR0000001"],
-    #         )
-    #         self.assertEqual(
-    #             list(db.get_accessions_filtered(tax_id=5, curated_only=True)),
-    #             ["DR_Repeat1"],
-    #         )
+    #         self.assertEqual(db.get_lineage(3), [3])
+    #         self.assertEqual(db.get_lineage(6, ancestors=True), [1, [3, [6]]])
+
+    #         self.assertEqual(db.get_lineage_path(3), ["root", "Third Clade"])
+
+    #         # test caching in get_lineage_path
+    #         self.assertEqual(db.get_lineage_path(3), ["root", "Third Clade"])
+
+    #         # test lookup without cache
+    #         self.assertEqual(db.get_lineage_path(3, False), ["root", "Third Clade"])
 
     # Root File Methods ------------------------------------------------
     def test_search_taxon_names(self):
@@ -193,7 +214,7 @@ class TestDatabase(unittest.TestCase):
                 list(db.search_taxon_names("Genus")),
                 [
                     [4, True, 1],
-                    [6, False, 2],
+                    [6, False, 1],
                 ],
             )
 
@@ -255,22 +276,6 @@ class TestDatabase(unittest.TestCase):
 
     def test_get_lineage_path(self):
         pass
-
-    # def test_lineage(self):
-    #     with FamDBRoot(TestDatabase.filenames[0], "r") as db:
-    #         self.assertEqual(
-    #             db.get_lineage(1, descendants=True), [1, [4, [2, [5]], [6]], [3]]
-    #         )
-    #         self.assertEqual(db.get_lineage(3), [3])
-    #         self.assertEqual(db.get_lineage(6, ancestors=True), [1, [3, [6]]])
-
-    #         self.assertEqual(db.get_lineage_path(3), ["root", "Third Clade"])
-
-    #         # test caching in get_lineage_path
-    #         self.assertEqual(db.get_lineage_path(3), ["root", "Third Clade"])
-
-    #         # test lookup without cache
-    #         self.assertEqual(db.get_lineage_path(3, False), ["root", "Third Clade"])
 
     def test_find_files(self):
         pass

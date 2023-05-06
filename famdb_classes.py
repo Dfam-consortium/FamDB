@@ -246,8 +246,9 @@ class FamDB:
         # Create links
         if family.name:
             self.file.require_group(FamDB.GROUP_FAMILIES_BYNAME)[
-                family.name
-            ] = h5py.SoftLink(group_path + "/" + family.accession)
+                str(family.name)  # .replace(' ', '_')
+                # ] = f'{group_path}/{family.accession}' TODO: SoftLinks are broken
+            ] = h5py.SoftLink(f"{group_path}/{family.accession}")
         # In FamDB format version 0.5 we removed the /Families/ByAccession group as it's redundant
         # (all the data is in Families/<datasets> *and* HDF5 suffers from poor performance when
         # the number of entries in a group exceeds 200-500k.
@@ -313,7 +314,11 @@ class FamDB:
 
     def get_families_for_taxon(self, tax_id, root_file=None):
         """Returns a list of the accessions for each family directly associated with 'tax_id'."""
-        group = self.file[FamDB.GROUP_NODES][str(tax_id)].get("Families")
+        group = (
+            self.file[FamDB.GROUP_NODES][str(tax_id)].get("Families")
+            if f"{FamDB.GROUP_NODES}/{tax_id}" in self.file
+            else None
+        )
         if group:
             return list(group.keys())
 
@@ -531,7 +536,9 @@ class FamDB:
                     tax_id, ancestors=ancestors, descendants=descendants
                 )
                 for node in walk_tree(lineage):
-                    yield from self.get_families_for_taxon(node)
+                    fams = self.get_families_for_taxon(node)
+                    if fams:
+                        yield from fams
 
         for accession in iterate_accs():
             if accession in seen:
