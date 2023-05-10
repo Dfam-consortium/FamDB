@@ -2,7 +2,6 @@
 Fakes, stubs, etc. for use in testing FamDB
 """
 
-import famdb
 from famdb_classes import FamDB, FamDBRoot
 from famdb_helper_classes import TaxNode, Family
 

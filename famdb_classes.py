@@ -64,8 +64,6 @@ class FamDB:
             # value not matching if it is present.
             raise Exception("This file cannot be read by this version of famdb.py.")
 
-        self.__lineage_cache = {}
-
         if self.mode == "w":
             self.seen = {}
             self.added = {"consensus": 0, "hmm": 0}
@@ -209,7 +207,11 @@ class FamDB:
 
     @staticmethod
     def __families_iterator(g, prefix=""):
+        skip = ["/Families/ByName", "/Families/ByStage"]
         for key, item in g.items():
+            print(g.items())
+            if g.items() in skip:
+                continue
             path = "{}/{}".format(prefix, key)
             if isinstance(item, h5py.Dataset):  # test for dataset
                 yield (key)
@@ -244,11 +246,11 @@ class FamDB:
                 dset.attrs[k] = value
 
         # Create links
+        fam_link = f"/{group_path}/{family.accession}"
         if family.name:
             self.file.require_group(FamDB.GROUP_FAMILIES_BYNAME)[
-                str(family.name)  # .replace(' ', '_')
-                # ] = f'{group_path}/{family.accession}' TODO: SoftLinks are broken
-            ] = h5py.SoftLink(f"{group_path}/{family.accession}")
+                str(family.name)
+            ] = h5py.SoftLink(fam_link)
         # In FamDB format version 0.5 we removed the /Families/ByAccession group as it's redundant
         # (all the data is in Families/<datasets> *and* HDF5 suffers from poor performance when
         # the number of entries in a group exceeds 200-500k.
@@ -258,16 +260,14 @@ class FamDB:
                 str(clade_id)
             )
             families_group = taxon_group.require_group("Families")
-            families_group[family.accession] = h5py.SoftLink(
-                group_path + "/" + family.accession
-            )
+            families_group[family.accession] = h5py.SoftLink(fam_link)
 
         def add_stage_link(stage, accession):
             stage_group = self.file.require_group(
                 FamDB.GROUP_FAMILIES_BYSTAGE
             ).require_group(stage.strip())
             if accession not in stage_group:
-                stage_group[accession] = h5py.SoftLink(group_path + "/" + accession)
+                stage_group[accession] = h5py.SoftLink(fam_link)
 
         if family.search_stages:
             for stage in family.search_stages.split(","):
@@ -338,7 +338,8 @@ class FamDB:
             def descendants_of(tax_id):
                 descendants = [int(tax_id)]
                 for child in group_nodes[str(tax_id)]["Children"]:
-                    descendants += [descendants_of(child)]
+                    if str(child) in group_nodes:
+                        descendants += [descendants_of(child)]
                 return descendants
 
             tree = descendants_of(tax_id)
@@ -348,7 +349,7 @@ class FamDB:
         if kwargs.get("ancestors"):
             while tax_id:
                 node = group_nodes[str(tax_id)]
-                if "Parent" in node:
+                if "Parent" in node and str(node["Parent"][0]) in group_nodes:
                     tax_id = node["Parent"][0]
                     tree = [tax_id, tree]
                 else:
@@ -556,7 +557,7 @@ class FamDB:
 
             match = True
             for filt in filters:
-                if not filt(accession, family_getter):
+                if type(accession) == Family and not filt(accession, family_getter):
                     match = False
             if match:
                 yield accession
@@ -610,6 +611,8 @@ class FamDBRoot(FamDB):
                 )
                 for partition in self.file[FamDBRoot.GROUP_TAXANAMES]
             }
+            self.file_info = self.get_file_info()
+            self.__lineage_cache = {}
 
     def write_taxa_names(self, tax_db, nodes):
         LOGGER.info("Writing TaxaNames")
@@ -710,8 +713,9 @@ class FamDBRoot(FamDB):
         # Try as a number
         try:
             tax_id = int(term)
-            if self.has_taxon(tax_id):
-                return [[tax_id, True]]
+            for partition in self.names_dump:
+                if str(tax_id) in self.names_dump[partition]:
+                    return [[tax_id, int(partition), True]]
 
             return []
         except ValueError:
@@ -720,16 +724,19 @@ class FamDBRoot(FamDB):
         # Perform a search by name, splitting between exact and inexact matches for sorting
         exact = []
         inexact = []
-        for tax_id, is_exact in self.search_taxon_names(term, kind, search_similar):
+        for tax_id, is_exact, partition in self.search_taxon_names(
+            term, kind, search_similar
+        ):
+            hit = [tax_id, partition]
             if is_exact:
-                exact += [tax_id]
+                exact += [hit]
             else:
-                inexact += [tax_id]
+                inexact += [hit]
 
         # Combine back into one list, with exact matches first
-        results = [[tax_id, True] for tax_id in exact]
-        for tax_id in inexact:
-            results += [[tax_id, False]]
+        results = [[*hit, True] for hit in exact]
+        for hit in inexact:
+            results += [[*hit, False]]
 
         if len(results) == 0 and not search_similar:
             # Try a sounds-like search (currently soundex)
@@ -761,14 +768,14 @@ class FamDBRoot(FamDB):
 
         # Check for a single exact match first, to any field
         exact_matches = []
-        for nid, is_exact in results:
-            if is_exact:
-                exact_matches += [nid]
+        for result in results: # result -> [tax_id, partition, exact]
+            if result[2]:
+                exact_matches += [result[0], result[1]]
         if len(exact_matches) == 1:
             return exact_matches[0]
 
         if len(results) == 1:
-            return results[0][0]
+            return results[0][:2]
         elif len(results) > 1:
             print(
                 """Ambiguous search term '{}' (found {} results, {} exact).
@@ -792,15 +799,15 @@ up with the 'names' command.""".format(
             name = sanitize_name(name)
         return name
 
-    def get_lineage_path(self, tax_id, cache=True):
+    def get_lineage_path(self, tax_id, tree=[], cache=True):
         """
         Returns a list of strings encoding the lineage for 'tax_id'.
         """
 
         if cache and tax_id in self.__lineage_cache:
             return self.__lineage_cache[tax_id]
-
-        tree = self.get_lineage(tax_id, ancestors=True)
+        if not tree:
+            tree = self.get_lineage(tax_id, ancestors=True)
         lineage = []
 
         while tree:
