@@ -1,8 +1,9 @@
-import json
 import unittest
+import os
 
-from famdb import Family
-from .doubles import fakedb
+from famdb_classes import FamDBRoot
+from famdb_helper_classes import Family
+from .doubles import init_db_file
 
 
 def test_family():
@@ -41,14 +42,29 @@ HMM          A        C        G        T
 
 
 class TestHMM(unittest.TestCase):
-    def setUp(self):
-        self.maxDiff = None
+
+    @classmethod
+    def setUpClass(cls):
+        filenames = ["/tmp/unittest.0.h5", "/tmp/unittest.1.h5", "/tmp/unittest.2.h5"]
+        init_db_file()
+        TestHMM.filenames = filenames
+        cls.maxDiff = None
+
+
+    @classmethod
+    def tearDownClass(cls):
+        filenames = TestHMM.filenames
+        TestHMM.filenames = None
+
+        for name in filenames:
+            os.remove(name)
+
 
     def test_simple(self):
         fam = test_family()
-
-        self.assertEqual(
-            fam.to_dfam_hmm(fakedb()),
+        with FamDBRoot(TestHMM.filenames[0], "r") as db:
+            self.assertEqual(
+                fam.to_dfam_hmm(db),
             """\
 HMMER3/f [3.1b2 | February 2015]
 NAME  TEST0001
@@ -67,12 +83,12 @@ NSEQ  2000
 EFFN  18.549065
 CKSUM 765031794
 CT    Type;SubType
-MS    TaxId:5 TaxName:Species_1
-MS    TaxId:3 TaxName:Another_Clade_3.
+MS    TaxId:5 TaxName:Species
+MS    TaxId:3 TaxName:Other_Order
 CC    RepeatMasker Annotations:
 CC         Type: Type
 CC         SubType: SubType
-CC         Species: Species_1, Another_Clade_3.
+CC         Species: Species, Other_Order
 CC         SearchStages: 
 CC         BufferStages: 
 STATS LOCAL MSV      -10.5531  0.70202
@@ -92,9 +108,10 @@ HMM          A        C        G        T
         fam.search_method = "Example Search Method"
         fam.description = "Example Title/Description"
         fam.general_cutoff = 25.67
+        with FamDBRoot(TestHMM.filenames[0], "r") as db:
 
-        self.assertEqual(
-            fam.to_dfam_hmm(fakedb()),
+            self.assertEqual(
+                fam.to_dfam_hmm(db),
             """\
 HMMER3/f [3.1b2 | February 2015]
 NAME  TEST0001
@@ -118,13 +135,13 @@ NC    25.67;
 BM    Example Build Method
 SM    Example Search Method
 CT    Type;SubType
-MS    TaxId:5 TaxName:Species_1
-MS    TaxId:3 TaxName:Another_Clade_3.
+MS    TaxId:5 TaxName:Species
+MS    TaxId:3 TaxName:Other_Order
 CC    Example Title/Description
 CC    RepeatMasker Annotations:
 CC         Type: Type
 CC         SubType: SubType
-CC         Species: Species_1, Another_Clade_3.
+CC         Species: Species, Other_Order
 CC         SearchStages: 
 CC         BufferStages: 
 CC         Refineable
@@ -140,14 +157,15 @@ HMM          A        C        G        T
     def test_no_model(self):
         fam = test_family()
         fam.model = None
-        self.assertEqual(fam.to_dfam_hmm(None), None)
+        with FamDBRoot(TestHMM.filenames[0], "r") as db:
+            self.assertEqual(fam.to_dfam_hmm(db), None)
 
     def test_species_thresholds(self):
         fam = test_family()
         fam.taxa_thresholds = "5,1.0,2.0,3.0,0.002\n3,1.0,2.0,3.0,0.002"
-
-        self.assertEqual(
-            fam.to_dfam_hmm(fakedb(), species=3),
+        with FamDBRoot(TestHMM.filenames[0], "r") as db:
+            self.assertEqual(
+                fam.to_dfam_hmm(db, species=3),
             """\
 HMMER3/f [3.1b2 | February 2015]
 NAME  TEST0001
@@ -168,15 +186,15 @@ CKSUM 765031794
 GA    1.00;
 TC    2.00;
 NC    3.00;
-TH    TaxId:5; TaxName:Species 1; GA:1.00; TC:2.00; NC:3.00; fdr:0.002;
-TH    TaxId:3; TaxName:Another Clade (3.); GA:1.00; TC:2.00; NC:3.00; fdr:0.002;
+TH    TaxId:5; TaxName:Species; GA:1.00; TC:2.00; NC:3.00; fdr:0.002;
+TH    TaxId:3; TaxName:Other Order; GA:1.00; TC:2.00; NC:3.00; fdr:0.002;
 CT    Type;SubType
-MS    TaxId:5 TaxName:Species_1
-MS    TaxId:3 TaxName:Another_Clade_3.
+MS    TaxId:5 TaxName:Species
+MS    TaxId:3 TaxName:Other_Order
 CC    RepeatMasker Annotations:
 CC         Type: Type
 CC         SubType: SubType
-CC         Species: Species_1, Another_Clade_3.
+CC         Species: Species, Other_Order
 CC         SearchStages: 
 CC         BufferStages: 
 STATS LOCAL MSV      -10.5531  0.70202
@@ -191,8 +209,9 @@ HMM          A        C        G        T
     def test_class_in_name(self):
         fam = test_family()
 
-        self.assertEqual(
-            fam.to_dfam_hmm(fakedb(), include_class_in_name=True),
+        with FamDBRoot(TestHMM.filenames[0], "r") as db:
+            self.assertEqual(
+                fam.to_dfam_hmm(db, include_class_in_name=True),
             """\
 HMMER3/f [3.1b2 | February 2015]
 NAME  TEST0001#Type/SubType
@@ -211,12 +230,12 @@ NSEQ  2000
 EFFN  18.549065
 CKSUM 765031794
 CT    Type;SubType
-MS    TaxId:5 TaxName:Species_1
-MS    TaxId:3 TaxName:Another_Clade_3.
+MS    TaxId:5 TaxName:Species
+MS    TaxId:3 TaxName:Other_Order
 CC    RepeatMasker Annotations:
 CC         Type: Type
 CC         SubType: SubType
-CC         Species: Species_1, Another_Clade_3.
+CC         Species: Species, Other_Order
 CC         SearchStages: 
 CC         BufferStages: 
 STATS LOCAL MSV      -10.5531  0.70202

@@ -219,8 +219,9 @@ class Family:  # pylint: disable=too-many-instance-attributes
                 parts = threshold.split(",")
                 tax_id = int(parts[0])
                 (hmm_ga, hmm_tc, hmm_nc, hmm_fdr) = map(float, parts[1:])
-
-                tax_name = famdb.get_taxon_name(tax_id, "scientific name")
+                
+                # only recover name, do need for partition number
+                tax_name = famdb.get_taxon_name(tax_id, "scientific name")[0] 
                 if tax_id == species:
                     species_hmm_ga, species_hmm_tc, species_hmm_nc = (
                         hmm_ga,
