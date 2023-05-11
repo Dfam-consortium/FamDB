@@ -19,9 +19,9 @@ class FamDB:
     dtype_str = h5py.special_dtype(vlen=str)
 
     GROUP_FAMILIES = "Families"
-    GROUP_FAMILIES_BYNAME = "Families/ByName"
-    GROUP_FAMILIES_BYACC = "Families/ByAccession"
-    GROUP_FAMILIES_BYSTAGE = "Families/ByStage"
+    GROUP_LOOKUP_BYNAME = "Lookup/ByName"
+    GROUP_LOOKUP_BYACC = "Lookup/ByAccession"
+    GROUP_LOOKUP_BYSTAGE = "Lookup/ByStage"
     GROUP_NODES = "Taxonomy/Nodes"
     GROUP_TAXANAMES = "TaxaNames"
 
@@ -70,7 +70,7 @@ class FamDB:
             self.__write_metadata()
         elif self.mode == "r+":
             self.seen = {}
-            self.seen["name"] = set(self.file[FamDB.GROUP_FAMILIES_BYNAME].keys())
+            self.seen["name"] = set(self.file[FamDB.GROUP_LOOKUP_BYNAME].keys())
             self.seen["accession"] = set(
                 self.__families_iterator(self.file[FamDB.GROUP_FAMILIES], "Families")
             )
@@ -207,11 +207,7 @@ class FamDB:
 
     @staticmethod
     def __families_iterator(g, prefix=""):
-        skip = ["/Families/ByName", "/Families/ByStage"]
         for key, item in g.items():
-            print(g.items())
-            if g.items() in skip:
-                continue
             path = "{}/{}".format(prefix, key)
             if isinstance(item, h5py.Dataset):  # test for dataset
                 yield (key)
@@ -248,7 +244,7 @@ class FamDB:
         # Create links
         fam_link = f"/{group_path}/{family.accession}"
         if family.name:
-            self.file.require_group(FamDB.GROUP_FAMILIES_BYNAME)[
+            self.file.require_group(FamDB.GROUP_LOOKUP_BYNAME)[
                 str(family.name)
             ] = h5py.SoftLink(fam_link)
         # In FamDB format version 0.5 we removed the /Families/ByAccession group as it's redundant
@@ -264,7 +260,7 @@ class FamDB:
 
         def add_stage_link(stage, accession):
             stage_group = self.file.require_group(
-                FamDB.GROUP_FAMILIES_BYSTAGE
+                FamDB.GROUP_LOOKUP_BYSTAGE
             ).require_group(stage.strip())
             if accession not in stage_group:
                 stage_group[accession] = h5py.SoftLink(fam_link)
@@ -371,7 +367,7 @@ class FamDB:
     def __filter_stages(self, accession, stages):
         """Returns True if the family belongs to a search or buffer stage in 'stages'."""
         for stage in stages:
-            grp = self.file[FamDB.GROUP_FAMILIES_BYSTAGE].get(stage)
+            grp = self.file[FamDB.GROUP_LOOKUP_BYSTAGE].get(stage)
             if grp and accession in grp:
                 return True
 
@@ -417,7 +413,7 @@ class FamDB:
         TODO: perhaps this should be a dedicated 'curated' boolean field on Family
         """
 
-        is_curated = not (
+        is_curated = (
             accession.startswith("DR")
             and len(accession) == 9
             and all((c >= "0" and c <= "9" for c in accession[2:]))
@@ -520,14 +516,14 @@ class FamDB:
                 and not filter_name
             ):
                 for stage in filter_stages:
-                    grp = self.file[FamDB.GROUP_FAMILIES_BYSTAGE].get(stage)
+                    grp = self.file[FamDB.GROUP_LOOKUP_BYSTAGE].get(stage)
                     if grp:
                         yield from grp.keys()
 
             # special case: Searching the whole database, going directly via
             # Families/ is faster than repeatedly traversing the tree
             elif tax_id == 1 and descendants:
-                # yield from self.file[FamDB.GROUP_FAMILIES_BYACC].keys()
+                # yield from self.file[FamDB.GROUP_LOOKUP_BYACC].keys()
                 for name in self.__families_iterator(
                     self.file[FamDB.GROUP_FAMILIES], "Families"
                 ):
@@ -557,7 +553,7 @@ class FamDB:
 
             match = True
             for filt in filters:
-                if type(accession) == Family and not filt(accession, family_getter):
+                if not filt(accession, family_getter):
                     match = False
             if match:
                 yield accession
@@ -565,7 +561,7 @@ class FamDB:
     # Family Getters --------------------------------------------------------------------------
     def get_family_names(self):
         """Returns a list of names of families in the database."""
-        return sorted(self.file[FamDB.GROUP_FAMILIES_BYNAME].keys(), key=str.lower)
+        return sorted(self.file[FamDB.GROUP_LOOKUP_BYNAME].keys(), key=str.lower)
 
     @staticmethod
     def __get_family(entry):
@@ -594,7 +590,7 @@ class FamDB:
         # TODO: This will also suffer the performance issues seen with
         #       other groups that exceed 200-500k entries in a single group
         #       at some point.  This needs to be refactored to scale appropriately.
-        entry = self.file[FamDB.GROUP_FAMILIES_BYNAME].get(name)
+        entry = self.file[FamDB.GROUP_LOOKUP_BYNAME].get(name)
         return self.__get_family(entry)
 
 
@@ -768,7 +764,7 @@ class FamDBRoot(FamDB):
 
         # Check for a single exact match first, to any field
         exact_matches = []
-        for result in results: # result -> [tax_id, partition, exact]
+        for result in results:  # result -> [tax_id, partition, exact]
             if result[2]:
                 exact_matches += [result[0], result[1]]
         if len(exact_matches) == 1:
@@ -796,7 +792,7 @@ up with the 'names' command.""".format(
 
         name = self.get_taxon_name(tax_id, "scientific name")
         if name:
-            name = sanitize_name(name)
+            name = sanitize_name(name[0])
         return name
 
     def get_lineage_path(self, tax_id, tree=[], cache=True):

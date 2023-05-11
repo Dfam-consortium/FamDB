@@ -130,63 +130,63 @@ class TestDatabase(unittest.TestCase):
         with FamDB(TestDatabase.filenames[1], "r") as db:
             self.assertEqual(db.get_families_for_taxon(4), ["TEST0004"])
 
-    # def test_get_accessions_filtered(self):
-    #     with FamDBRoot(TestDatabase.filenames[0], "r") as db:
-    #         self.assertEqual(
-    #             list(db.get_accessions_filtered(tax_id=3)),
-    #             ["TEST0002", "TEST0003"],
-    #         )
-    #         self.assertEqual(
-    #             list(db.get_accessions_filtered(tax_id=3, ancestors=True)),
-    #             ["TEST0001", "TEST0002", "TEST0003"],
-    #         )
-    #         self.assertEqual(
-    #             sorted(list(db.get_accessions_filtered())),
-    #             [
-    #                 "TEST0001",
-    #                 "TEST0002",
-    #                 "TEST0003",
-    #             ],
-    #         )
-    #         self.assertEqual(list(db.get_accessions_filtered(stage=30)), ["TEST0003"])
-    #         self.assertEqual(list(db.get_accessions_filtered(stage=20)), [])
-    #         self.assertEqual(
-    #             list(db.get_accessions_filtered(is_hmm=True)),
-    #             ["TEST0001", "TEST0002", "TEST0003"],
-    #         )
+    def test_get_accessions_filtered(self):
+        with FamDBRoot(TestDatabase.filenames[0], "r") as db:
+            self.assertEqual(
+                list(db.get_accessions_filtered(tax_id=3)),
+                ["TEST0002", "TEST0003"],
+            )
+            self.assertEqual(
+                list(db.get_accessions_filtered(tax_id=3, ancestors=True)),
+                ["TEST0001", "TEST0002", "TEST0003"],
+            )
+            self.assertEqual(
+                sorted(list(db.get_accessions_filtered())),
+                [
+                    "TEST0001",
+                    "TEST0002",
+                    "TEST0003",
+                ],
+            )
+            self.assertEqual(list(db.get_accessions_filtered(stage=30)), ["TEST0003"])
+            self.assertEqual(list(db.get_accessions_filtered(stage=20)), [])
+            self.assertEqual(
+                list(db.get_accessions_filtered(is_hmm=True)),
+                ["TEST0001", "TEST0002", "TEST0003"],
+            )
 
-    #     with FamDB(TestDatabase.filenames[1], "r") as db:
-    #         self.assertEqual(
-    #             sorted(list(db.get_accessions_filtered())),
-    #             [
-    #                 "DR_Repeat1",
-    #                 "TEST0004",
-    #             ],
-    #         )
-    #         self.assertEqual(
-    #             list(db.get_accessions_filtered(stage=10, is_hmm=True)), []
-    #         )
-    #         self.assertEqual(
-    #             list(db.get_accessions_filtered(name="Test family TEST0004")),
-    #             ["TEST0004"],
-    #         )
-    #         self.assertEqual(
-    #             list(db.get_accessions_filtered(repeat_type="SINE")), ["TEST0004"]
-    #         )
+        with FamDB(TestDatabase.filenames[1], "r") as db:
+            self.assertEqual(
+                sorted(list(db.get_accessions_filtered())),
+                [
+                    "DR_Repeat1",
+                    "TEST0004",
+                ],
+            )
+            self.assertEqual(
+                list(db.get_accessions_filtered(stage=10, is_hmm=True)), []
+            )
+            self.assertEqual(
+                list(db.get_accessions_filtered(name="Test family TEST0004")),
+                ["TEST0004"],
+            )
+            self.assertEqual(
+                list(db.get_accessions_filtered(repeat_type="SINE")), ["TEST0004"]
+            )
 
-    #         self.assertEqual(
-    #             list(db.get_accessions_filtered(tax_id=4, descendants=True)),
-    #             ["TEST0004", "DR_Repeat1"],
-    #         )
-    #     with FamDB(TestDatabase.filenames[2], "r") as db:
-    #         self.assertEqual(
-    #             list(db.get_accessions_filtered(curated_only=True)),
-    #             [],
-    #         )
-    #         self.assertEqual(
-    #             list(db.get_accessions_filtered(uncurated_only=True)),
-    #             ["DR0000001"],
-    #         )
+            self.assertEqual(
+                list(db.get_accessions_filtered(tax_id=4, descendants=True)),
+                ["TEST0004", "DR_Repeat1"],
+            )
+        with FamDB(TestDatabase.filenames[2], "r") as db:
+            self.assertEqual(
+                list(db.get_accessions_filtered(curated_only=True)),
+                ["DR0000001"],
+            )
+            self.assertEqual(
+                list(db.get_accessions_filtered(uncurated_only=True)),
+                [],
+            )
 
     def test_get_lineage(self):
         with FamDB(TestDatabase.filenames[1], "r") as db:
@@ -289,16 +289,15 @@ class TestDatabase(unittest.TestCase):
 
     def test_resolve_one_species(self):
         with FamDBRoot(TestDatabase.filenames[0], "r") as db:
-            self.assertEqual(db.resolve_one_species(3), [3,0])
+            self.assertEqual(db.resolve_one_species(3), [3, 0])
             self.assertEqual(db.resolve_one_species(999), None)
-            self.assertEqual(db.resolve_one_species("Species"), [5,2])
+            self.assertEqual(db.resolve_one_species("Species"), [5, 2])
             self.assertEqual(db.resolve_one_species("Mus musculus"), None)
 
-    # def test_get_sanitized_name(self):
-    #     pass
+    def test_get_sanitized_name(self):  # TODO add more test cases
+        with FamDBRoot(TestDatabase.filenames[0], "r") as db:
+            self.assertEqual(db.get_sanitized_name(6), "Other_Genus")
 
-    # def test_get_lineage_path(self):
-    #     pass
-
-    # def test_find_files(self):
-    #     pass
+    def test_find_files(self):
+        with FamDBRoot(TestDatabase.filenames[0], "r") as db:
+            self.assertEqual(db.get_file_info(), FILE_INFO)
