@@ -1,10 +1,27 @@
 import unittest
+import os
 
-from famdb import Family
-from .doubles import fakedb
+from famdb_classes import FamDBRoot
+from famdb_helper_classes import Family
+from .doubles import init_db_file
 
 
 class TestFASTA(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        filenames = ["/tmp/unittest.0.h5", "/tmp/unittest.1.h5", "/tmp/unittest.2.h5"]
+        init_db_file()
+        TestFASTA.filenames = filenames
+        cls.maxDiff = None
+
+    @classmethod
+    def tearDownClass(cls):
+        filenames = TestFASTA.filenames
+        TestFASTA.filenames = None
+
+        for name in filenames:
+            os.remove(name)
+
     def test_simple(self):
         fam = Family()
         fam.name = "Test1"
@@ -12,11 +29,12 @@ class TestFASTA(unittest.TestCase):
         fam.version = 1
         fam.clades = []
         fam.consensus = "ACGTAAAA"
-
-        self.assertEqual(fam.to_fasta(None), ">Test1\nACGTAAAA\n")
-        self.assertEqual(
-            fam.to_fasta(None, use_accession=True), ">TEST0001.1 name=Test1\nACGTAAAA\n"
-        )
+        with FamDBRoot(TestFASTA.filenames[0], "r") as db:
+            self.assertEqual(fam.to_fasta(db), ">Test1\nACGTAAAA\n")
+            self.assertEqual(
+                fam.to_fasta(db, use_accession=True),
+                ">TEST0001.1 name=Test1\nACGTAAAA\n",
+            )
 
     def test_classname(self):
         fam = Family()
@@ -26,17 +44,15 @@ class TestFASTA(unittest.TestCase):
         fam.clades = []
         fam.consensus = "TCGATTTT"
         fam.repeat_type = "Type"
-
-        self.assertEqual(
-            fam.to_fasta(None, include_class_in_name=True), ">Test2#Type\nTCGATTTT\n"
-        )
-
-        fam.repeat_subtype = "SubType"
-
-        self.assertEqual(
-            fam.to_fasta(None, include_class_in_name=True),
-            ">Test2#Type/SubType\nTCGATTTT\n",
-        )
+        with FamDBRoot(TestFASTA.filenames[0], "r") as db:
+            self.assertEqual(
+                fam.to_fasta(db, include_class_in_name=True), ">Test2#Type\nTCGATTTT\n"
+            )
+            fam.repeat_subtype = "SubType"
+            self.assertEqual(
+                fam.to_fasta(db, include_class_in_name=True),
+                ">Test2#Type/SubType\nTCGATTTT\n",
+            )
 
     def test_complement(self):
         fam = Family()
@@ -45,11 +61,11 @@ class TestFASTA(unittest.TestCase):
         fam.version = 3
         fam.clades = []
         fam.consensus = "CGTAWWKSAAAA"
-
-        self.assertEqual(
-            fam.to_fasta(None, do_reverse_complement=True),
-            ">Test3 (anti)\nTTTTWMSSTACG\n",
-        )
+        with FamDBRoot(TestFASTA.filenames[0], "r") as db:
+            self.assertEqual(
+                fam.to_fasta(db, do_reverse_complement=True),
+                ">Test3 (anti)\nTTTTWMSSTACG\n",
+            )
 
     def test_clades(self):
         fam = Family()
@@ -58,10 +74,8 @@ class TestFASTA(unittest.TestCase):
         fam.version = 4
         fam.clades = [2, 3]
         fam.consensus = "ACGT"
-
-        self.assertEqual(
-            fam.to_fasta(fakedb()), ">Test4 @A_Clade @Another_Clade_3.\nACGT\n"
-        )
+        with FamDBRoot(TestFASTA.filenames[0], "r") as db:
+            self.assertEqual(fam.to_fasta(db), ">Test4 @Order @Other_Order\nACGT\n")
 
     def test_multiline(self):
         fam = Family()
@@ -70,16 +84,16 @@ class TestFASTA(unittest.TestCase):
         fam.version = 5
         fam.clades = []
         fam.consensus = "ACGTTGCA" * 20  # 160 bp total
-
-        self.assertEqual(
-            fam.to_fasta(fakedb()),
-            """\
+        with FamDBRoot(TestFASTA.filenames[0], "r") as db:
+            self.assertEqual(
+                fam.to_fasta(db),
+                """\
 >Test5
 ACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGT
 TGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCA
 ACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCA
 """,
-        )
+            )
 
     def test_buffer(self):
         fam = Family()
@@ -88,14 +102,13 @@ ACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCA
         fam.version = 6
         fam.clades = []
         fam.consensus = "AAAAGCGCGCAAAA"
-
-        self.assertEqual(
-            fam.to_fasta(fakedb(), buffer=True), ">Test6#buffer\nAAAAGCGCGCAAAA\n"
-        )
-
-        self.assertEqual(
-            fam.to_fasta(fakedb(), buffer=[5, 10]), ">Test6_5_10#buffer\nGCGCGC\n"
-        )
+        with FamDBRoot(TestFASTA.filenames[0], "r") as db:
+            self.assertEqual(
+                fam.to_fasta(db, buffer=True), ">Test6#buffer\nAAAAGCGCGCAAAA\n"
+            )
+            self.assertEqual(
+                fam.to_fasta(db, buffer=[5, 10]), ">Test6_5_10#buffer\nGCGCGC\n"
+            )
 
     def test_all(self):
         fam = Family()
@@ -104,32 +117,32 @@ ACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCA
         fam.version = 7
         fam.clades = [2, 3]
         fam.consensus = "ACGTTGCA" * 20  # 160 bp total
-
-        self.assertEqual(
-            fam.to_fasta(
-                fakedb(),
-                use_accession=True,
-                include_class_in_name=True,
-                buffer=True,
-            ),
-            """\
->TEST0007.7#buffer name=Test7 @A_Clade @Another_Clade_3.
+        with FamDBRoot(TestFASTA.filenames[0], "r") as db:
+            self.assertEqual(
+                fam.to_fasta(
+                    db,
+                    use_accession=True,
+                    include_class_in_name=True,
+                    buffer=True,
+                ),
+                """\
+>TEST0007.7#buffer name=Test7 @Order @Other_Order
 ACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGT
 TGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCA
 ACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCA
 """,
-        )
+            )
 
         self.assertEqual(
             fam.to_fasta(
-                fakedb(),
+                db,
                 use_accession=True,
                 include_class_in_name=True,
                 do_reverse_complement=True,
                 buffer=[23, 39],
             ),
             """\
->TEST0007.7_23_39#buffer (anti) name=Test7 @A_Clade @Another_Clade_3.
+>TEST0007.7_23_39#buffer (anti) name=Test7 @Order @Other_Order
 GCAACGTTGCAACGTTG
 """,
         )
@@ -140,8 +153,8 @@ GCAACGTTGCAACGTTG
         fam.accession = "TEST0008"
         fam.version = 8
         fam.clades = []
-
-        self.assertEqual(fam.to_fasta(fakedb()), None)
+        with FamDBRoot(TestFASTA.filenames[0], "r") as db:
+            self.assertEqual(fam.to_fasta(db), None)
 
     def test_search_stages(self):
         fam = Family()
@@ -151,8 +164,8 @@ GCAACGTTGCAACGTTG
         fam.clades = [2]
         fam.consensus = "ACGT"
         fam.search_stages = "30,45"
-
-        self.assertEqual(fam.to_fasta(fakedb()), ">Test9 @A_Clade [S:30,45]\nACGT\n")
+        with FamDBRoot(TestFASTA.filenames[0], "r") as db:
+            self.assertEqual(fam.to_fasta(db), ">Test9 @Order [S:30,45]\nACGT\n")
 
     def test_always_exports_uppercase(self):
         fam = Family()
@@ -161,13 +174,13 @@ GCAACGTTGCAACGTTG
         fam.version = 10
         fam.clades = []
         fam.consensus = "acgt"
-
-        self.assertEqual(fam.to_fasta(fakedb()), ">Test10\nACGT\n")
+        with FamDBRoot(TestFASTA.filenames[0], "r") as db:
+            self.assertEqual(fam.to_fasta(db), ">Test10\nACGT\n")
 
     def test_without_version(self):
         fam = Family()
         fam.accession = "Test11"
         fam.clades = []
         fam.consensus = "acgt"
-
-        self.assertEqual(fam.to_fasta(fakedb(), use_accession=True), ">Test11\nACGT\n")
+        with FamDBRoot(TestFASTA.filenames[0], "r") as db:
+            self.assertEqual(fam.to_fasta(db, use_accession=True), ">Test11\nACGT\n")

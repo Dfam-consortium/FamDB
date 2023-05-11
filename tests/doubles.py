@@ -28,8 +28,8 @@ TAX_NAMES = {
     2: "Order",
     3: "Other Order",
     4: "Genus",
-    5: "Species",
-    6: "Other Genus",
+    5: "Other Genus",
+    6: "Species",
 }
 COMMON_NAMES = {
     1: "Root Dummy 1",

@@ -220,7 +220,7 @@ class TestDatabase(unittest.TestCase):
                 list(db.search_taxon_names("Genus")),
                 [
                     [4, True, 1],
-                    [6, False, 1],
+                    [5, False, 2],
                 ],
             )
 
@@ -284,19 +284,19 @@ class TestDatabase(unittest.TestCase):
             self.assertEqual(db.resolve_species(3), [[3, 0, True]])
             self.assertEqual(db.resolve_species(4), [[4, 1, True]])
             self.assertEqual(db.resolve_species(999), [])
-            self.assertEqual(db.resolve_species("Species"), [[5, 2, True]])
+            self.assertEqual(db.resolve_species("Species"), [[6, 1, True]])
             self.assertEqual(db.resolve_species("Tardigrade"), [])
 
     def test_resolve_one_species(self):
         with FamDBRoot(TestDatabase.filenames[0], "r") as db:
             self.assertEqual(db.resolve_one_species(3), [3, 0])
             self.assertEqual(db.resolve_one_species(999), None)
-            self.assertEqual(db.resolve_one_species("Species"), [5, 2])
+            self.assertEqual(db.resolve_one_species("Species"), [6, 1])
             self.assertEqual(db.resolve_one_species("Mus musculus"), None)
 
     def test_get_sanitized_name(self):  # TODO add more test cases
         with FamDBRoot(TestDatabase.filenames[0], "r") as db:
-            self.assertEqual(db.get_sanitized_name(6), "Other_Genus")
+            self.assertEqual(db.get_sanitized_name(5), "Other_Genus")
 
     def test_find_files(self):
         with FamDBRoot(TestDatabase.filenames[0], "r") as db:
