@@ -13,7 +13,7 @@ from famdb_globals import LOGGER, FILE_VERSION
 from famdb_helper_methods import sanitize_name, sounds_like
 
 
-class FamDB:
+class FamDBLeaf:
     """Transposable Element Family and taxonomy database."""
 
     dtype_str = h5py.special_dtype(vlen=str)
@@ -70,9 +70,11 @@ class FamDB:
             self.__write_metadata()
         elif self.mode == "r+":
             self.seen = {}
-            self.seen["name"] = set(self.file[FamDB.GROUP_LOOKUP_BYNAME].keys())
+            self.seen["name"] = set(self.file[FamDBLeaf.GROUP_LOOKUP_BYNAME].keys())
             self.seen["accession"] = set(
-                self.__families_iterator(self.file[FamDB.GROUP_FAMILIES], "Families")
+                self.__families_iterator(
+                    self.file[FamDBLeaf.GROUP_FAMILIES], "Families"
+                )
             )
             self.added = self.get_counts()
 
@@ -190,10 +192,10 @@ class FamDB:
     @staticmethod
     def __accession_bin(acc):
         """Maps an accession (Dfam or otherwise) into apropriate bins (groups) in HDF5"""
-        dfam_match = FamDB.dfam_acc_pat.match(acc)
+        dfam_match = FamDBLeaf.dfam_acc_pat.match(acc)
         if dfam_match:
             path = (
-                FamDB.GROUP_FAMILIES
+                FamDBLeaf.GROUP_FAMILIES
                 + "/"
                 + dfam_match.group(1)
                 + "/"
@@ -202,7 +204,7 @@ class FamDB:
                 + dfam_match.group(3)
             )
         else:
-            path = FamDB.GROUP_FAMILIES + "/Aux/" + acc[0:2].lower()
+            path = FamDBLeaf.GROUP_FAMILIES + "/Aux/" + acc[0:2].lower()
         return path
 
     @staticmethod
@@ -212,7 +214,7 @@ class FamDB:
             if isinstance(item, h5py.Dataset):  # test for dataset
                 yield (key)
             elif isinstance(item, h5py.Group):  # test for group (go down)
-                yield from FamDB.__families_iterator(item, path)
+                yield from FamDBLeaf.__families_iterator(item, path)
 
     def add_family(self, family):
         """Adds the family described by 'family' to the database."""
@@ -244,7 +246,7 @@ class FamDB:
         # Create links
         fam_link = f"/{group_path}/{family.accession}"
         if family.name:
-            self.file.require_group(FamDB.GROUP_LOOKUP_BYNAME)[
+            self.file.require_group(FamDBLeaf.GROUP_LOOKUP_BYNAME)[
                 str(family.name)
             ] = h5py.SoftLink(fam_link)
         # In FamDB format version 0.5 we removed the /Families/ByAccession group as it's redundant
@@ -252,7 +254,7 @@ class FamDB:
         # the number of entries in a group exceeds 200-500k.
 
         for clade_id in family.clades:
-            taxon_group = self.file.require_group(FamDB.GROUP_NODES).require_group(
+            taxon_group = self.file.require_group(FamDBLeaf.GROUP_NODES).require_group(
                 str(clade_id)
             )
             families_group = taxon_group.require_group("Families")
@@ -260,7 +262,7 @@ class FamDB:
 
         def add_stage_link(stage, accession):
             stage_group = self.file.require_group(
-                FamDB.GROUP_LOOKUP_BYSTAGE
+                FamDBLeaf.GROUP_LOOKUP_BYSTAGE
             ).require_group(stage.strip())
             if accession not in stage_group:
                 stage_group[accession] = h5py.SoftLink(fam_link)
@@ -285,7 +287,7 @@ class FamDB:
         count = 0
         for node in nodes:
             count += 1
-            group = self.file.require_group(FamDB.GROUP_NODES).require_group(
+            group = self.file.require_group(FamDBLeaf.GROUP_NODES).require_group(
                 str(tax_db[node].tax_id)
             )
             parent_id = int(tax_db[node].parent_id) if tax_db[node].parent_id else None
@@ -304,15 +306,15 @@ class FamDB:
         """Returns True if 'self' has a taxonomy entry for 'tax_id'"""
         # test if file has families or just taxonomy info
         return (
-            str(tax_id) in self.file[FamDB.GROUP_NODES]
-            and "Families" in self.file[FamDB.GROUP_NODES][str(tax_id)]
+            str(tax_id) in self.file[FamDBLeaf.GROUP_NODES]
+            and "Families" in self.file[FamDBLeaf.GROUP_NODES][str(tax_id)]
         )
 
     def get_families_for_taxon(self, tax_id, root_file=None):
         """Returns a list of the accessions for each family directly associated with 'tax_id'."""
         group = (
-            self.file[FamDB.GROUP_NODES][str(tax_id)].get("Families")
-            if f"{FamDB.GROUP_NODES}/{tax_id}" in self.file
+            self.file[FamDBLeaf.GROUP_NODES][str(tax_id)].get("Families")
+            if f"{FamDBLeaf.GROUP_NODES}/{tax_id}" in self.file
             else None
         )
         if group:
@@ -327,7 +329,7 @@ class FamDB:
         where '2' may have been the passed-in 'tax_id'.
         """
 
-        group_nodes = self.file[FamDB.GROUP_NODES]
+        group_nodes = self.file[FamDBLeaf.GROUP_NODES]
 
         if kwargs.get("descendants"):
 
@@ -367,7 +369,7 @@ class FamDB:
     def __filter_stages(self, accession, stages):
         """Returns True if the family belongs to a search or buffer stage in 'stages'."""
         for stage in stages:
-            grp = self.file[FamDB.GROUP_LOOKUP_BYSTAGE].get(stage)
+            grp = self.file[FamDBLeaf.GROUP_LOOKUP_BYSTAGE].get(stage)
             if grp and accession in grp:
                 return True
 
@@ -516,16 +518,16 @@ class FamDB:
                 and not filter_name
             ):
                 for stage in filter_stages:
-                    grp = self.file[FamDB.GROUP_LOOKUP_BYSTAGE].get(stage)
+                    grp = self.file[FamDBLeaf.GROUP_LOOKUP_BYSTAGE].get(stage)
                     if grp:
                         yield from grp.keys()
 
             # special case: Searching the whole database, going directly via
             # Families/ is faster than repeatedly traversing the tree
             elif tax_id == 1 and descendants:
-                # yield from self.file[FamDB.GROUP_LOOKUP_BYACC].keys()
+                # yield from self.file[FamDBLeaf.GROUP_LOOKUP_BYACC].keys()
                 for name in self.__families_iterator(
-                    self.file[FamDB.GROUP_FAMILIES], "Families"
+                    self.file[FamDBLeaf.GROUP_FAMILIES], "Families"
                 ):
                     yield name
             else:
@@ -561,7 +563,7 @@ class FamDB:
     # Family Getters --------------------------------------------------------------------------
     def get_family_names(self):
         """Returns a list of names of families in the database."""
-        return sorted(self.file[FamDB.GROUP_LOOKUP_BYNAME].keys(), key=str.lower)
+        return sorted(self.file[FamDBLeaf.GROUP_LOOKUP_BYNAME].keys(), key=str.lower)
 
     @staticmethod
     def __get_family(entry):
@@ -590,11 +592,11 @@ class FamDB:
         # TODO: This will also suffer the performance issues seen with
         #       other groups that exceed 200-500k entries in a single group
         #       at some point.  This needs to be refactored to scale appropriately.
-        entry = self.file[FamDB.GROUP_LOOKUP_BYNAME].get(name)
+        entry = self.file[FamDBLeaf.GROUP_LOOKUP_BYNAME].get(name)
         return self.__get_family(entry)
 
 
-class FamDBRoot(FamDB):
+class FamDBRoot(FamDBLeaf):
     def __init__(self, filename, mode="r"):
         super(FamDBRoot, self).__init__(filename, mode)
 
@@ -611,17 +613,20 @@ class FamDBRoot(FamDB):
             self.__lineage_cache = {}
 
     def write_taxa_names(self, tax_db, nodes):
+        """
+        Writes Names -> taxa maps per partition
+        """
         LOGGER.info("Writing TaxaNames")
         for partition in nodes:
             taxnames_group = self.file.require_group(
-                FamDB.GROUP_TAXANAMES + f"/{partition}"
+                FamDBLeaf.GROUP_TAXANAMES + f"/{partition}"
             )
             names_dump = {}
             for node in nodes[partition]:
                 names_dump[node] = tax_db[node].names
             names_data = numpy.array([json.dumps(names_dump)])
             names_dset = taxnames_group.create_dataset(
-                "TaxaNames", shape=names_data.shape, dtype=FamDB.dtype_str
+                "TaxaNames", shape=names_data.shape, dtype=FamDBLeaf.dtype_str
             )
             names_dset[:] = names_data
 
@@ -831,7 +836,7 @@ up with the 'names' command.""".format(
             counts = None
             status = "Missing"
             if os.path.isfile(filename):
-                checkfile = FamDB(filename, "r")
+                checkfile = FamDBLeaf(filename, "r")
                 db_info = checkfile.get_db_info()
                 same_dfam, same_partition = False, False
                 # test if database versions were the same
@@ -859,3 +864,52 @@ up with the 'names' command.""".format(
                     "status": status,
                 }
         return files
+
+    def find_taxon(self, tax_id):
+        """
+        Returns the partition number containing the taxon
+        """
+        for partition in self.names_dump:
+            if str(tax_id) in self.names_dump[partition]:
+                return int(partition)
+        return None
+
+
+class FamDB:
+    def __init__(self, db_dir):
+        h5_files = []
+        for file in os.listdir(db_dir):
+            if file.endswith(".h5"):
+                h5_files += [file]
+        exports = set()
+        for file in h5_files:
+            splits = file.split(".")
+            exports.add(splits[0])
+        if len(exports) != 1:
+            LOGGER.error(
+                "Multiple Exports Found. Keep Each Export In A Separate Folder"
+            )
+            exit()
+        self.files = {}
+        for file in h5_files:
+            num = int(file.split(".")[-2])
+            if num == 0:
+                self.files[num] = FamDBRoot(file, "r")
+            else:
+                self.files[num] = FamDBLeaf(file, "r")
+
+        self.uuid = self.files[0].get_file_info()["meta"]["id"]
+        self.db_version = self.files[0].get_file_info()["meta"]["db_version"]
+        self.db_date = self.files[0].get_file_info()["meta"]["db_date"]
+        err_files = []
+        for file in self.files:
+            meta = self.files[file].get_file_info()["meta"]
+            if (
+                self.uuid != meta["id"]
+                or self.db_version != meta["db_version"]
+                or self.db_date != meta["db_date"]
+            ):
+                err_files += [file]
+        if err_files:
+            LOGGER.error(f"Files From Different Partitioning Runs: {err_files}")
+            exit()

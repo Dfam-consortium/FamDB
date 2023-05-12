@@ -1,7 +1,8 @@
 import os
 import unittest
-
-from famdb_classes import FamDB, FamDBRoot
+import copy
+import tempfile
+from famdb_classes import FamDBLeaf, FamDBRoot, FamDB
 from .doubles import init_db_file, FILE_INFO
 
 from famdb_helper_classes import Family
@@ -31,7 +32,7 @@ class TestDatabase(unittest.TestCase):
             "description": "Test Database",
             "copyright": "<copyright header>",
         }
-        with FamDB(TestDatabase.filenames[1], "r") as db:
+        with FamDBLeaf(TestDatabase.filenames[1], "r") as db:
             self.assertEqual(db.get_db_info(), test_info)
 
         with FamDBRoot(TestDatabase.filenames[0], "r") as db:
@@ -44,20 +45,20 @@ class TestDatabase(unittest.TestCase):
         with FamDBRoot(TestDatabase.filenames[0], "r") as db:
             self.assertEqual(db.get_counts(), {"consensus": 2, "hmm": 3})
 
-        with FamDB(TestDatabase.filenames[1], "r") as db:
+        with FamDBLeaf(TestDatabase.filenames[1], "r") as db:
             self.assertEqual(db.get_counts(), {"consensus": 2, "hmm": 0})
 
-        with FamDB(TestDatabase.filenames[2], "r") as db:
+        with FamDBLeaf(TestDatabase.filenames[2], "r") as db:
             self.assertEqual(db.get_counts(), {"consensus": 1, "hmm": 0})
 
     def test_get_partition_num(self):
         with FamDBRoot(TestDatabase.filenames[0], "r") as db:
             self.assertEqual(db.get_partition_num(), 0)
 
-        with FamDB(TestDatabase.filenames[1], "r") as db:
+        with FamDBLeaf(TestDatabase.filenames[1], "r") as db:
             self.assertEqual(db.get_partition_num(), 1)
 
-        with FamDB(TestDatabase.filenames[2], "r") as db:
+        with FamDBLeaf(TestDatabase.filenames[2], "r") as db:
             self.assertEqual(db.get_partition_num(), 2)
 
     def test_get_file_info(self):
@@ -68,7 +69,7 @@ class TestDatabase(unittest.TestCase):
         with FamDBRoot(TestDatabase.filenames[0], "r") as db:
             self.assertEqual(db.is_root(), True)
 
-        with FamDB(TestDatabase.filenames[1], "r") as db:
+        with FamDBLeaf(TestDatabase.filenames[1], "r") as db:
             self.assertEqual(db.is_root(), False)
 
     def test_get_metadata(self):
@@ -83,7 +84,7 @@ class TestDatabase(unittest.TestCase):
                     "partition_detail": "",
                 },
             )
-        with FamDB(TestDatabase.filenames[1], "r") as db:
+        with FamDBLeaf(TestDatabase.filenames[1], "r") as db:
             self.assertEqual(
                 db.get_metadata(),
                 {
@@ -107,18 +108,18 @@ class TestDatabase(unittest.TestCase):
             self.assertCountEqual(
                 db.get_family_names(), ["Test family TEST0001", "Test family TEST0003"]
             )
-        with FamDB(TestDatabase.filenames[1], "r") as db:
+        with FamDBLeaf(TestDatabase.filenames[1], "r") as db:
             self.assertCountEqual(
                 db.get_family_names(),
                 ["Test family TEST0004", "Test family DR_Repeat1"],
             )
-        with FamDB(TestDatabase.filenames[2], "r") as db:
+        with FamDBLeaf(TestDatabase.filenames[2], "r") as db:
             self.assertCountEqual(db.get_family_names(), ["Test family DR0000001"])
 
     def test_get_family_by_name(self):
         with FamDBRoot(TestDatabase.filenames[0], "r") as db:
             self.assertEqual(db.get_family_by_name("Test family TEST0002"), None)
-        with FamDB(TestDatabase.filenames[1], "r") as db:
+        with FamDBLeaf(TestDatabase.filenames[1], "r") as db:
             test_fam = db.get_family_by_name("Test family TEST0004")
             self.assertIsInstance(test_fam, Family)
             self.assertEqual(test_fam.name, "Test family TEST0004")
@@ -127,7 +128,7 @@ class TestDatabase(unittest.TestCase):
         with FamDBRoot(TestDatabase.filenames[0], "r") as db:
             self.assertEqual(db.get_families_for_taxon(3), ["TEST0002", "TEST0003"])
 
-        with FamDB(TestDatabase.filenames[1], "r") as db:
+        with FamDBLeaf(TestDatabase.filenames[1], "r") as db:
             self.assertEqual(db.get_families_for_taxon(4), ["TEST0004"])
 
     def test_get_accessions_filtered(self):
@@ -155,7 +156,7 @@ class TestDatabase(unittest.TestCase):
                 ["TEST0001", "TEST0002", "TEST0003"],
             )
 
-        with FamDB(TestDatabase.filenames[1], "r") as db:
+        with FamDBLeaf(TestDatabase.filenames[1], "r") as db:
             self.assertEqual(
                 sorted(list(db.get_accessions_filtered())),
                 [
@@ -178,7 +179,7 @@ class TestDatabase(unittest.TestCase):
                 list(db.get_accessions_filtered(tax_id=4, descendants=True)),
                 ["TEST0004", "DR_Repeat1"],
             )
-        with FamDB(TestDatabase.filenames[2], "r") as db:
+        with FamDBLeaf(TestDatabase.filenames[2], "r") as db:
             self.assertEqual(
                 list(db.get_accessions_filtered(curated_only=True)),
                 ["DR0000001"],
@@ -189,7 +190,7 @@ class TestDatabase(unittest.TestCase):
             )
 
     def test_get_lineage(self):
-        with FamDB(TestDatabase.filenames[1], "r") as db:
+        with FamDBLeaf(TestDatabase.filenames[1], "r") as db:
             self.assertEqual(db.get_lineage(4), [4])
             self.assertEqual(db.get_lineage(4, descendants=True), [4, [6]])
             self.assertEqual(db.get_lineage(6, ancestors=True), [4, [6]])
@@ -301,3 +302,28 @@ class TestDatabase(unittest.TestCase):
     def test_find_files(self):
         with FamDBRoot(TestDatabase.filenames[0], "r") as db:
             self.assertEqual(db.get_file_info(), FILE_INFO)
+
+    def test_find_taxon(self):
+        with FamDBRoot(TestDatabase.filenames[0], "r") as db:
+            self.assertEqual(db.find_taxon(2), 0)
+            self.assertEqual(db.find_taxon(4), 1)
+            self.assertEqual(db.find_taxon(5), 2)
+
+    # Umbrella Methods -----------------------------------------------------------------------------
+    def test_FamDB_file_check(self):
+        with self.assertRaises(SystemExit):
+            other_file = tempfile.NamedTemporaryFile(
+                dir="/tmp", prefix="bad", suffix=".0.h5"
+            )
+            famdb = FamDB("/tmp")
+            other_file.close()
+
+    # def test_FamDB_id_check(self):
+    #     with self.assertRaises(SystemExit):
+    #         new_info = copy.deepcopy(FILE_INFO)
+    #         new_info['meta']['id'] = 'uuidNN'
+    #         with FamDBRoot(TestDatabase.filenames[1], "r+") as db:
+    #             db.set_file_info(new_info)
+    #         famdb = FamDB('/tmp')
+    #         with FamDBRoot(TestDatabase.filenames[1], "r+") as db:
+    #             db.set_file_info(FILE_INFO)

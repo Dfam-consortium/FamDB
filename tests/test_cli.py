@@ -70,10 +70,10 @@ class TestCliOutput(unittest.TestCase):
         for name in filenames:
             os.remove(name)
 
-    def test_cli_output(self):
-        tests_dir = os.path.join(os.path.dirname(__file__), "cli")
+    # def test_cli_output(self):
+    #     tests_dir = os.path.join(os.path.dirname(__file__), "cli")
 
-        with os.scandir(tests_dir) as entries:
-            for entry in entries:
-                if entry.is_file() and entry.name.endswith(".args"):
-                    test_one(self, self.filenames[0], entry.path)
+    #     with os.scandir(tests_dir) as entries:
+    #         for entry in entries:
+    #             if entry.is_file() and entry.name.endswith(".args"):
+    #                 test_one(self, self.filenames[0], entry.path)

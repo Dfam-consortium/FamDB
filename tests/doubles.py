@@ -2,7 +2,7 @@
 Fakes, stubs, etc. for use in testing FamDB
 """
 
-from famdb_classes import FamDB, FamDBRoot
+from famdb_classes import FamDBLeaf, FamDBRoot
 from famdb_helper_classes import TaxNode, Family
 
 """
@@ -138,7 +138,7 @@ def init_db_file():
         db.write_taxa_names(taxa, NODES)
         db.finalize()
 
-    with FamDB(f"{filename}.1.h5", "w") as db:
+    with FamDBLeaf(f"{filename}.1.h5", "w") as db:
         db.set_db_info(*DB_INFO)
         db.set_file_info(FILE_INFO)
         db.set_partition_info(1)
@@ -150,7 +150,7 @@ def init_db_file():
         db.write_taxonomy(taxa, NODES[1])
         db.finalize()
 
-    with FamDB(f"{filename}.2.h5", "w") as db:
+    with FamDBLeaf(f"{filename}.2.h5", "w") as db:
         db.set_db_info(*DB_INFO)
         db.set_file_info(FILE_INFO)
         db.set_partition_info(2)
