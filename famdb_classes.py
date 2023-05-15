@@ -8,8 +8,8 @@ import sys
 import h5py
 import numpy
 
-from famdb_helper_classes import Family
-from famdb_globals import LOGGER, FILE_VERSION
+from famdb_helper_classes import Family, Lineage
+from famdb_globals import LOGGER, FILE_VERSION, LEAF_LINK, ROOT_LINK
 from famdb_helper_methods import sanitize_name, sounds_like
 
 
@@ -330,30 +330,39 @@ class FamDBLeaf:
         """
 
         group_nodes = self.file[FamDBLeaf.GROUP_NODES]
-
-        if kwargs.get("descendants"):
+        ancestors = True if kwargs.get("ancestors") else False
+        descendants = True if kwargs.get("descendants") else False
+        if descendants:
 
             def descendants_of(tax_id):
                 descendants = [int(tax_id)]
                 for child in group_nodes[str(tax_id)]["Children"]:
                     if str(child) in group_nodes:
                         descendants += [descendants_of(child)]
+                    else:
+                        descendants += [f"{LEAF_LINK}{child}"]
                 return descendants
 
             tree = descendants_of(tax_id)
         else:
             tree = [tax_id]
 
-        if kwargs.get("ancestors"):
+        if ancestors:
             while tax_id:
                 node = group_nodes[str(tax_id)]
-                if "Parent" in node and str(node["Parent"][0]) in group_nodes:
-                    tax_id = node["Parent"][0]
-                    tree = [tax_id, tree]
+                if "Parent" in node:
+                    if str(node["Parent"][0]) in group_nodes:
+                        tax_id = node["Parent"][0]
+                        tree = [tax_id, tree]
+                    else:
+                        tree = [f"{ROOT_LINK}{tax_id}", tree]
+                        tax_id = None
                 else:
                     tax_id = None
 
-        return tree
+        lineage = Lineage(tree)
+        lineage.set_data(ancestors,descendants, self.is_root(), self.get_partition_num())
+        return lineage
 
     # Filter methods --------------------------------------------------------------------------
     @staticmethod
@@ -823,47 +832,47 @@ up with the 'names' command.""".format(
 
         return lineage
 
-    def find_files(self):
-        # repbase_file = "./partitions/RMRB_spec_to_tax.json" TODO
-        file_info = self.get_file_info()
-        meta = file_info["meta"]
-        file_map = file_info["file_map"]
-        files = {}
-        for file in file_map:
-            partition_name = file_map[file]["T_root_name"]
-            partition_detail = file_map[file]["F_roots_names"]
-            filename = file_map[file]["filename"]
-            counts = None
-            status = "Missing"
-            if os.path.isfile(filename):
-                checkfile = FamDBLeaf(filename, "r")
-                db_info = checkfile.get_db_info()
-                same_dfam, same_partition = False, False
-                # test if database versions were the same
-                if (
-                    meta["db_version"] == db_info["version"]
-                    and meta["db_date"] == db_info["date"]
-                ):
-                    same_dfam = True
-                # test if files are from the same partitioning run
-                if meta["id"] == checkfile.get_file_info()["meta"]["id"]:
-                    same_partition = True
-                # update status
-                if not same_partition:
-                    status = "File From Different Partition"
-                elif not same_dfam:
-                    status = "File From Previous Dfam Release"
-                else:
-                    status = "Present"
-                    counts = checkfile.get_counts()
-                files[file] = {
-                    "partition_name": partition_name,
-                    "partition_detail": partition_detail,
-                    "filename": filename,
-                    "counts": counts,
-                    "status": status,
-                }
-        return files
+    # def find_files(self):
+    #     # repbase_file = "./partitions/RMRB_spec_to_tax.json" TODO
+    #     file_info = self.get_file_info()
+    #     meta = file_info["meta"]
+    #     file_map = file_info["file_map"]
+    #     files = {}
+    #     for file in file_map:
+    #         partition_name = file_map[file]["T_root_name"]
+    #         partition_detail = file_map[file]["F_roots_names"]
+    #         filename = file_map[file]["filename"]
+    #         counts = None
+    #         status = "Missing"
+    #         if os.path.isfile(filename):
+    #             checkfile = FamDBLeaf(filename, "r")
+    #             db_info = checkfile.get_db_info()
+    #             same_dfam, same_partition = False, False
+    #             # test if database versions were the same
+    #             if (
+    #                 meta["db_version"] == db_info["version"]
+    #                 and meta["db_date"] == db_info["date"]
+    #             ):
+    #                 same_dfam = True
+    #             # test if files are from the same partitioning run
+    #             if meta["id"] == checkfile.get_file_info()["meta"]["id"]:
+    #                 same_partition = True
+    #             # update status
+    #             if not same_partition:
+    #                 status = "File From Different Partition"
+    #             elif not same_dfam:
+    #                 status = "File From Previous Dfam Release"
+    #             else:
+    #                 status = "Present"
+    #                 counts = checkfile.get_counts()
+    #             files[file] = {
+    #                 "partition_name": partition_name,
+    #                 "partition_detail": partition_detail,
+    #                 "filename": filename,
+    #                 "counts": counts,
+    #                 "status": status,
+    #             }
+    #     return files
 
     def find_taxon(self, tax_id):
         """
@@ -876,7 +885,12 @@ up with the 'names' command.""".format(
 
 
 class FamDB:
+
     def __init__(self, db_dir):
+        self.check_and_collect_files(db_dir)
+        self.set_tree_transitions()
+
+    def check_and_collect_files(self, db_dir):
         h5_files = []
         for file in os.listdir(db_dir):
             if file.endswith(".h5"):
@@ -898,9 +912,17 @@ class FamDB:
             else:
                 self.files[num] = FamDBLeaf(file, "r")
 
-        self.uuid = self.files[0].get_file_info()["meta"]["id"]
-        self.db_version = self.files[0].get_file_info()["meta"]["db_version"]
-        self.db_date = self.files[0].get_file_info()["meta"]["db_date"]
+        if not self.files[0]:
+            LOGGER.error('Missing Root Partition File')
+            exit()
+            
+        file_info = self.files[0].get_file_info()
+
+        self.file_map = file_info['file_map']
+        self.uuid = file_info["meta"]["id"]
+        self.db_version = file_info["meta"]["db_version"]
+        self.db_date = file_info["meta"]["db_date"]
+
         err_files = []
         for file in self.files:
             meta = self.files[file].get_file_info()["meta"]
@@ -913,3 +935,7 @@ class FamDB:
         if err_files:
             LOGGER.error(f"Files From Different Partitioning Runs: {err_files}")
             exit()
+
+    def set_tree_transitions(self):
+        print(self.files)
+        print(self.file_map)

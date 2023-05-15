@@ -5,6 +5,9 @@ LOGGER = logging.getLogger(__name__)
 # The current version of the file format
 FILE_VERSION = "0.5"
 
+LEAF_LINK = "leaf_link:"
+ROOT_LINK = "root_link:"
+
 # TODO: make command-line options to customize these
 DESCRIPTION = (
     "Dfam - A database of transposable element (TE) sequence alignments and HMMs."

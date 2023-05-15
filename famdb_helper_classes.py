@@ -6,6 +6,15 @@ import re
 
 from famdb_globals import LOGGER
 
+class Lineage(list):
+
+    def set_data(self, ancestors, descendants, root, partition_num):
+        self.ancestors = ancestors
+        self. descendants = descendants
+        self.root = root
+        self.partition = partition_num
+    
+
 
 class TaxNode:  # pylint: disable=too-few-public-methods
     """An NCBI Taxonomy node linked to its parent and children."""

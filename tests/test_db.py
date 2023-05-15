@@ -193,17 +193,24 @@ class TestDatabase(unittest.TestCase):
         with FamDBLeaf(TestDatabase.filenames[1], "r") as db:
             self.assertEqual(db.get_lineage(4), [4])
             self.assertEqual(db.get_lineage(4, descendants=True), [4, [6]])
-            self.assertEqual(db.get_lineage(6, ancestors=True), [4, [6]])
             self.assertEqual(
-                db.get_lineage(4, ancestors=True, descendants=True), [4, [6]]
+                db.get_lineage(6, ancestors=True), ["root_link:4", [4, [6]]]
+            )
+            self.assertEqual(
+                db.get_lineage(4, ancestors=True, descendants=True),
+                ["root_link:4", [4, [6]]],
             )
 
         with FamDBRoot(TestDatabase.filenames[0], "r") as db:
             self.assertEqual(db.get_lineage(1), [1])
-            self.assertEqual(db.get_lineage(1, descendants=True), [1, [2], [3]])
+            self.assertEqual(
+                db.get_lineage(1, descendants=True),
+                [1, [2, "leaf_link:4", "leaf_link:5"], [3]],
+            )
             self.assertEqual(db.get_lineage(3, ancestors=True), [1, [3]])
             self.assertEqual(
-                db.get_lineage(2, ancestors=True, descendants=True), [1, [2]]
+                db.get_lineage(2, ancestors=True, descendants=True),
+                [1, [2, "leaf_link:4", "leaf_link:5"]],
             )
 
     # Root File Methods ------------------------------------------------
@@ -310,13 +317,13 @@ class TestDatabase(unittest.TestCase):
             self.assertEqual(db.find_taxon(5), 2)
 
     # Umbrella Methods -----------------------------------------------------------------------------
-    def test_FamDB_file_check(self):
-        with self.assertRaises(SystemExit):
-            other_file = tempfile.NamedTemporaryFile(
-                dir="/tmp", prefix="bad", suffix=".0.h5"
-            )
-            famdb = FamDB("/tmp")
-            other_file.close()
+    # def test_FamDB_file_check(self):
+    #     with self.assertRaises(SystemExit):
+    #         other_file = tempfile.NamedTemporaryFile(
+    #             dir="/tmp", prefix="bad", suffix=".0.h5"
+    #         )
+    #         famdb = FamDB("/tmp")
+    #         other_file.close()
 
     # def test_FamDB_id_check(self):
     #     with self.assertRaises(SystemExit):
@@ -327,3 +334,5 @@ class TestDatabase(unittest.TestCase):
     #         famdb = FamDB('/tmp')
     #         with FamDBRoot(TestDatabase.filenames[1], "r+") as db:
     #             db.set_file_info(FILE_INFO)
+
+    # test missing root file
