@@ -4,16 +4,64 @@ import textwrap
 import json
 import re
 
-from famdb_globals import LOGGER
 
-class Lineage(list):
+from famdb_globals import LOGGER, LEAF_LINK, ROOT_LINK
 
-    def set_data(self, ancestors, descendants, root, partition_num):
+
+class Lineage:
+    def __init__(self, lineage, ancestors, descendants, root, partition_num):
         self.ancestors = ancestors
-        self. descendants = descendants
+        self.descendants = descendants
         self.root = root
         self.partition = partition_num
-    
+        links = {LEAF_LINK: {}, ROOT_LINK: None}
+        lin_str = lineage.__repr__()
+        splits = lin_str.split("'")
+        if LEAF_LINK in lin_str:
+            if not self.root:
+                LOGGER.error("Leaf Links Found In Non-Root Lineage")
+                exit()
+            for i in range(len(splits)):
+                if LEAF_LINK in splits[i]:
+                    links[LEAF_LINK][i] = str(splits[i].split(":")[1])
+
+        elif ROOT_LINK in lin_str:
+            if self.root:
+                LOGGER.error("Root Links found In Root Lineage")
+                exit()
+            links[ROOT_LINK] = {str(lineage[1][0]): str(lineage[1])}
+
+        if links[ROOT_LINK] and links[LEAF_LINK]:
+            LOGGER.error("Lineage Should Not Contain Root Links And Leaf Links")
+            exit()
+
+        self.links = links
+        self.lin_str = lin_str
+        self.splits = splits
+
+    def __add__(self, other):
+        if (self.root and other.root) or (not self.root and not other.root):
+            LOGGER.error("Must Combine Root and Non-Root Lineages")
+            exit()
+        root_lineage = self if self.root else other
+        leaf_lineage = self if not self.root else other
+        leaf_links = root_lineage.links[LEAF_LINK]
+        full_lineage = root_lineage.splits.copy()
+
+        for position in leaf_links:
+            node = leaf_links[position]
+            subtree = leaf_lineage.links[ROOT_LINK].get(node)
+            if subtree:
+                full_lineage[position] = subtree
+            break
+        return "".join(full_lineage)
+
+    # DEBUG METHODS
+    def get_str(self):
+        return self.lin_str
+
+    def get_links(self):
+        return self.links
 
 
 class TaxNode:  # pylint: disable=too-few-public-methods
@@ -228,9 +276,9 @@ class Family:  # pylint: disable=too-many-instance-attributes
                 parts = threshold.split(",")
                 tax_id = int(parts[0])
                 (hmm_ga, hmm_tc, hmm_nc, hmm_fdr) = map(float, parts[1:])
-                
+
                 # only recover name, do need for partition number
-                tax_name = famdb.get_taxon_name(tax_id, "scientific name")[0] 
+                tax_name = famdb.get_taxon_name(tax_id, "scientific name")[0]
                 if tax_id == species:
                     species_hmm_ga, species_hmm_tc, species_hmm_nc = (
                         hmm_ga,
