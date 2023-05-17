@@ -8,60 +8,71 @@ import re
 from famdb_globals import LOGGER, LEAF_LINK, ROOT_LINK
 
 
-class Lineage:
-    def __init__(self, lineage, ancestors, descendants, root, partition_num):
-        self.ancestors = ancestors
-        self.descendants = descendants
+class Lineage(list):  # TODO replace exits  with real exception
+    """A class to mediate lineages across multiple FamDB files. Contains methods to combine lineages at cross-file break points"""
+
+    def __init__(self, lineage, root, partition_num):
+        super().__init__(lineage)
+        self.ancestors = False
+        self.descendants = False
         self.root = root
         self.partition = partition_num
         links = {LEAF_LINK: {}, ROOT_LINK: None}
+
+        # find and store link elements
         lin_str = lineage.__repr__()
         splits = lin_str.split("'")
         if LEAF_LINK in lin_str:
+            self.descendants = True
             if not self.root:
                 LOGGER.error("Leaf Links Found In Non-Root Lineage")
                 exit()
             for i in range(len(splits)):
                 if LEAF_LINK in splits[i]:
                     links[LEAF_LINK][i] = str(splits[i].split(":")[1])
-
         elif ROOT_LINK in lin_str:
+            self.ancestors = True
             if self.root:
                 LOGGER.error("Root Links found In Root Lineage")
                 exit()
             links[ROOT_LINK] = {str(lineage[1][0]): str(lineage[1])}
 
-        if links[ROOT_LINK] and links[LEAF_LINK]:
+        if self.ancestors and self.descendants:
             LOGGER.error("Lineage Should Not Contain Root Links And Leaf Links")
             exit()
-
         self.links = links
-        self.lin_str = lin_str
         self.splits = splits
 
     def __add__(self, other):
+        # check to avoid adding root+root or leaf+leaf
         if (self.root and other.root) or (not self.root and not other.root):
             LOGGER.error("Must Combine Root and Non-Root Lineages")
             exit()
+        # assign lineages
         root_lineage = self if self.root else other
         leaf_lineage = self if not self.root else other
+        # load links and split lineage string
         leaf_links = root_lineage.links[LEAF_LINK]
         full_lineage = root_lineage.splits.copy()
-
+        # check each link position in root for linked subtree in leaf
         for position in leaf_links:
             node = leaf_links[position]
             subtree = leaf_lineage.links[ROOT_LINK].get(node)
             if subtree:
+                # replace link position with subtree if found
                 full_lineage[position] = subtree
-            break
-        return "".join(full_lineage)
+        # format splits for json reading
+        for i in range(len(full_lineage)):
+            if "leaf_link:" in full_lineage[i]:
+                full_lineage[i] = f'"{full_lineage[i]}"'
+        # join splits back to single string, read as list
+        linked_lineage = json.loads("".join(full_lineage))
+        # return as new Lineage object, with root True and partion 0
+        return Lineage(linked_lineage, root_lineage.root, root_lineage.partition)
 
-    # DEBUG METHODS
-    def get_str(self):
-        return self.lin_str
-
-    def get_links(self):
-        return self.links
+    def __iadd__(self, other):
+        self.lineage = self + other
+        return self.lineage
 
 
 class TaxNode:  # pylint: disable=too-few-public-methods

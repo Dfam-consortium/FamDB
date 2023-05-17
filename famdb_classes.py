@@ -23,7 +23,7 @@ class FamDBLeaf:
     GROUP_LOOKUP_BYACC = "Lookup/ByAccession"
     GROUP_LOOKUP_BYSTAGE = "Lookup/ByStage"
     GROUP_NODES = "Taxonomy/Nodes"
-    GROUP_TAXANAMES = "TaxaNames"
+    GROUP_TAXANAMES = "Partitions"
 
     # DF####### or DF########## or DR####### or DR##########
     dfam_acc_pat = re.compile("^(D[FR])([0-9]{2})([0-9]{2})[0-9]{3,6}$")
@@ -360,8 +360,7 @@ class FamDBLeaf:
                 else:
                     tax_id = None
 
-        lineage = Lineage(tree)
-        lineage.set_data(ancestors,descendants, self.is_root(), self.get_partition_num())
+        lineage = Lineage(tree, self.is_root(), self.get_partition_num())
         return lineage
 
     # Filter methods --------------------------------------------------------------------------
@@ -885,7 +884,6 @@ up with the 'names' command.""".format(
 
 
 class FamDB:
-
     def __init__(self, db_dir):
         self.check_and_collect_files(db_dir)
         self.set_tree_transitions()
@@ -913,12 +911,12 @@ class FamDB:
                 self.files[num] = FamDBLeaf(file, "r")
 
         if not self.files[0]:
-            LOGGER.error('Missing Root Partition File')
+            LOGGER.error("Missing Root Partition File")
             exit()
-            
+
         file_info = self.files[0].get_file_info()
 
-        self.file_map = file_info['file_map']
+        self.file_map = file_info["file_map"]
         self.uuid = file_info["meta"]["id"]
         self.db_version = file_info["meta"]["db_version"]
         self.db_date = file_info["meta"]["db_date"]

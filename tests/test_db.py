@@ -1,11 +1,8 @@
 import os
 import unittest
-import copy
-import tempfile
 from famdb_classes import FamDBLeaf, FamDBRoot, FamDB
+from famdb_helper_classes import Lineage, Family
 from .doubles import init_db_file, FILE_INFO
-
-from famdb_helper_classes import Family
 
 
 class TestDatabase(unittest.TestCase):
@@ -315,6 +312,49 @@ class TestDatabase(unittest.TestCase):
             self.assertEqual(db.find_taxon(2), 0)
             self.assertEqual(db.find_taxon(4), 1)
             self.assertEqual(db.find_taxon(5), 2)
+
+    # Lineage tests --------------------------------------------------------------------------------
+    def test_lineage(self):
+        root_l = [1, [2, "leaf_link:4", "leaf_link:5"]]
+        leaf_l = ["root_link:4", [4, [6]]]
+        leaf_l2 = ["root_link:5", [5]]
+        intermediate = [1, [2, [4, [6]], "leaf_link:5"]]
+        final = [1, [2, [4, [6]], [5]]]
+        lin_root = Lineage(root_l, True, 0)
+        lin_leaf = Lineage(leaf_l, False, 1)
+        lin_leaf2 = Lineage(leaf_l2, False, 2)
+
+        # lineage can be subscripted like lists
+        self.assertEqual(lin_root[1][1], "leaf_link:4")
+
+        # init
+        self.assertEqual(lin_root.root, True)
+        self.assertEqual(lin_root.descendants, True)
+        self.assertEqual(
+            lin_root.links, {"leaf_link:": {1: "4", 3: "5"}, "root_link:": None}
+        )
+        self.assertEqual(lin_root.partition, 0)
+        self.assertEqual(lin_leaf.descendants, False)
+        self.assertEqual(lin_leaf.ancestors, True)
+        self.assertEqual(
+            lin_leaf.links, {"leaf_link:": {}, "root_link:": {"4": "[4, [6]]"}}
+        )
+        self.assertEqual(lin_leaf.partition, 1)
+
+        # lineage can be added in any order
+        self.assertEqual(lin_leaf + lin_root, intermediate)
+        self.assertEqual(lin_root + lin_leaf, intermediate)
+
+        # addion can be chained
+        first = lin_root + lin_leaf
+        self.assertEqual(first, intermediate)
+        second = first + lin_leaf2
+        self.assertEqual(second, final)
+
+        # iadd works
+        lin_root += lin_leaf
+        lin_root += lin_leaf2
+        self.assertEqual(lin_root, final)
 
     # Umbrella Methods -----------------------------------------------------------------------------
     # def test_FamDB_file_check(self):
