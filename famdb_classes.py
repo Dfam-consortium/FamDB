@@ -117,7 +117,7 @@ class FamDBLeaf:
         return json.loads(self.file.attrs["file_info"])
 
     def is_root(self):
-        """Tests if file is root file"""  # TODO remove to subclass
+        """Tests if file is root file"""
         return self.file.attrs["root"]
 
     def get_db_info(self):
@@ -808,15 +808,14 @@ up with the 'names' command.""".format(
             name = sanitize_name(name[0])
         return name
 
-    def get_lineage_path(self, tax_id, tree=[], cache=True):
+    def get_lineage_path(self, tax_id, tree, cache=True):
         """
         Returns a list of strings encoding the lineage for 'tax_id'.
         """
 
         if cache and tax_id in self.__lineage_cache:
             return self.__lineage_cache[tax_id]
-        if not tree:
-            tree = self.get_lineage(tax_id, ancestors=True)
+
         lineage = []
 
         while tree:
@@ -831,48 +830,6 @@ up with the 'names' command.""".format(
 
         return lineage
 
-    # def find_files(self):
-    #     # repbase_file = "./partitions/RMRB_spec_to_tax.json" TODO
-    #     file_info = self.get_file_info()
-    #     meta = file_info["meta"]
-    #     file_map = file_info["file_map"]
-    #     files = {}
-    #     for file in file_map:
-    #         partition_name = file_map[file]["T_root_name"]
-    #         partition_detail = file_map[file]["F_roots_names"]
-    #         filename = file_map[file]["filename"]
-    #         counts = None
-    #         status = "Missing"
-    #         if os.path.isfile(filename):
-    #             checkfile = FamDBLeaf(filename, "r")
-    #             db_info = checkfile.get_db_info()
-    #             same_dfam, same_partition = False, False
-    #             # test if database versions were the same
-    #             if (
-    #                 meta["db_version"] == db_info["version"]
-    #                 and meta["db_date"] == db_info["date"]
-    #             ):
-    #                 same_dfam = True
-    #             # test if files are from the same partitioning run
-    #             if meta["id"] == checkfile.get_file_info()["meta"]["id"]:
-    #                 same_partition = True
-    #             # update status
-    #             if not same_partition:
-    #                 status = "File From Different Partition"
-    #             elif not same_dfam:
-    #                 status = "File From Previous Dfam Release"
-    #             else:
-    #                 status = "Present"
-    #                 counts = checkfile.get_counts()
-    #             files[file] = {
-    #                 "partition_name": partition_name,
-    #                 "partition_detail": partition_detail,
-    #                 "filename": filename,
-    #                 "counts": counts,
-    #                 "status": status,
-    #             }
-    #     return files
-
     def find_taxon(self, tax_id):
         """
         Returns the partition number containing the taxon
@@ -882,11 +839,17 @@ up with the 'names' command.""".format(
                 return int(partition)
         return None
 
+    def parent_of(self, tax_id):
+        group_nodes = self.file[FamDBLeaf.GROUP_NODES]
+        for node in group_nodes:
+            if int(tax_id) in group_nodes[node]["Children"]:
+                return node
+        return None
+
 
 class FamDB:
     def __init__(self, db_dir):
         self.check_and_collect_files(db_dir)
-        self.set_tree_transitions()
 
     def check_and_collect_files(self, db_dir):
         h5_files = []
@@ -934,6 +897,109 @@ class FamDB:
             LOGGER.error(f"Files From Different Partitioning Runs: {err_files}")
             exit()
 
-    def set_tree_transitions(self):
-        print(self.files)
-        print(self.file_map)
+    def get_lineage_combined(self, tax_id, **kwargs):
+        # check if tax_id exists in Dfam
+        location = self.files[0].find_taxon(tax_id)
+        if location is None:
+            LOGGER.error("Taxon Not Found In Dfam")
+            return None
+        if location not in self.files:
+            LOGGER.error(f"Taxon In Partion {location}, Partition File Not Found")
+            return None
+
+        # query lineage in correct file
+        base_lineage = self.files[location].get_lineage(tax_id, **kwargs)
+
+        if base_lineage.descendants:  # lineage extends from root file to leaf file(s)
+            add_lineages = []
+            missing = {}
+            for taxa in base_lineage.links[LEAF_LINK].values():
+                # find location of each linked node
+                loc = self.files[0].find_taxon(taxa)
+                if loc and loc in self.files:
+                    # query and save subtree if file is installed
+                    add_lineages += [
+                        self.files[loc].get_lineage(
+                            taxa, descendants=True, ancestors=True
+                        )
+                    ]
+                elif loc and loc not in self.files:
+                    # if file is not found, return Lineage of 1 node, record that node is missing
+                    add_lineages += [
+                        Lineage([f"{ROOT_LINK}{taxa}", [int(taxa)]], False, loc)
+                    ]
+                    missing[taxa] = loc
+
+            # Combine lineages
+            for lin in add_lineages:
+                base_lineage += lin
+
+            # attach missing file info
+            base_lineage.missing = missing
+
+        if base_lineage.ancestors:  # lineage extends from leaf file to root file
+            # find ancestor node in root and query lineage
+            ancestor_node = self.files[0].parent_of(
+                list(base_lineage.links[ROOT_LINK].keys())[0]
+            )  # TODO this is probably really slow
+            root_lineage = self.files[0].get_lineage(
+                ancestor_node, descendants=True, ancestors=True
+            )
+            base_lineage += root_lineage
+
+            # strip out leftover links
+            def remove_links(lineage):
+                for thing in lineage:
+                    if not thing or type(thing) == str:
+                        lineage.remove(thing)
+                    if type(thing) == list:
+                        remove_links(thing)
+
+            # remove_links(base_lineage)
+
+        return base_lineage
+
+    def get_lineage_path(self, tax_id, base_lineage):
+        return self.files[0].get_lineage_path(tax_id, base_lineage)
+
+    # def find_files(self):
+    #     # repbase_file = "./partitions/RMRB_spec_to_tax.json" TODO
+    #     file_info = self.get_file_info()
+    #     meta = file_info["meta"]
+    #     file_map = file_info["file_map"]
+    #     files = {}
+    #     for file in file_map:
+    #         partition_name = file_map[file]["T_root_name"]
+    #         partition_detail = file_map[file]["F_roots_names"]
+    #         filename = file_map[file]["filename"]
+    #         counts = None
+    #         status = "Missing"
+    #         if os.path.isfile(filename):
+    #             checkfile = FamDBLeaf(filename, "r")
+    #             db_info = checkfile.get_db_info()
+    #             same_dfam, same_partition = False, False
+    #             # test if database versions were the same
+    #             if (
+    #                 meta["db_version"] == db_info["version"]
+    #                 and meta["db_date"] == db_info["date"]
+    #             ):
+    #                 same_dfam = True
+    #             # test if files are from the same partitioning run
+    #             if meta["id"] == checkfile.get_file_info()["meta"]["id"]:
+    #                 same_partition = True
+    #             # update status
+    #             if not same_partition:
+    #                 status = "File From Different Partition"
+    #             elif not same_dfam:
+    #                 status = "File From Previous Dfam Release"
+    #             else:
+    #                 status = "Present"
+    #                 counts = checkfile.get_counts()
+    #             files[file] = {
+    #                 "partition_name": partition_name,
+    #                 "partition_detail": partition_detail,
+    #                 "filename": filename,
+    #                 "counts": counts,
+    #                 "status": status,
+    #             }
+    #     return files

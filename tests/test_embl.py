@@ -3,7 +3,7 @@ import unittest
 import os
 
 from famdb_classes import FamDBRoot
-from famdb_helper_classes import Family
+from famdb_helper_classes import Family, Lineage
 from .doubles import init_db_file
 
 
@@ -11,10 +11,9 @@ class TestEMBL(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         filenames = ["/tmp/unittest.0.h5", "/tmp/unittest.1.h5", "/tmp/unittest.2.h5"]
-        init_db_file()
+        init_db_file("/tmp/unittest")
         TestEMBL.filenames = filenames
         cls.maxDiff = None
-
 
     @classmethod
     def tearDownClass(cls):
@@ -23,6 +22,7 @@ class TestEMBL(unittest.TestCase):
 
         for name in filenames:
             os.remove(name)
+
 
 #     def test_simple(self):
 #         fam = Family()
@@ -54,8 +54,8 @@ class TestEMBL(unittest.TestCase):
 # CC        Type: Type
 # CC        SubType: SubType
 # CC        Species: Other_Order
-# CC        SearchStages: 
-# CC        BufferStages: 
+# CC        SearchStages:
+# CC        BufferStages:
 # XX
 # SQ   Sequence 8 BP; 5 A; 1 C; 1 G; 1 T; 0 other;
 #      acgtaaaa                                                           8
@@ -92,8 +92,8 @@ class TestEMBL(unittest.TestCase):
 # CC        Type: Test
 # CC        SubType: Multiline
 # CC        Species: Species
-# CC        SearchStages: 
-# CC        BufferStages: 
+# CC        SearchStages:
+# CC        BufferStages:
 # XX
 # SQ   Sequence 160 BP; 40 A; 40 C; 40 G; 40 T; 0 other;
 #      acgttgcaac gttgcaacgt tgcaacgttg caacgttgca acgttgcaac gttgcaacgt  60
@@ -132,8 +132,8 @@ class TestEMBL(unittest.TestCase):
 # CC        Type: Test
 # CC        SubType: Metadata
 # CC        Species: Species
-# CC        SearchStages: 
-# CC        BufferStages: 
+# CC        SearchStages:
+# CC        BufferStages:
 # XX
 # //
 # """,
@@ -199,8 +199,8 @@ class TestEMBL(unittest.TestCase):
 # CC        Type: LTR
 # CC        SubType: BigTest
 # CC        Species: Species, Another_Clade_3.
-# CC        SearchStages: 
-# CC        BufferStages: 
+# CC        SearchStages:
+# CC        BufferStages:
 # CC        Refineable
 # XX
 # SQ   Sequence 18 BP; 4 A; 4 C; 4 G; 4 T; 2 other;
@@ -236,8 +236,8 @@ class TestEMBL(unittest.TestCase):
 # CC        Type: Test
 # CC        SubType: RootTaxa
 # CC        Species: root
-# CC        SearchStages: 
-# CC        BufferStages: 
+# CC        SearchStages:
+# CC        BufferStages:
 # XX
 # //
 # """,
@@ -299,8 +299,8 @@ class TestEMBL(unittest.TestCase):
 # CC        Type: Test
 # CC        SubType: HasCitations
 # CC        Species: A_Clade
-# CC        SearchStages: 
-# CC        BufferStages: 
+# CC        SearchStages:
+# CC        BufferStages:
 # XX
 # //
 # """,
@@ -355,8 +355,8 @@ class TestEMBL(unittest.TestCase):
 # CC        Type: Test
 # CC        SubType: CodingSequence
 # CC        Species: A_Clade
-# CC        SearchStages: 
-# CC        BufferStages: 
+# CC        SearchStages:
+# CC        BufferStages:
 # XX
 # FH   Key             Location/Qualifiers
 # FH
@@ -375,11 +375,11 @@ class TestEMBL(unittest.TestCase):
 # """,
 #         )
 
-    # def test_no_consensus(self):
-    #     fam = Family()
-    #     fam.name = "Test9"
-    #     fam.accession = "TEST0009"
-    #     fam.version = 9
-    #     fam.clades = [2]
+# def test_no_consensus(self):
+#     fam = Family()
+#     fam.name = "Test9"
+#     fam.accession = "TEST0009"
+#     fam.version = 9
+#     fam.clades = [2]
 
-    #     self.assertEqual(fam.to_embl(None), None)
+#     self.assertEqual(fam.to_embl(None), None)

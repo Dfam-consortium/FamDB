@@ -105,8 +105,7 @@ FAMILIES = [
 ]
 
 
-def init_db_file():
-    filename = "/tmp/unittest"
+def init_db_file(filename):
 
     families = FAMILIES
 

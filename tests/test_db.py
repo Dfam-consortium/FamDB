@@ -10,7 +10,7 @@ class TestDatabase(unittest.TestCase):
     def setUpClass(cls):
 
         filenames = ["/tmp/unittest.0.h5", "/tmp/unittest.1.h5", "/tmp/unittest.2.h5"]
-        init_db_file()
+        init_db_file("/tmp/unittest")
         TestDatabase.filenames = filenames
 
     @classmethod
