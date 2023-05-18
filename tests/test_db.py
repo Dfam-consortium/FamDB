@@ -357,6 +357,40 @@ class TestDatabase(unittest.TestCase):
         self.assertEqual(lin_root, final)
 
     # Umbrella Methods -----------------------------------------------------------------------------
+    def test_get_lineage_combined(self):
+        famdb = FamDB("/tmp")
+        # descendants from root
+        self.assertEqual(
+            famdb.get_lineage_combined(2, descendants=True), [2, [4, [6]], [5]]
+        )
+        # ancenstors from leaf
+        self.assertEqual(
+            famdb.get_lineage_combined(4, ancestors=True), [1, [2, [4], "leaf_link:5"]]
+        )
+        # ancestors from root
+        self.assertEqual(famdb.get_lineage_combined(2, ancestors=True), [1, [2]])
+        # decendants from leaf
+        self.assertEqual(famdb.get_lineage_combined(4, descendants=True), [4, [6]])
+        # ancestors and descendants from root
+        self.assertEqual(
+            famdb.get_lineage_combined(2, descendants=True, ancestors=True),
+            [1, [2, [4, [6]], [5]]],
+        )
+        # ancestors and descendants from leaf
+        self.assertEqual(
+            famdb.get_lineage_combined(
+                4,
+                ancestors=True,
+                descendants=True,
+            ),
+            [1, [2, [4, [6]], "leaf_link:5"]],
+        )
+
+        # get_lineage_path
+        # test = famdb.get_lineage_combined(5, ancestors=True)
+        # self.assertEqual(famdb.get_lineage_path(5, test))
+
+    # test missing root file, multiple exports, different ids
     # def test_FamDB_file_check(self):
     #     with self.assertRaises(SystemExit):
     #         other_file = tempfile.NamedTemporaryFile(
@@ -374,5 +408,3 @@ class TestDatabase(unittest.TestCase):
     #         famdb = FamDB('/tmp')
     #         with FamDBRoot(TestDatabase.filenames[1], "r+") as db:
     #             db.set_file_info(FILE_INFO)
-
-    # test missing root file

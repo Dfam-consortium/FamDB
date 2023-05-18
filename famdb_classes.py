@@ -808,19 +808,31 @@ up with the 'names' command.""".format(
             name = sanitize_name(name[0])
         return name
 
-    def get_lineage_path(self, tax_id, tree, cache=True):
+    def get_lineage_path(self, tax_id, tree=[], cache=True):
         """
         Returns a list of strings encoding the lineage for 'tax_id'.
         """
 
         if cache and tax_id in self.__lineage_cache:
             return self.__lineage_cache[tax_id]
+        if not tree:
+            tree = self.get_lineage(tax_id, ancestors=True)
 
         lineage = []
 
         while tree:
             node = tree[0]
-            tree = tree[1] if len(tree) > 1 else None
+            if len(tree) > 1:
+                found = False
+                for t in tree[1:]:
+                    if type(t) == list:
+                        tree = t
+                        found = True
+                        break
+                if not found:
+                    tree = None
+            else:
+                tree = None
 
             tax_name = self.get_taxon_name(node, "scientific name")
             lineage += [tax_name]
@@ -869,9 +881,9 @@ class FamDB:
         for file in h5_files:
             num = int(file.split(".")[-2])
             if num == 0:
-                self.files[num] = FamDBRoot(file, "r")
+                self.files[num] = FamDBRoot(f"{db_dir}/{file}", "r")
             else:
-                self.files[num] = FamDBLeaf(file, "r")
+                self.files[num] = FamDBLeaf(f"{db_dir}/{file}", "r")
 
         if not self.files[0]:
             LOGGER.error("Missing Root Partition File")
@@ -961,6 +973,18 @@ class FamDB:
 
     def get_lineage_path(self, tax_id, base_lineage):
         return self.files[0].get_lineage_path(tax_id, base_lineage)
+
+    # File Utils
+    def close(self):
+        """Closes this FamDB instance, making further use invalid."""
+        for file in self.files:
+            self.files[file].close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
 
     # def find_files(self):
     #     # repbase_file = "./partitions/RMRB_spec_to_tax.json" TODO
