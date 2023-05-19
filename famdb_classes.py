@@ -808,7 +808,7 @@ up with the 'names' command.""".format(
             name = sanitize_name(name[0])
         return name
 
-    def get_lineage_path(self, tax_id, tree=[], cache=True):
+    def get_lineage_path(self, tax_id, tree=[], cache=True, partition=True):
         """
         Returns a list of strings encoding the lineage for 'tax_id'.
         """
@@ -835,6 +835,8 @@ up with the 'names' command.""".format(
                 tree = None
 
             tax_name = self.get_taxon_name(node, "scientific name")
+            if not partition:
+                tax_name = tax_name[0]
             lineage += [tax_name]
 
         if cache:
@@ -971,8 +973,15 @@ class FamDB:
 
         return base_lineage
 
-    def get_lineage_path(self, tax_id, base_lineage):
-        return self.files[0].get_lineage_path(tax_id, base_lineage)
+    def get_lineage_path(self, tax_id, **kwargs):
+        lineage = self.get_lineage_combined(tax_id, **kwargs)
+        partition = (
+            kwargs.get("partition") if kwargs.get("partition") is not None else True
+        )
+        return self.files[0].get_lineage_path(tax_id, lineage, partition=partition)
+
+    def get_sanitized_name(self, tax_id):
+        return self.files[0].get_sanitized_name(tax_id)
 
     # File Utils
     def close(self):

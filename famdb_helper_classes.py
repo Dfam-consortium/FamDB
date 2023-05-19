@@ -486,11 +486,11 @@ class Family:  # pylint: disable=too-many-instance-attributes
             out += "XX\n"
 
             for clade_id in self.clades:
-                lineage = famdb.get_lineage_path(clade_id)
-                if lineage[0] == ["root", 0]:
+                lineage = famdb.get_lineage_path(clade_id, partition=False)
+                if lineage[0] == ["root"]:
                     lineage = lineage[1:]
                 if len(lineage) > 0:
-                    append("OS", lineage[-1][0])
+                    append("OS", lineage[-1])
                     append("OC", "; ".join(lineage[:-1]) + ".", True)
             out += "XX\n"
 
