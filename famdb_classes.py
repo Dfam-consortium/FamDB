@@ -862,10 +862,7 @@ up with the 'names' command.""".format(
 
 
 class FamDB:
-    def __init__(self, db_dir):
-        self.check_and_collect_files(db_dir)
-
-    def check_and_collect_files(self, db_dir):
+    def __init__(self, db_dir, mode):
         h5_files = []
         for file in os.listdir(db_dir):
             if file.endswith(".h5"):
@@ -883,9 +880,9 @@ class FamDB:
         for file in h5_files:
             num = int(file.split(".")[-2])
             if num == 0:
-                self.files[num] = FamDBRoot(f"{db_dir}/{file}", "r")
+                self.files[num] = FamDBRoot(f"{db_dir}/{file}", mode)
             else:
-                self.files[num] = FamDBLeaf(f"{db_dir}/{file}", "r")
+                self.files[num] = FamDBLeaf(f"{db_dir}/{file}", mode)
 
         if not self.files[0]:
             LOGGER.error("Missing Root Partition File")
@@ -893,6 +890,7 @@ class FamDB:
 
         file_info = self.files[0].get_file_info()
 
+        self.db_dir = db_dir
         self.file_map = file_info["file_map"]
         self.uuid = file_info["meta"]["id"]
         self.db_version = file_info["meta"]["db_version"]
@@ -962,23 +960,58 @@ class FamDB:
             base_lineage += root_lineage
 
             # strip out leftover links
-            def remove_links(lineage):
-                for thing in lineage:
-                    if not thing or type(thing) == str:
-                        lineage.remove(thing)
-                    if type(thing) == list:
-                        remove_links(thing)
-
-            # remove_links(base_lineage)
+            # def remove_links(lineage):
+            #     for thing in lineage:
+            #         if not thing or type(thing) == str:
+            #             lineage.remove(thing)
+            #         if type(thing) == list:
+            #             remove_links(thing)
+            #
+            # remove_links(base_lineage) TODO doesn't seem to actually matter much, might be important later
 
         return base_lineage
 
+    def show_files(self):
+        # repbase_file = "./partitions/RMRB_spec_to_tax.json" TODO
+        files = {}
+        for file in self.file_map:
+            partition_name = self.file_map[file]["T_root_name"]
+            partition_detail = self.file_map[file]["F_roots_names"]
+            filename = self.file_map[file]["filename"]
+            counts = None
+            status = "Missing"
+            if int(file) in self.files:
+                counts = self.files[int(file)].get_counts()
+                status = "Present"
+            files[file] = {
+                "partition_name": partition_name,
+                "partition_detail": partition_detail,
+                "filename": filename,
+                "counts": counts,
+                "status": status,
+            }
+
+        print(f"\nFile Info: {self.db_dir}")
+        for partition in files:
+            file = files[partition]
+            details = f"{', '.join(file['partition_detail'])}"
+            print(
+                f" Partition {partition} {file['status']}: "
+                f"{file['partition_name']} {f'- {details}' if details else ''} \n"
+                f"   {file['filename']} -> "
+                f"Consensi: {file['counts']['consensus']}, HMMs: {file['counts']['hmm']}\n"
+            )
+
+    # Wrapper methods ---------------------------------------------------------------------------------------
     def get_lineage_path(self, tax_id, **kwargs):
         lineage = self.get_lineage_combined(tax_id, **kwargs)
         partition = (
             kwargs.get("partition") if kwargs.get("partition") is not None else True
         )
-        return self.files[0].get_lineage_path(tax_id, lineage, partition=partition)
+        cache = kwargs.get("cache") if kwargs.get("cache") is not None else True
+        return self.files[0].get_lineage_path(
+            tax_id, lineage, cache=cache, partition=partition
+        )
 
     def get_sanitized_name(self, tax_id):
         return self.files[0].get_sanitized_name(tax_id)
@@ -994,45 +1027,3 @@ class FamDB:
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()
-
-    # def find_files(self):
-    #     # repbase_file = "./partitions/RMRB_spec_to_tax.json" TODO
-    #     file_info = self.get_file_info()
-    #     meta = file_info["meta"]
-    #     file_map = file_info["file_map"]
-    #     files = {}
-    #     for file in file_map:
-    #         partition_name = file_map[file]["T_root_name"]
-    #         partition_detail = file_map[file]["F_roots_names"]
-    #         filename = file_map[file]["filename"]
-    #         counts = None
-    #         status = "Missing"
-    #         if os.path.isfile(filename):
-    #             checkfile = FamDBLeaf(filename, "r")
-    #             db_info = checkfile.get_db_info()
-    #             same_dfam, same_partition = False, False
-    #             # test if database versions were the same
-    #             if (
-    #                 meta["db_version"] == db_info["version"]
-    #                 and meta["db_date"] == db_info["date"]
-    #             ):
-    #                 same_dfam = True
-    #             # test if files are from the same partitioning run
-    #             if meta["id"] == checkfile.get_file_info()["meta"]["id"]:
-    #                 same_partition = True
-    #             # update status
-    #             if not same_partition:
-    #                 status = "File From Different Partition"
-    #             elif not same_dfam:
-    #                 status = "File From Previous Dfam Release"
-    #             else:
-    #                 status = "Present"
-    #                 counts = checkfile.get_counts()
-    #             files[file] = {
-    #                 "partition_name": partition_name,
-    #                 "partition_detail": partition_detail,
-    #                 "filename": filename,
-    #                 "counts": counts,
-    #                 "status": status,
-    #             }
-    #     return files

@@ -3,7 +3,7 @@ import unittest
 import os
 
 from famdb_classes import FamDB
-from famdb_helper_classes import Family, Lineage
+from famdb_helper_classes import Family
 from .doubles import init_db_file
 
 
@@ -33,7 +33,7 @@ class TestEMBL(unittest.TestCase):
         fam.repeat_type = "Type"
         fam.repeat_subtype = "SubType"
 
-        famdb = FamDB("/tmp")
+        famdb = FamDB("/tmp", "r")
         self.assertEqual(
             fam.to_embl(famdb),
             """\
@@ -72,7 +72,7 @@ SQ   Sequence 8 BP; 5 A; 1 C; 1 G; 1 T; 0 other;
         fam.repeat_type = "Test"
         fam.repeat_subtype = "Multiline"
 
-        famdb = FamDB("/tmp")
+        famdb = FamDB("/tmp", "r")
         self.assertEqual(
             fam.to_embl(famdb),
             """\
@@ -113,7 +113,7 @@ SQ   Sequence 160 BP; 40 A; 40 C; 40 G; 40 T; 0 other;
         fam.repeat_type = "Test"
         fam.repeat_subtype = "Metadata"
 
-        famdb = FamDB("/tmp")
+        famdb = FamDB("/tmp", "r")
         self.assertEqual(
             fam.to_embl(famdb, include_seq=False),
             """\
@@ -150,7 +150,7 @@ XX
         fam.repeat_type = "Test"
         fam.repeat_subtype = "SequenceOnly"
 
-        famdb = FamDB("/tmp")
+        famdb = FamDB("/tmp", "r")
         self.assertEqual(
             fam.to_embl(famdb, include_meta=False),
             """\
@@ -178,7 +178,7 @@ SQ   Sequence 8 BP; 2 A; 2 C; 2 G; 2 T; 0 other;
         fam.aliases = "Repbase:MyLTR1\nOtherDB:MyLTR\n"
         fam.refineable = True
 
-        famdb = FamDB("/tmp")
+        famdb = FamDB("/tmp", "r")
         self.assertEqual(
             fam.to_embl(famdb),
             """\
@@ -222,7 +222,7 @@ SQ   Sequence 18 BP; 4 A; 4 C; 4 G; 4 T; 2 other;
         fam.repeat_type = "Test"
         fam.repeat_subtype = "RootTaxa"
 
-        famdb = FamDB("/tmp")
+        famdb = FamDB("/tmp", "r")
         self.assertEqual(
             fam.to_embl(famdb, include_seq=False),
             """\
@@ -276,7 +276,7 @@ XX
             ]
         )
 
-        famdb = FamDB("/tmp")
+        famdb = FamDB("/tmp", "r")
         self.assertEqual(
             fam.to_embl(famdb, include_seq=False),
             """\
@@ -342,7 +342,7 @@ XX
                 },
             ]
         )
-        famdb = FamDB("/tmp")
+        famdb = FamDB("/tmp", "r")
         self.assertEqual(
             fam.to_embl(famdb, include_seq=False),
             """\

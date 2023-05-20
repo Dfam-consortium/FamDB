@@ -20,6 +20,7 @@ SEE ALSO:
     Dfam: http://www.dfam.org
 
 AUTHOR(S):
+    Anthony Gray <anthony.gray@systemsbiology.org>
     Jeb Rosen <jeb.rosen@systemsbiology.org>
 
 LICENSE:
@@ -48,7 +49,7 @@ import os
 import re
 import sys
 
-from famdb_globals import LOGGER, FILE_VERSION
+from famdb_globals import LOGGER, FILE_DESCRIPTION, FAMILY_FORMATS_EPILOG
 from famdb_helper_classes import Family
 from famdb_helper_methods import sanitize_name
 from famdb_classes import FamDB
@@ -58,48 +59,36 @@ from famdb_classes import FamDB
 def command_info(args):
     """The 'info' command displays some of the stored metadata."""
 
-    db_info = args.file.get_db_info()
-    counts = args.file.get_counts()
-    f_info = args.file.get_metadata()
+    db_info = args.db_dir.get_db_info()
+    counts = args.db_dir.get_counts()
+    f_info = args.db_dir.get_metadata()
 
     if f_info["partition_detail"]:
         f_info["partition_detail"] = f"\nPartition Detail: {f_info['partition_detail']}"
 
     print(
-        """\
-File: {}
-FamDB Generator: {}
-FamDB Format Version: {}
-FamDB Creation Date: {}
+        f"""\
+File: {os.path.realpath(args.db_dir.filename)}
+FamDB Generator: {f_info["generator"]}
+FamDB Format Version: {f_info["version"]}
+FamDB Creation Date: {f_info["created"]}
 
-Database: {}
-Version: {}
-Date: {}
+Database: {db_info["name"]}
+Version: {db_info["version"]}
+Date: {db_info["date"]}
 
-{}
+{db_info["description"]}
 
-Partition Name: {}{}
-Total consensus sequences: {}
-Total HMMs: {}
-""".format(
-            os.path.realpath(args.file.filename),
-            f_info["generator"],
-            f_info["version"],
-            f_info["created"],
-            db_info["name"],
-            db_info["version"],
-            db_info["date"],
-            db_info["description"],
-            f_info["partition_name"],
-            f_info["partition_detail"],
-            counts["consensus"],
-            counts["hmm"],
-        )
+Partition Name: {f_info["partition_name"]}{f_info["partition_detail"]}
+Total consensus sequences: {counts["consensus"]}
+Total HMMs: {counts["hmm"]}
+"""
     )
-    files = args.file.find_files()
+
+    files = args.db_dir.find_files()
     print("Other Files:")
     for f in files:
-        if f != args.file.get_partition_num():
+        if f != args.db_dir.get_partition_num():
             file = files[f]
             outstr = f"File: {file['filename']}: {file['partition_name']}"
             detail = file["partition_detail"]
@@ -124,13 +113,13 @@ def command_names(args):
     """The 'names' command displays all names of all taxa that match the search term."""
 
     entries = []
-    entries += resolve_names(args.file, args.term)
+    entries += resolve_names(args.db_dir, args.term)
 
-    if args.file.is_root():
+    if args.db_dir.is_root():
         locations = []
         if entries:
             locations += [0]
-        files = args.file.find_files()
+        files = args.db_dir.find_files()
         for f in files:
             if f != "0":
                 file = files[f]
@@ -272,13 +261,13 @@ def command_lineage(args):
 
     # TODO: like 'families', filter curated or uncurated (and other filters?)
 
-    target_id = args.file.resolve_one_species(args.term)
+    target_id = args.db_dir.resolve_one_species(args.term)
 
     # if querying root file and term not found, query other files
     root_file = None
-    if not target_id and args.file.is_root():
+    if not target_id and args.db_dir.is_root():
         locations = []
-        files = args.file.find_files()
+        files = args.db_dir.find_files()
         for f in files:
             file = files[f]
             if file["status"] == "Present":
@@ -287,8 +276,8 @@ def command_lineage(args):
                 if target_id:
                     locations += [f]
                     # switch active file reference, each partition has complete ancestry taxonomy
-                    root_file = args.file
-                    args.file = check_file
+                    root_file = args.db_dir
+                    args.db_dir = check_file
                     break
         if locations:
             print(
@@ -301,7 +290,7 @@ def command_lineage(args):
         )
         return
 
-    tree = args.file.get_lineage(
+    tree = args.db_dir.get_lineage(
         target_id,
         descendants=args.descendants,
         ancestors=args.ancestors or args.format == "semicolon",
@@ -309,11 +298,11 @@ def command_lineage(args):
 
     # TODO: prune branches with 0 total
     if args.format == "pretty":
-        print_lineage_tree(args.file, tree, "", "", root_file)
+        print_lineage_tree(args.db_dir, tree, "", "", root_file)
     elif args.format == "semicolon":
-        print_lineage_semicolons(args.file, tree, "", target_id, root_file)
+        print_lineage_semicolons(args.db_dir, tree, "", target_id, root_file)
     elif args.format == "totals":
-        totals = get_lineage_totals(args.file, tree, target_id, root_file)
+        totals = get_lineage_totals(args.db_dir, tree, target_id, root_file)
         print(
             "{} entries in ancestors; {} lineage-specific entries".format(
                 totals[0], totals[1]
@@ -327,7 +316,7 @@ def print_families(args, families, header, species=None):
     """
     Prints each family in 'families', optionally with a copyright header. The
     format is determined by 'args.format' and additional data (such as
-    taxonomy) is taken from 'args.file'.
+    taxonomy) is taken from 'args.db_dir'.
 
     If 'species' is provided and the format is "hmm_species", it is the id of
     the taxa whose species-specific thresholds should be substituted into the
@@ -344,7 +333,7 @@ def print_families(args, families, header, species=None):
     stage = getattr(args, "stage", None)
 
     if header:
-        db_info = args.file.get_db_info()
+        db_info = args.db_dir.get_db_info()
         if db_info:
             copyright_text = db_info["copyright"]
             # Add appropriate comment character to the copyright header lines
@@ -362,13 +351,13 @@ def print_families(args, families, header, species=None):
             entry = str(family) + "\n"
         elif args.format == "hmm":
             entry = family.to_dfam_hmm(
-                args.file,
+                args.db_dir,
                 include_class_in_name=include_class_in_name,
                 require_general_threshold=require_general_threshold,
             )
         elif args.format == "hmm_species":
             entry = family.to_dfam_hmm(
-                args.file,
+                args.db_dir,
                 species,
                 include_class_in_name=include_class_in_name,
                 require_general_threshold=require_general_threshold,
@@ -405,7 +394,7 @@ def print_families(args, families, header, species=None):
             for buffer_spec in buffers:
                 entry += (
                     family.to_fasta(
-                        args.file,
+                        args.db_dir,
                         use_accession=use_accession,
                         include_class_in_name=include_class_in_name,
                         buffer=buffer_spec,
@@ -416,7 +405,7 @@ def print_families(args, families, header, species=None):
                 if add_reverse_complement:
                     entry += (
                         family.to_fasta(
-                            args.file,
+                            args.db_dir,
                             use_accession=use_accession,
                             include_class_in_name=include_class_in_name,
                             do_reverse_complement=True,
@@ -425,11 +414,11 @@ def print_families(args, families, header, species=None):
                         or ""
                     )
         elif args.format == "embl":
-            entry = family.to_embl(args.file)
+            entry = family.to_embl(args.db_dir)
         elif args.format == "embl_meta":
-            entry = family.to_embl(args.file, include_meta=True, include_seq=False)
+            entry = family.to_embl(args.db_dir, include_meta=True, include_seq=False)
         elif args.format == "embl_seq":
-            entry = family.to_embl(args.file, include_meta=False, include_seq=True)
+            entry = family.to_embl(args.db_dir, include_meta=False, include_seq=True)
         else:
             raise ValueError("Unimplemented family format: %s" % args.format)
 
@@ -439,14 +428,14 @@ def print_families(args, families, header, species=None):
 
 def command_family(args):
     """The 'family' command outputs a single family by name or accession."""
-    family = args.file.get_family_by_accession(args.accession)
+    family = args.db_dir.get_family_by_accession(args.accession)
     # TODO: get_family_by_name() is broken for now
     # if not family:
-    #     family = args.file.get_family_by_name(args.accession)
+    #     family = args.db_dir.get_family_by_name(args.accession)
 
-    if not family and args.file.is_root():
+    if not family and args.db_dir.is_root():
         locations = []
-        files = args.file.find_files()
+        files = args.db_dir.find_files()
         for f in files:
             file = files[f]
             if f != "0" and file["status"] == "Present":
@@ -467,11 +456,11 @@ def command_family(args):
 
 def command_families(args):
     """The 'families' command outputs all families associated with the given taxon."""
-    target_id = args.file.resolve_one_species(args.term)
+    target_id = args.db_dir.resolve_one_species(args.term)
     # if querying root file and term not found, query other files
-    if not target_id and args.file.is_root():
+    if not target_id and args.db_dir.is_root():
         locations = []
-        files = args.file.find_files()
+        files = args.db_dir.find_files()
         for f in files:
             file = files[f]
             if f != "0" and file["status"] == "Present":
@@ -480,7 +469,7 @@ def command_families(args):
                 if target_id:
                     locations += [f]
                     # switch active file reference, each partition has complete ancestry taxonomy
-                    args.file = check_file
+                    args.db_dir = check_file
                     break
         if locations:
             print(
@@ -502,7 +491,7 @@ def command_families(args):
     # However it is *much* more memory-efficient than loading all the family
     # data at once and then sorting by accession.
     accessions = sorted(
-        args.file.get_accessions_filtered(
+        args.db_dir.get_accessions_filtered(
             tax_id=target_id,
             descendants=args.descendants,
             ancestors=args.ancestors,
@@ -515,7 +504,7 @@ def command_families(args):
         )
     )
 
-    families = map(args.file.get_family_by_accession, accessions)
+    families = map(args.db_dir.get_family_by_accession, accessions)
 
     print_families(args, families, True, target_id)
 
@@ -527,7 +516,7 @@ def command_append(args):
     """
 
     lookup = {}
-    for tax_id, names in args.file.names_dump.items():
+    for tax_id, names in args.db_dir.names_dump.items():
         for name in names:
             if name[0] == "scientific name":
                 sanitized_name = sanitize_name(name[1]).lower()
@@ -541,8 +530,8 @@ def command_append(args):
 
     embl_iter = Family.read_embl_families(args.infile, lookup, set_header)
 
-    seen_accs = args.file.seen["accession"]
-    seen_names = args.file.seen["name"]
+    seen_accs = args.db_dir.seen["accession"]
+    seen_names = args.db_dir.seen["name"]
 
     for entry in embl_iter:
         acc = entry.accession
@@ -558,9 +547,9 @@ def command_append(args):
         ):
             LOGGER.debug("Ignoring duplicate entry %s", entry.accession)
         else:
-            args.file.add_family(entry)
+            args.db_dir.add_family(entry)
 
-    db_info = args.file.get_db_info()
+    db_info = args.db_dir.get_db_info()
 
     if args.name:
         db_info["name"] = args.name
@@ -569,7 +558,7 @@ def command_append(args):
 
     db_info["copyright"] += f"\n\n{header}"
 
-    args.file.set_db_info(
+    args.db_dir.set_db_info(
         db_info["name"],
         db_info["version"],
         db_info["date"],
@@ -578,47 +567,21 @@ def command_append(args):
     )
 
     # Write the updated counts and metadata
-    args.file.finalize()
+    args.db_dir.finalize()
 
 
-def main():
+def main():  # ================================================================================================================================
     """Parses command-line arguments and runs the requested command."""
 
     logging.basicConfig()
 
     parser = argparse.ArgumentParser(
-        description=f"""This is famdb.py version {FILE_VERSION}.
-
-example commands, including the most commonly used options:
-
-  famdb.py [-i FILE] info
-    Prints information about the file including database name and date.
-
-  famdb.py [-i FILE] names 'mus' | head
-    Prints taxonomy nodes that include 'mus', and the corresponding IDs.
-    The IDs and names are stored in the FamDB file, and are based
-    on the NCBI taxonomy database (https://www.ncbi.nlm.nih.gov/taxonomy).
-
-  famdb.py [-i FILE] lineage -ad 'Homo sapiens'
-  famdb.py [-i FILE] lineage -ad --format totals 9606
-    Prints a taxonomic tree including the given clade and optionally ancestors
-    and/or descendants, with the number of repeats indicated at each level of
-    the hierarchy. With the 'totals' format, prints the number of matching
-    ancestral and lineage-specific entries.
-
-  famdb.py [-i FILE] family --format fasta_acc MIR3
-    Exports a single family from the database in one of several formats.
-
-  famdb.py [-i FILE] families -f embl_meta -ad --curated 'Drosophila melanogaster'
-  famdb.py [-i FILE] families -f hmm -ad --curated --class LTR 7227
-    Searches and exports multiple families from the database, in one of several formats.
-
-""",
+        description=FILE_DESCRIPTION,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("-l", "--log-level", default="INFO")
 
-    parser.add_argument("-i", "--file", help="specifies the file to query")
+    parser.add_argument("-i", "--db_dir", help="specifies the file to query")
 
     subparsers = parser.add_subparsers(
         description="""Specifies the kind of query to perform.
@@ -626,12 +589,13 @@ For more information on all the possible options for a command, add the --help o
 famdb.py families --help
 """
     )
-
+    # INFO --------------------------------------------------------------------------------------------------------------------------------
     p_info = subparsers.add_parser(
         "info", description="List general information about the file."
     )
     p_info.set_defaults(func=command_info)
 
+    # NAMES --------------------------------------------------------------------------------------------------------------------------------
     p_names = subparsers.add_parser(
         "names", description="List the names and taxonomy identifiers of a clade."
     )
@@ -650,6 +614,7 @@ famdb.py families --help
     )
     p_names.set_defaults(func=command_names)
 
+    # LINEAGE --------------------------------------------------------------------------------------------------------------------------------
     p_lineage = subparsers.add_parser(
         "lineage",
         description="List the taxonomy tree including counts of families at each clade.",
@@ -681,6 +646,7 @@ famdb.py families --help
     )
     p_lineage.set_defaults(func=command_lineage)
 
+    # FAMILIES --------------------------------------------------------------------------------------------------------------------------------
     family_formats = [
         "summary",
         "hmm",
@@ -691,27 +657,7 @@ famdb.py families --help
         "embl_meta",
         "embl_seq",
     ]
-    family_formats_epilog = """
-Supported formats:
-  * 'summary'     : (default) A human-readable summary format. Currently includes
-                    accession, name, classification, and length.
-
-  * 'hmm'         : The family's HMM, including some additional metadata such as
-                    species and RepeatMasker classification.
-  * 'hmm_species' : Same as 'hmm', but with a species-specific TH line extracted
-                    into the GA/TC/NC values. This format is only useful for the
-                    families command when querying within a species for which such
-                    thresholds have been determined.
-
-  * 'fasta_name'  : FASTA, with the following header format:
-                    >MIR @Mammalia [S:40,60,65]
-  * 'fasta_acc'   : FASTA, with the following header format:
-                    >DF0000001.4 @Mammalia [S:40,60,65]
-
-  * 'embl'        : EMBL, including all metadata and the consensus sequence.
-  * 'embl_meta'   : Same as 'embl', but with only the metadata included.
-  * 'embl_seq'    : Same as 'embl', but with only the sequences included.
-"""
+    family_formats_epilog = FAMILY_FORMATS_EPILOG
 
     p_families = subparsers.add_parser(
         "families",
@@ -788,6 +734,7 @@ with a given clade, optionally filtered by additional criteria",
     )
     p_families.set_defaults(func=command_families)
 
+    # FAMILY --------------------------------------------------------------------------------------------------------------------------------
     p_family = subparsers.add_parser(
         "family",
         description="Retrieve details of a single family.",
@@ -807,6 +754,7 @@ with a given clade, optionally filtered by additional criteria",
     )
     p_family.set_defaults(func=command_family)
 
+    # APPEND --------------------------------------------------------------------------------------------------------------------------------
     p_append = subparsers.add_parser("append")
     p_append.add_argument("infile", help="the name of the input file to be appended")
     p_append.add_argument(
@@ -826,42 +774,42 @@ with a given clade, optionally filtered by additional criteria",
 
     # For RepeatMasker: Try Libraries/RepeatMaskerLib.h5, if no file was specified
     # in the arguments and that file exists.
-    if not args.file:
+    if not args.db_dir:
         # sys.path[0], if non-empty, is initially set to the directory of the
         # originally-invoked script.
         if sys.path[0]:
-            default_file = os.path.join(
-                sys.path[0], "./test.0.h5"
+            default_db_dir = os.path.join(
+                sys.path[0], "./dfam"
             )  # TODO: update file name
-            if os.path.exists(default_file):
-                args.file = default_file
+            if os.path.exists(default_db_dir):
+                args.db_dir = default_db_dir
 
-    if args.file:
+    if args.db_dir and os.path.isdir(args.db_dir):
         try:
             if "func" in args and args.func is command_append:
                 mode = "r+"
             else:
                 mode = "r"
 
-            args.file = FamDB(args.file, mode)
+            args.db_dir = FamDB(args.db_dir, mode)
         except:
-            args.file = None
+            args.db_dir = None
 
             exc_value = sys.exc_info()[1]
             LOGGER.error("Error reading file: %s", exc_value)
             if LOGGER.getEffectiveLevel() <= logging.DEBUG:
                 raise
     else:
-        LOGGER.error("Please specify a file to operate on with the -i/--file option.")
-
-    if not args.file:
+        LOGGER.error(
+            "Please specify a directory to operate on with the -i/--db_dir option."
+        )
         return
 
     if "func" in args:
         args.func(args)
     else:
         parser.print_help()
-        args.file.find_files()
+        args.db_dir.show_files()
 
 
 if __name__ == "__main__":

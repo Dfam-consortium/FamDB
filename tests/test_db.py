@@ -358,7 +358,7 @@ class TestDatabase(unittest.TestCase):
 
     # Umbrella Methods -----------------------------------------------------------------------------
     def test_get_lineage_combined(self):
-        famdb = FamDB("/tmp")
+        famdb = FamDB("/tmp", "r")
         # descendants from root
         self.assertEqual(
             famdb.get_lineage_combined(2, descendants=True), [2, [4, [6]], [5]]
@@ -386,17 +386,18 @@ class TestDatabase(unittest.TestCase):
             [1, [2, [4, [6]], "leaf_link:5"]],
         )
 
-        # get_lineage_path
-        # test = famdb.get_lineage_combined(5, ancestors=True)
-        # self.assertEqual(famdb.get_lineage_path(5, test))
+    def test_get_lineage_path(self):
+        famdb = FamDB("/tmp", "r")
+        self.assertEqual(famdb.get_lineage_path(5, ancestors=True), [['root', 0], ['Order', 0], ['Other Genus', 2]])
+        self.assertEqual(famdb.get_lineage_path(5, ancestors=True, partition=False, cache=False), ['root', 'Order', 'Other Genus'])
 
-    # test missing root file, multiple exports, different ids
+    # test missing root file, multiple exports, different ids TODO
     # def test_FamDB_file_check(self):
     #     with self.assertRaises(SystemExit):
     #         other_file = tempfile.NamedTemporaryFile(
     #             dir="/tmp", prefix="bad", suffix=".0.h5"
     #         )
-    #         famdb = FamDB("/tmp")
+    #         famdb = FamDB("/tmp", "r")
     #         other_file.close()
 
     # def test_FamDB_id_check(self):

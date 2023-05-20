@@ -4,6 +4,7 @@ import tempfile
 import unittest
 
 from .doubles import init_db_file
+from famdb_classes import FamDB
 
 
 def test_one(t, filename, spec_path):
@@ -16,8 +17,9 @@ def test_one(t, filename, spec_path):
         args = [line.rstrip("\r\n") for line in infile]
 
     args.insert(0, os.path.join(os.path.dirname(__file__), "../famdb.py"))
-    args.insert(1, "--file")
-    args.insert(2, filename)
+    if len(args) > 1:
+        args.insert(1, "--file")
+        args.insert(2, filename)
 
     if os.environ.get("FAMDB_TEST_COVERAGE"):
         args.insert(0, "coverage")
@@ -52,15 +54,14 @@ def test_one(t, filename, spec_path):
 
 
 class TestCliOutput(unittest.TestCase):
-    def setUp(self):
-        self.maxDiff = None
-
     # Set up a single database file shared by all tests in this class
     @classmethod
     def setUpClass(cls):
-        filenames = ["/tmp/unittest.0.h5", "/tmp/unittest.1.h5", "/tmp/unittest.2.h5"]
-        init_db_file()
+        db_dir = "/tmp/cli/unittest"
+        init_db_file(db_dir)
+        filenames = ["/tmp/cli/unittest.0.h5", "/tmp/cli/unittest.1.h5", "/tmp/cli/unittest.2.h5"]
         TestCliOutput.filenames = filenames
+        TestCliOutput.tests_dir = os.path.join(os.path.dirname(__file__), "cli")
 
     @classmethod
     def tearDownClass(cls):
@@ -70,10 +71,8 @@ class TestCliOutput(unittest.TestCase):
         for name in filenames:
             os.remove(name)
 
-    # def test_cli_output(self):
-    #     tests_dir = os.path.join(os.path.dirname(__file__), "cli")
-
-    #     with os.scandir(tests_dir) as entries:
-    #         for entry in entries:
-    #             if entry.is_file() and entry.name.endswith(".args"):
-    #                 test_one(self, self.filenames[0], entry.path)
+    # def test_no_args(self):
+    #     test = 'no-args'
+    #     cli = self.tests_dir + f'/{test}.args'
+    #     famdb = FamDB('/tmp', 'r')
+    #     test_one(self, famdb, cli)

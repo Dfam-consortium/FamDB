@@ -44,6 +44,56 @@ o When using or citing the work, you should not imply endorsement by the Dfam co
 You may also obtain a copy of the CC0 license here:
 http://creativecommons.org/publicdomain/zero/1.0/legalcode
 """
+
+FILE_DESCRIPTION = f"""This is famdb.py version {FILE_VERSION}.
+
+example commands, including the most commonly used options:
+
+  famdb.py [-i FILE] info
+    Prints information about the file including database name and date.
+
+  famdb.py [-i FILE] names 'mus' | head
+    Prints taxonomy nodes that include 'mus', and the corresponding IDs.
+    The IDs and names are stored in the FamDB file, and are based
+    on the NCBI taxonomy database (https://www.ncbi.nlm.nih.gov/taxonomy).
+
+  famdb.py [-i FILE] lineage -ad 'Homo sapiens'
+  famdb.py [-i FILE] lineage -ad --format totals 9606
+    Prints a taxonomic tree including the given clade and optionally ancestors
+    and/or descendants, with the number of repeats indicated at each level of
+    the hierarchy. With the 'totals' format, prints the number of matching
+    ancestral and lineage-specific entries.
+
+  famdb.py [-i FILE] family --format fasta_acc MIR3
+    Exports a single family from the database in one of several formats.
+
+  famdb.py [-i FILE] families -f embl_meta -ad --curated 'Drosophila melanogaster'
+  famdb.py [-i FILE] families -f hmm -ad --curated --class LTR 7227
+    Searches and exports multiple families from the database, in one of several formats.
+
+"""
+
+FAMILY_FORMATS_EPILOG = """
+Supported formats:
+  * 'summary'     : (default) A human-readable summary format. Currently includes
+                    accession, name, classification, and length.
+
+  * 'hmm'         : The family's HMM, including some additional metadata such as
+                    species and RepeatMasker classification.
+  * 'hmm_species' : Same as 'hmm', but with a species-specific TH line extracted
+                    into the GA/TC/NC values. This format is only useful for the
+                    families command when querying within a species for which such
+                    thresholds have been determined.
+
+  * 'fasta_name'  : FASTA, with the following header format:
+                    >MIR @Mammalia [S:40,60,65]
+  * 'fasta_acc'   : FASTA, with the following header format:
+                    >DF0000001.4 @Mammalia [S:40,60,65]
+
+  * 'embl'        : EMBL, including all metadata and the consensus sequence.
+  * 'embl_meta'   : Same as 'embl', but with only the metadata included.
+  * 'embl_seq'    : Same as 'embl', but with only the sequences included.
+"""
 # Soundex codes
 SOUNDEX_LOOKUP = {
     "A": 0,
