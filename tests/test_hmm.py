@@ -44,10 +44,13 @@ HMM          A        C        G        T
 class TestHMM(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        filenames = ["/tmp/unittest.0.h5", "/tmp/unittest.1.h5", "/tmp/unittest.2.h5"]
-        init_db_file("/tmp/unittest")
+        file_dir = "/tmp/hmm"
+        os.makedirs(file_dir)
+        db_dir = f"{file_dir}/unittest"
+        init_db_file(db_dir)
+        filenames = [f"{db_dir}.0.h5", f"{db_dir}.1.h5", f"{db_dir}.2.h5"]
         TestHMM.filenames = filenames
-        cls.maxDiff = None
+        TestHMM.file_dir = file_dir
 
     @classmethod
     def tearDownClass(cls):
@@ -56,6 +59,7 @@ class TestHMM(unittest.TestCase):
 
         for name in filenames:
             os.remove(name)
+        os.rmdir(TestHMM.file_dir)
 
     def test_simple(self):
         fam = test_family()

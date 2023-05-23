@@ -9,10 +9,13 @@ from .doubles import init_db_file
 class TestFASTA(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        filenames = ["/tmp/unittest.0.h5", "/tmp/unittest.1.h5", "/tmp/unittest.2.h5"]
-        init_db_file("/tmp/unittest")
+        file_dir = "/tmp/fasta"
+        os.makedirs(file_dir)
+        db_dir = f"{file_dir}/unittest"
+        init_db_file(db_dir)
+        filenames = [f"{db_dir}.0.h5", f"{db_dir}.1.h5", f"{db_dir}.2.h5"]
         TestFASTA.filenames = filenames
-        cls.maxDiff = None
+        TestFASTA.file_dir = file_dir
 
     @classmethod
     def tearDownClass(cls):
@@ -21,6 +24,7 @@ class TestFASTA(unittest.TestCase):
 
         for name in filenames:
             os.remove(name)
+        os.rmdir(TestFASTA.file_dir)
 
     def test_simple(self):
         fam = Family()

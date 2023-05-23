@@ -63,12 +63,9 @@ def command_info(args):
     counts = args.db_dir.get_counts()
     f_info = args.db_dir.get_metadata()
 
-    if f_info["partition_detail"]:
-        f_info["partition_detail"] = f"\nPartition Detail: {f_info['partition_detail']}"
-
     print(
         f"""\
-File: {os.path.realpath(args.db_dir.filename)}
+File: {os.path.realpath(args.db_dir.db_dir)}
 FamDB Generator: {f_info["generator"]}
 FamDB Format Version: {f_info["version"]}
 FamDB Creation Date: {f_info["created"]}
@@ -79,26 +76,12 @@ Date: {db_info["date"]}
 
 {db_info["description"]}
 
-Partition Name: {f_info["partition_name"]}{f_info["partition_detail"]}
+{counts['file']} Files Present
 Total consensus sequences: {counts["consensus"]}
 Total HMMs: {counts["hmm"]}
 """
     )
-
-    files = args.db_dir.find_files()
-    print("Other Files:")
-    for f in files:
-        if f != args.db_dir.get_partition_num():
-            file = files[f]
-            outstr = f"File: {file['filename']}: {file['partition_name']}"
-            detail = file["partition_detail"]
-            if detail:
-                outstr += " - " + ", ".join(detail[:2]) + f", {len(detail)-2} others..."
-            if file["counts"]:
-                outstr += f"\n      Consensi: {file['counts']['consensus']}, HMMs: {file['counts']['hmm']}"
-            else:
-                outstr += f"\n      {file['status']}"
-            print(outstr)
+    args.db_dir.show_files()
 
 
 def resolve_names(file, term):

@@ -57,11 +57,14 @@ class TestCliOutput(unittest.TestCase):
     # Set up a single database file shared by all tests in this class
     @classmethod
     def setUpClass(cls):
-        db_dir = "/tmp/cli/unittest"
+        file_dir = "/tmp/cli"
+        os.makedirs(file_dir)
+        db_dir = f"{file_dir}/unittest"
         init_db_file(db_dir)
-        filenames = ["/tmp/cli/unittest.0.h5", "/tmp/cli/unittest.1.h5", "/tmp/cli/unittest.2.h5"]
+        filenames = [f"{db_dir}.0.h5", f"{db_dir}.1.h5", f"{db_dir}.2.h5"]
         TestCliOutput.filenames = filenames
-        TestCliOutput.tests_dir = os.path.join(os.path.dirname(__file__), "cli")
+        TestCliOutput.file_dir = file_dir
+        # TestCliOutput.tests_dir = os.path.join(os.path.dirname(__file__), "cli")
 
     @classmethod
     def tearDownClass(cls):
@@ -70,7 +73,11 @@ class TestCliOutput(unittest.TestCase):
 
         for name in filenames:
             os.remove(name)
+        os.rmdir(TestCliOutput.file_dir)
 
+    def test_dummy(self):
+        pass
+    
     # def test_no_args(self):
     #     test = 'no-args'
     #     cli = self.tests_dir + f'/{test}.args'

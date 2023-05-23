@@ -8,10 +8,13 @@ from .doubles import init_db_file, FILE_INFO
 class TestDatabase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-
-        filenames = ["/tmp/unittest.0.h5", "/tmp/unittest.1.h5", "/tmp/unittest.2.h5"]
-        init_db_file("/tmp/unittest")
+        file_dir = "/tmp/db"
+        os.makedirs(file_dir)
+        db_dir = f"{file_dir}/unittest"
+        init_db_file(db_dir)
+        filenames = [f"{db_dir}.0.h5", f"{db_dir}.1.h5", f"{db_dir}.2.h5"]
         TestDatabase.filenames = filenames
+        TestDatabase.file_dir = file_dir
 
     @classmethod
     def tearDownClass(cls):
@@ -20,6 +23,7 @@ class TestDatabase(unittest.TestCase):
 
         for name in filenames:
             os.remove(name)
+        os.rmdir(TestDatabase.file_dir)
 
     def test_get_db_info(self):
         test_info = {
@@ -358,7 +362,7 @@ class TestDatabase(unittest.TestCase):
 
     # Umbrella Methods -----------------------------------------------------------------------------
     def test_get_lineage_combined(self):
-        famdb = FamDB("/tmp", "r")
+        famdb = FamDB(TestDatabase.file_dir, "r")
         # descendants from root
         self.assertEqual(
             famdb.get_lineage_combined(2, descendants=True), [2, [4, [6]], [5]]
@@ -387,7 +391,7 @@ class TestDatabase(unittest.TestCase):
         )
 
     def test_get_lineage_path(self):
-        famdb = FamDB("/tmp", "r")
+        famdb = FamDB(TestDatabase.file_dir, "r")
         self.assertEqual(famdb.get_lineage_path(5, ancestors=True), [['root', 0], ['Order', 0], ['Other Genus', 2]])
         self.assertEqual(famdb.get_lineage_path(5, ancestors=True, partition=False, cache=False), ['root', 'Order', 'Other Genus'])
 
@@ -397,7 +401,7 @@ class TestDatabase(unittest.TestCase):
     #         other_file = tempfile.NamedTemporaryFile(
     #             dir="/tmp", prefix="bad", suffix=".0.h5"
     #         )
-    #         famdb = FamDB("/tmp", "r")
+    #         famdb = FamDB(TestDatabase.file_dir, "r")
     #         other_file.close()
 
     # def test_FamDB_id_check(self):

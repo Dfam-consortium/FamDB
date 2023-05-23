@@ -10,10 +10,13 @@ from .doubles import init_db_file
 class TestEMBL(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        filenames = ["/tmp/unittest.0.h5", "/tmp/unittest.1.h5", "/tmp/unittest.2.h5"]
-        init_db_file("/tmp/unittest")
+        file_dir = "/tmp/embl"
+        os.makedirs(file_dir)
+        db_dir = f"{file_dir}/unittest"
+        init_db_file(db_dir)
+        filenames = [f"{db_dir}.0.h5", f"{db_dir}.1.h5", f"{db_dir}.2.h5"]
         TestEMBL.filenames = filenames
-        cls.maxDiff = None
+        TestEMBL.file_dir = file_dir
 
     @classmethod
     def tearDownClass(cls):
@@ -22,6 +25,7 @@ class TestEMBL(unittest.TestCase):
 
         for name in filenames:
             os.remove(name)
+        os.rmdir(TestEMBL.file_dir)
 
     def test_simple(self):
         fam = Family()
@@ -33,7 +37,7 @@ class TestEMBL(unittest.TestCase):
         fam.repeat_type = "Type"
         fam.repeat_subtype = "SubType"
 
-        famdb = FamDB("/tmp", "r")
+        famdb = FamDB(TestEMBL.file_dir, "r")
         self.assertEqual(
             fam.to_embl(famdb),
             """\
@@ -72,7 +76,7 @@ SQ   Sequence 8 BP; 5 A; 1 C; 1 G; 1 T; 0 other;
         fam.repeat_type = "Test"
         fam.repeat_subtype = "Multiline"
 
-        famdb = FamDB("/tmp", "r")
+        famdb = FamDB(TestEMBL.file_dir, "r")
         self.assertEqual(
             fam.to_embl(famdb),
             """\
@@ -113,7 +117,7 @@ SQ   Sequence 160 BP; 40 A; 40 C; 40 G; 40 T; 0 other;
         fam.repeat_type = "Test"
         fam.repeat_subtype = "Metadata"
 
-        famdb = FamDB("/tmp", "r")
+        famdb = FamDB(TestEMBL.file_dir, "r")
         self.assertEqual(
             fam.to_embl(famdb, include_seq=False),
             """\
@@ -150,7 +154,7 @@ XX
         fam.repeat_type = "Test"
         fam.repeat_subtype = "SequenceOnly"
 
-        famdb = FamDB("/tmp", "r")
+        famdb = FamDB(TestEMBL.file_dir, "r")
         self.assertEqual(
             fam.to_embl(famdb, include_meta=False),
             """\
@@ -178,7 +182,7 @@ SQ   Sequence 8 BP; 2 A; 2 C; 2 G; 2 T; 0 other;
         fam.aliases = "Repbase:MyLTR1\nOtherDB:MyLTR\n"
         fam.refineable = True
 
-        famdb = FamDB("/tmp", "r")
+        famdb = FamDB(TestEMBL.file_dir, "r")
         self.assertEqual(
             fam.to_embl(famdb),
             """\
@@ -222,7 +226,7 @@ SQ   Sequence 18 BP; 4 A; 4 C; 4 G; 4 T; 2 other;
         fam.repeat_type = "Test"
         fam.repeat_subtype = "RootTaxa"
 
-        famdb = FamDB("/tmp", "r")
+        famdb = FamDB(TestEMBL.file_dir, "r")
         self.assertEqual(
             fam.to_embl(famdb, include_seq=False),
             """\
@@ -276,7 +280,7 @@ XX
             ]
         )
 
-        famdb = FamDB("/tmp", "r")
+        famdb = FamDB(TestEMBL.file_dir, "r")
         self.assertEqual(
             fam.to_embl(famdb, include_seq=False),
             """\
@@ -342,7 +346,7 @@ XX
                 },
             ]
         )
-        famdb = FamDB("/tmp", "r")
+        famdb = FamDB(TestEMBL.file_dir, "r")
         self.assertEqual(
             fam.to_embl(famdb, include_seq=False),
             """\

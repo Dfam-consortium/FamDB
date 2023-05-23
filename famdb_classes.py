@@ -1015,6 +1015,22 @@ class FamDB:
 
     def get_sanitized_name(self, tax_id):
         return self.files[0].get_sanitized_name(tax_id)
+    
+    def get_db_info(self):
+        return self.files[0].get_db_info()
+    
+    def get_counts(self):
+        counts = {'consensus': 0, 'hmm':0, 'file':0}
+        for file in self.files:
+            file_counts = self.files[file].get_counts()
+            counts['consensus'] += file_counts['consensus']
+            counts['hmm'] += file_counts['hmm']
+            counts['file'] += 1
+        return counts
+    
+    def get_metadata(self):
+        return self.files[0].get_metadata()
+
 
     # File Utils
     def close(self):
