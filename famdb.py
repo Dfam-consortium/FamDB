@@ -84,11 +84,11 @@ Total HMMs: {counts["hmm"]}
     args.db_dir.show_files()
 
 
-def resolve_names(file, term):
+def resolve_names(db_dir, term):
     entries = []
-    for tax_id, is_exact in file.resolve_species(term):
-        names = file.get_taxon_names(tax_id)
-        entries += [[tax_id, is_exact, names]]
+    for tax_id, is_exact, partition in db_dir.resolve_species(term):
+        names = db_dir.get_taxon_names(tax_id)
+        entries += [[tax_id, is_exact, partition, names]]
     return entries
 
 
@@ -98,30 +98,9 @@ def command_names(args):
     entries = []
     entries += resolve_names(args.db_dir, args.term)
 
-    if args.db_dir.is_root():
-        locations = []
-        if entries:
-            locations += [0]
-        files = args.db_dir.find_files()
-        for f in files:
-            if f != "0":
-                file = files[f]
-                if file["status"] == "Present":
-                    file_entries = resolve_names(
-                        FamDB(file["filename"], "r"), args.term
-                    )
-                    entries += file_entries
-                    if file_entries:
-                        locations += [f]
-
-        if locations:
-            print(
-                f"Matches Found In Files: {', '.join([str(files[str(loc)]['filename']) for loc in locations])}"
-            )
-
     if args.format == "pretty":
         prev_exact = None
-        for (tax_id, is_exact, names) in entries:
+        for (tax_id, partition, is_exact, names) in entries:
             if is_exact != prev_exact:
                 if is_exact:
                     print("Exact Matches\n=============")
@@ -131,12 +110,15 @@ def command_names(args):
                     print("Non-exact Matches\n=================")
                 prev_exact = is_exact
 
-            print(tax_id, ", ".join(["{1} ({0})".format(*n) for n in names]))
+            print(
+                f"Taxon: {tax_id}, Partition: {partition}, Names: {', '.join([f'{n[1]} ({n[0]})' for n in names[:-1]])}"
+            )
+
     elif args.format == "json":
         obj = []
-        for (tax_id, _, names) in entries:
+        for (tax_id, partition, _, names) in entries:
             names_obj = [{"kind": name[0], "value": name[1]} for name in names]
-            obj += [{"id": tax_id, "names": names_obj}]
+            obj += [{"id": tax_id, "partition": partition, "names": names_obj}]
         print(json.dumps(obj))
     else:
         raise ValueError("Unimplemented names format: %s" % args.format)

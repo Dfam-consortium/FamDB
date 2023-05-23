@@ -83,3 +83,5 @@ class TestCliOutput(unittest.TestCase):
     #     cli = self.tests_dir + f'/{test}.args'
     #     famdb = FamDB('/tmp', 'r')
     #     test_one(self, famdb, cli)
+
+# test info, names, names json, 

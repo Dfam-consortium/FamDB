@@ -1031,6 +1031,11 @@ class FamDB:
     def get_metadata(self):
         return self.files[0].get_metadata()
 
+    def resolve_species(self, term):
+        return self.files[0].resolve_species(term)
+
+    def get_taxon_names(self, tax_id):
+        return self.files[0].get_taxon_names(tax_id)
 
     # File Utils
     def close(self):
