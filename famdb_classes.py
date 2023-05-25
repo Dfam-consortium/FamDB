@@ -718,7 +718,6 @@ class FamDBRoot(FamDBLeaf):
         This function returns a list of tuples (taxon_id, is_exact) that match
         the query. The list will be empty if no matches were found.
         """
-
         # Try as a number
         try:
             tax_id = int(term)
@@ -1025,7 +1024,7 @@ class FamDB:
 
     def resolve_names(self, term):
         entries = []
-        for tax_id, is_exact, partition in self.files[0].resolve_species(term):
+        for tax_id, partition, is_exact in self.files[0].resolve_species(term):
             names = self.files[0].get_taxon_names(tax_id)
             entries += [[tax_id, is_exact, partition, names]]
         return entries

@@ -3,6 +3,8 @@ import unittest
 from famdb_classes import FamDBLeaf, FamDBRoot, FamDB
 from famdb_helper_classes import Lineage, Family
 from .doubles import init_db_file, FILE_INFO
+from unittest.mock import patch
+import io
 
 
 class TestDatabase(unittest.TestCase):
@@ -368,9 +370,7 @@ class TestDatabase(unittest.TestCase):
             famdb.get_lineage_combined(2, descendants=True), [2, [4, [6]], [5]]
         )
         # ancenstors from leaf
-        self.assertEqual(
-            famdb.get_lineage_combined(4, ancestors=True), [1, [2, [4], "leaf_link:5"]]
-        )
+        self.assertEqual(famdb.get_lineage_combined(4, ancestors=True), [1, [2, [4]]])
         # ancestors from root
         self.assertEqual(famdb.get_lineage_combined(2, ancestors=True), [1, [2]])
         # decendants from leaf
@@ -387,13 +387,61 @@ class TestDatabase(unittest.TestCase):
                 ancestors=True,
                 descendants=True,
             ),
-            [1, [2, [4, [6]], "leaf_link:5"]],
+            [1, [2, [4, [6]]]],
         )
+
+    @patch("sys.stdout", new_callable=io.StringIO)
+    def test_show_files(self, mock_print):
+        famdb = FamDB(TestDatabase.file_dir, "r")
+        famdb.show_files()
+        out = f"""\nFile Info: {TestDatabase.file_dir}
+ Partition 0 Present: Root Node  
+   unittest.0.h5 -> Consensi: 2, HMMs: 3
+
+ Partition 1 Present: Search Node  
+   unittest.1.h5 -> Consensi: 2, HMMs: 0
+
+ Partition 2 Present: Other Node - Other Node 
+   unittest.2.h5 -> Consensi: 1, HMMs: 0\n
+"""
+        self.assertEqual(mock_print.getvalue(), out)
 
     def test_get_lineage_path(self):
         famdb = FamDB(TestDatabase.file_dir, "r")
-        self.assertEqual(famdb.get_lineage_path(5, ancestors=True), [['root', 0], ['Order', 0], ['Other Genus', 2]])
-        self.assertEqual(famdb.get_lineage_path(5, ancestors=True, partition=False, cache=False), ['root', 'Order', 'Other Genus'])
+        self.assertEqual(
+            famdb.get_lineage_path(5, ancestors=True),
+            [["root", 0], ["Order", 0], ["Other Genus", 2]],
+        )
+        self.assertEqual(
+            famdb.get_lineage_path(5, ancestors=True, partition=False, cache=False),
+            ["root", "Order", "Other Genus"],
+        )
+
+    def test_get_counts(self):
+        famdb = FamDB(TestDatabase.file_dir, "r")
+        self.assertEqual(famdb.get_counts(), {"consensus": 5, "hmm": 3, "file": 3})
+
+    def test_resolve_names(self):
+        famdb = FamDB(TestDatabase.file_dir, "r")
+        # self.assertEqual(famdb.resolve_names(4), [[4, True, 1, [['scientific name', 'Genus'], ['common name', 'Leaf Dummy 4'], 1]]])
+        # self.assertEqual(famdb.resolve_names(2), [[2, True, 0, [['scientific name', 'Order'], ['common name', 'Root Dummy 2'], 0]]])
+        # self.assertEqual(famdb.resolve_names("Order"), [[2, True, 0, [['scientific name', 'Order'], ['common name', 'Root Dummy 2'], 0]], [3, False, 0, [['scientific name', 'Other Order'], ['common name', 'Root Dummy 3'], 0]]])
+        self.assertEqual(
+            famdb.resolve_names("Other Order"),
+            [
+                [
+                    3,
+                    True,
+                    0,
+                    [
+                        ["scientific name", "Other Order"],
+                        ["common name", "Root Dummy 3"],
+                        0,
+                    ],
+                ]
+            ],
+        )
+        # TODO race condition? only 3 of these will work at a time
 
     # test missing root file, multiple exports, different ids TODO
     # def test_FamDB_file_check(self):

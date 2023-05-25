@@ -75,13 +75,11 @@ class TestCliOutput(unittest.TestCase):
             os.remove(name)
         os.rmdir(TestCliOutput.file_dir)
 
-    def test_dummy(self):
-        pass
-    
     # def test_no_args(self):
     #     test = 'no-args'
     #     cli = self.tests_dir + f'/{test}.args'
     #     famdb = FamDB('/tmp', 'r')
     #     test_one(self, famdb, cli)
 
-# test info, names, names json, 
+
+# test info, names, names json, lineage pretty, lineage json, lineage totals, families, family, print families all formats
