@@ -84,19 +84,11 @@ Total HMMs: {counts["hmm"]}
     args.db_dir.show_files()
 
 
-def resolve_names(db_dir, term):
-    entries = []
-    for tax_id, is_exact, partition in db_dir.resolve_species(term):
-        names = db_dir.get_taxon_names(tax_id)
-        entries += [[tax_id, is_exact, partition, names]]
-    return entries
-
-
 def command_names(args):
     """The 'names' command displays all names of all taxa that match the search term."""
 
     entries = []
-    entries += resolve_names(args.db_dir, args.term)
+    entries += args.db_dir.resolve_names(args.term)
 
     if args.format == "pretty":
         prev_exact = None
@@ -124,36 +116,40 @@ def command_names(args):
         raise ValueError("Unimplemented names format: %s" % args.format)
 
 
-def print_lineage_tree(file, tree, gutter_self, gutter_children, root_file):
+def print_lineage_tree(file, tree, partition, gutter_self, gutter_children):
     """Pretty-prints a lineage tree with box drawing characters."""
     if not tree:
         return
 
     tax_id = tree[0]
     children = tree[1:]
-    name = file.get_taxon_name(tax_id, "scientific name")
-    count = len(file.get_families_for_taxon(tax_id, root_file))
-    print("{}{} {} [{}]".format(gutter_self, tax_id, name, count))
+    name, tax_partition = file.get_taxon_name(tax_id, "scientific name")
+    count = len(file.get_families_for_taxon(tax_id, partition))
+    print(f"{gutter_self}{tax_id} {name}({tax_partition}) [{count}]")
 
     # All but the last child need a downward-pointing line that will link up
     # to the next child, so this is split into two cases
     if len(children) > 1:
         for child in children[:-1]:
             print_lineage_tree(
-                file, child, gutter_children + "├─", gutter_children + "│ ", root_file
+                file,
+                child,
+                tax_partition,
+                gutter_children + "├─",
+                gutter_children + "│ ",
             )
 
     if children:
         print_lineage_tree(
             file,
             children[-1],
+            tax_partition,
             gutter_children + "└─",
             gutter_children + "  ",
-            root_file,
         )
 
 
-def print_lineage_semicolons(file, tree, parent_name, starting_at, root_file=None):
+def print_lineage_semicolons(file, tree, partition, parent_name, starting_at):
     """
     Prints a lineage tree as a flat list of semicolon-delimited names.
 
@@ -167,7 +163,7 @@ def print_lineage_semicolons(file, tree, parent_name, starting_at, root_file=Non
 
     tax_id = tree[0]
     children = tree[1:]
-    name = file.get_taxon_name(tax_id, "scientific name")
+    name, tax_partition = file.get_taxon_name(tax_id, "scientific name")
     if parent_name:
         name = parent_name + ";" + name
 
@@ -175,14 +171,14 @@ def print_lineage_semicolons(file, tree, parent_name, starting_at, root_file=Non
         starting_at = None
 
     if not starting_at:
-        count = len(file.get_families_for_taxon(tax_id, root_file))
-        print("{}: {} [{}]".format(tax_id, name, count))
+        count = len(file.get_families_for_taxon(tax_id, partition))
+        print(f"{tax_id}({tax_partition}): {name} [{count}]")
 
     for child in children:
-        print_lineage_semicolons(file, child, name, starting_at, root_file)
+        print_lineage_semicolons(file, child, tax_partition, name, starting_at)
 
 
-def get_lineage_totals(file, tree, target_id, seen=None):
+def get_lineage_totals(file, tree, target_id, partition, seen=None):
     """
     Recursively calculates the total number of families
     on ancestors and descendants of 'target_id' in the given 'tree'.
@@ -196,7 +192,7 @@ def get_lineage_totals(file, tree, target_id, seen=None):
 
     tax_id = tree[0]
     children = tree[1:]
-    accessions = file.get_families_for_taxon(tax_id)
+    accessions = file.get_families_for_taxon(tax_id, partition)
 
     count_here = 0
     for acc in accessions:
@@ -209,7 +205,7 @@ def get_lineage_totals(file, tree, target_id, seen=None):
 
     counts = [0, 0]
     for child in children:
-        anc, desc = get_lineage_totals(file, child, target_id, seen)
+        anc, desc = get_lineage_totals(file, child, target_id, partition, seen)
         counts[0] += anc
         counts[1] += desc
 
@@ -226,28 +222,7 @@ def command_lineage(args):
 
     # TODO: like 'families', filter curated or uncurated (and other filters?)
 
-    target_id = args.db_dir.resolve_one_species(args.term)
-
-    # if querying root file and term not found, query other files
-    root_file = None
-    if not target_id and args.db_dir.is_root():
-        locations = []
-        files = args.db_dir.find_files()
-        for f in files:
-            file = files[f]
-            if file["status"] == "Present":
-                check_file = FamDB(file["filename"], "r")
-                target_id = check_file.resolve_one_species(args.term)
-                if target_id:
-                    locations += [f]
-                    # switch active file reference, each partition has complete ancestry taxonomy
-                    root_file = args.db_dir
-                    args.db_dir = check_file
-                    break
-        if locations:
-            print(
-                f"Lineage Found In File: {', '.join([str(files[loc]['filename']) for loc in locations])}"
-            )
+    target_id, partition = args.db_dir.resolve_one_species(args.term)
 
     if not target_id:
         print(
@@ -255,7 +230,7 @@ def command_lineage(args):
         )
         return
 
-    tree = args.db_dir.get_lineage(
+    tree = args.db_dir.get_lineage_combined(
         target_id,
         descendants=args.descendants,
         ancestors=args.ancestors or args.format == "semicolon",
@@ -263,11 +238,11 @@ def command_lineage(args):
 
     # TODO: prune branches with 0 total
     if args.format == "pretty":
-        print_lineage_tree(args.db_dir, tree, "", "", root_file)
+        print_lineage_tree(args.db_dir, tree, partition, "", "")
     elif args.format == "semicolon":
-        print_lineage_semicolons(args.db_dir, tree, "", target_id, root_file)
+        print_lineage_semicolons(args.db_dir, tree, partition, "", target_id)
     elif args.format == "totals":
-        totals = get_lineage_totals(args.db_dir, tree, target_id, root_file)
+        totals = get_lineage_totals(args.db_dir, tree, target_id, partition)
         print(
             "{} entries in ancestors; {} lineage-specific entries".format(
                 totals[0], totals[1]

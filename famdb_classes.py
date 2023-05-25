@@ -310,7 +310,7 @@ class FamDBLeaf:
             and "Families" in self.file[FamDBLeaf.GROUP_NODES][str(tax_id)]
         )
 
-    def get_families_for_taxon(self, tax_id, root_file=None):
+    def get_families_for_taxon(self, tax_id):
         """Returns a list of the accessions for each family directly associated with 'tax_id'."""
         group = (
             self.file[FamDBLeaf.GROUP_NODES][str(tax_id)].get("Families")
@@ -779,7 +779,7 @@ class FamDBRoot(FamDBLeaf):
         exact_matches = []
         for result in results:  # result -> [tax_id, partition, exact]
             if result[2]:
-                exact_matches += [result[0], result[1]]
+                exact_matches += [[result[0], result[1]]]
         if len(exact_matches) == 1:
             return exact_matches[0]
 
@@ -960,14 +960,16 @@ class FamDB:
             base_lineage += root_lineage
 
             # strip out leftover links
-            # def remove_links(lineage):
-            #     for thing in lineage:
-            #         if not thing or type(thing) == str:
-            #             lineage.remove(thing)
-            #         if type(thing) == list:
-            #             remove_links(thing)
-            #
-            # remove_links(base_lineage) TODO doesn't seem to actually matter much, might be important later
+            def remove_links(lineage):
+                for thing in lineage:
+                    if not thing or type(thing) == str:
+                        lineage.remove(thing)
+                    if type(thing) == list:
+                        remove_links(thing)
+
+            remove_links(
+                base_lineage
+            )  # TODO doesn't seem to actually matter much, might be important later
 
         return base_lineage
 
@@ -1002,7 +1004,6 @@ class FamDB:
                 f"Consensi: {file['counts']['consensus']}, HMMs: {file['counts']['hmm']}\n"
             )
 
-    # Wrapper methods ---------------------------------------------------------------------------------------
     def get_lineage_path(self, tax_id, **kwargs):
         lineage = self.get_lineage_combined(tax_id, **kwargs)
         partition = (
@@ -1013,29 +1014,40 @@ class FamDB:
             tax_id, lineage, cache=cache, partition=partition
         )
 
-    def get_sanitized_name(self, tax_id):
-        return self.files[0].get_sanitized_name(tax_id)
-    
-    def get_db_info(self):
-        return self.files[0].get_db_info()
-    
     def get_counts(self):
-        counts = {'consensus': 0, 'hmm':0, 'file':0}
+        counts = {"consensus": 0, "hmm": 0, "file": 0}
         for file in self.files:
             file_counts = self.files[file].get_counts()
-            counts['consensus'] += file_counts['consensus']
-            counts['hmm'] += file_counts['hmm']
-            counts['file'] += 1
+            counts["consensus"] += file_counts["consensus"]
+            counts["hmm"] += file_counts["hmm"]
+            counts["file"] += 1
         return counts
-    
+
+    def resolve_names(self, term):
+        entries = []
+        for tax_id, is_exact, partition in self.files[0].resolve_species(term):
+            names = self.files[0].get_taxon_names(tax_id)
+            entries += [[tax_id, is_exact, partition, names]]
+        return entries
+
+    # Wrapper methods ---------------------------------------------------------------------------------------
+    def get_sanitized_name(self, tax_id):
+        return self.files[0].get_sanitized_name(tax_id)
+
+    def get_db_info(self):
+        return self.files[0].get_db_info()
+
+    def resolve_one_species(self, term):
+        return self.files[0].resolve_one_species(term)
+
     def get_metadata(self):
         return self.files[0].get_metadata()
 
-    def resolve_species(self, term):
-        return self.files[0].resolve_species(term)
+    def get_taxon_name(self, tax_id, kind):
+        return self.files[0].get_taxon_name(tax_id, kind)
 
-    def get_taxon_names(self, tax_id):
-        return self.files[0].get_taxon_names(tax_id)
+    def get_families_for_taxon(self, tax_id, partition):
+        return self.files[partition].get_families_for_taxon(tax_id)
 
     # File Utils
     def close(self):
