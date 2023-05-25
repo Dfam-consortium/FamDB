@@ -1049,6 +1049,26 @@ class FamDB:
     def get_families_for_taxon(self, tax_id, partition):
         return self.files[partition].get_families_for_taxon(tax_id)
 
+    def get_family_by_accession(self, accession):
+        for file in self.files:
+            fam = self.files[file].get_family_by_accession(accession)
+            if fam:
+                return fam
+        return None
+
+    def get_family_by_name(self, accession):
+        for file in self.files:
+            fam = self.files[file].get_family_by_name(accession)
+            if fam:
+                return fam
+        return None
+
+    def get_accessions_filtered(self, **kwargs):
+        accessions = []
+        for file in self.files:
+            accessions += self.files[file].get_accessions_filtered(**kwargs)
+        return accessions
+
     # File Utils
     def close(self):
         """Closes this FamDB instance, making further use invalid."""

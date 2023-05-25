@@ -369,27 +369,9 @@ def print_families(args, families, header, species=None):
 def command_family(args):
     """The 'family' command outputs a single family by name or accession."""
     family = args.db_dir.get_family_by_accession(args.accession)
-    # TODO: get_family_by_name() is broken for now
-    # if not family:
-    #     family = args.db_dir.get_family_by_name(args.accession)
+    if not family:
+        family = args.db_dir.get_family_by_name(args.accession)
 
-    if not family and args.db_dir.is_root():
-        locations = []
-        files = args.db_dir.find_files()
-        for f in files:
-            file = files[f]
-            if f != "0" and file["status"] == "Present":
-                check_file = FamDB(file["filename"], "r")
-                family = check_file.get_family_by_accession(args.accession)
-                # if not family:
-                #     family = check_file.get_family_by_name(args.accession)
-                if family:
-                    locations += [f]
-                    break
-        if locations:
-            print(
-                f"Family Found In File: {', '.join([str(files[loc]['filename']) for loc in locations])}"
-            )
     if family:
         print_families(args, [family], False)
 
@@ -397,29 +379,9 @@ def command_family(args):
 def command_families(args):
     """The 'families' command outputs all families associated with the given taxon."""
     target_id = args.db_dir.resolve_one_species(args.term)
-    # if querying root file and term not found, query other files
-    if not target_id and args.db_dir.is_root():
-        locations = []
-        files = args.db_dir.find_files()
-        for f in files:
-            file = files[f]
-            if f != "0" and file["status"] == "Present":
-                check_file = FamDB(file["filename"], "r")
-                target_id = check_file.resolve_one_species(args.term)
-                if target_id:
-                    locations += [f]
-                    # switch active file reference, each partition has complete ancestry taxonomy
-                    args.db_dir = check_file
-                    break
-        if locations:
-            print(
-                f"Families Found In File: {', '.join([str(files[loc]['filename']) for loc in locations])}"
-            )
 
     if not target_id:
-        print(
-            "No species found for search term '{}'".format(args.term), file=sys.stderr
-        )
+        print(f"No species found for search term '{args.term}'", file=sys.stderr)
         return
 
     families = []
