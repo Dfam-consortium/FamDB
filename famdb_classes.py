@@ -775,6 +775,7 @@ class FamDBRoot(FamDBLeaf):
 
         # Check for a single exact match first, to any field
         exact_matches = []
+
         for result in results:  # result -> [tax_id, partition, exact]
             if result[2]:
                 exact_matches += [[result[0], result[1]]]
@@ -792,8 +793,7 @@ up with the 'names' command.""".format(
                 ),
                 file=sys.stderr,
             )
-
-        return None
+        return None, None
 
     def get_sanitized_name(self, tax_id):
         """
@@ -911,10 +911,10 @@ class FamDB:
         # check if tax_id exists in Dfam
         location = self.files[0].find_taxon(tax_id)
         if location is None:
-            LOGGER.error("Taxon Not Found In Dfam")
+            print("Taxon Not Found In Dfam")
             return None
         if location not in self.files:
-            LOGGER.error(f"Taxon In Partion {location}, Partition File Not Found")
+            print(f"Taxon In Partion {location}, Partition File Not Found")
             return None
         # query lineage in correct file
         base_lineage = self.files[location].get_lineage(tax_id, **kwargs)

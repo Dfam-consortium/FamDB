@@ -180,7 +180,10 @@ def print_lineage_semicolons(file, tree, partition, parent_name, starting_at):
         starting_at = None
 
     if not starting_at:
-        count = len(file.get_families_for_taxon(tax_id, partition))
+        fams = file.get_families_for_taxon(tax_id, tax_partition)
+        count = (
+            len(fams) if fams is not None else f"Partition {tax_partition} Not Installed"
+        )
         print(f"{tax_id}({tax_partition}): {name} [{count}]")
 
     for child in children:
@@ -235,7 +238,7 @@ def command_lineage(args):
 
     if not target_id:
         print(
-            "No species found for search term '{}'".format(args.term), file=sys.stderr
+            f"No species found for search term '{args.term}'", file=sys.stderr
         )
         return
 
@@ -244,6 +247,8 @@ def command_lineage(args):
         descendants=args.descendants,
         ancestors=args.ancestors or args.format == "semicolon",
     )
+    if not tree:
+        return
 
     # TODO: prune branches with 0 total
     if args.format == "pretty":
