@@ -16,7 +16,9 @@ class TestDatabase(unittest.TestCase):
         init_db_file(db_dir)
         filenames = [f"{db_dir}.0.h5", f"{db_dir}.1.h5", f"{db_dir}.2.h5"]
         TestDatabase.filenames = filenames
-        TestDatabase.file_dir = file_dir
+        TestDatabase.file_dir= file_dir
+        TestDatabase.famdb = FamDB(file_dir, "r")
+
 
     @classmethod
     def tearDownClass(cls):
@@ -364,13 +366,13 @@ class TestDatabase(unittest.TestCase):
 
     # Umbrella Methods -----------------------------------------------------------------------------
     def test_get_lineage_combined(self):
-        famdb = FamDB(TestDatabase.file_dir, "r")
+        famdb = TestDatabase.famdb
         # descendants from root
         self.assertEqual(
             famdb.get_lineage_combined(2, descendants=True), [2, [4, [6]], [5]]
         )
         # ancenstors from leaf
-        self.assertEqual(famdb.get_lineage_combined(4, ancestors=True), [1, [2, [4]]])
+        self.assertEqual(famdb.get_lineage_combined(4, ancestors=True), [1, [2, [4], 'leaf_link:5']])
         # ancestors from root
         self.assertEqual(famdb.get_lineage_combined(2, ancestors=True), [1, [2]])
         # decendants from leaf
@@ -387,12 +389,12 @@ class TestDatabase(unittest.TestCase):
                 ancestors=True,
                 descendants=True,
             ),
-            [1, [2, [4, [6]]]],
+            [1, [2, [4, [6]], 'leaf_link:5']],
         )
 
     @patch("sys.stdout", new_callable=io.StringIO)
     def test_show_files(self, mock_print):
-        famdb = FamDB(TestDatabase.file_dir, "r")
+        famdb = TestDatabase.famdb
         famdb.show_files()
         out = f"""\nFile Info: {TestDatabase.file_dir}
  Partition 0 Present: Root Node  
@@ -407,7 +409,7 @@ class TestDatabase(unittest.TestCase):
         self.assertEqual(mock_print.getvalue(), out)
 
     def test_get_lineage_path(self):
-        famdb = FamDB(TestDatabase.file_dir, "r")
+        famdb = TestDatabase.famdb
         self.assertEqual(
             famdb.get_lineage_path(5, ancestors=True),
             [["root", 0], ["Order", 0], ["Other Genus", 2]],
@@ -418,11 +420,11 @@ class TestDatabase(unittest.TestCase):
         )
 
     def test_get_counts(self):
-        famdb = FamDB(TestDatabase.file_dir, "r")
+        famdb = TestDatabase.famdb
         self.assertEqual(famdb.get_counts(), {"consensus": 5, "hmm": 3, "file": 3})
 
     def test_resolve_names(self):
-        famdb = FamDB(TestDatabase.file_dir, "r")
+        famdb = TestDatabase.famdb
         # self.assertEqual(famdb.resolve_names(4), [[4, True, 1, [['scientific name', 'Genus'], ['common name', 'Leaf Dummy 4'], 1]]])
         # self.assertEqual(famdb.resolve_names(2), [[2, True, 0, [['scientific name', 'Order'], ['common name', 'Root Dummy 2'], 0]]])
         # self.assertEqual(famdb.resolve_names("Order"), [[2, True, 0, [['scientific name', 'Order'], ['common name', 'Root Dummy 2'], 0]], [3, False, 0, [['scientific name', 'Other Order'], ['common name', 'Root Dummy 3'], 0]]])
@@ -449,7 +451,7 @@ class TestDatabase(unittest.TestCase):
     #         other_file = tempfile.NamedTemporaryFile(
     #             dir="/tmp", prefix="bad", suffix=".0.h5"
     #         )
-    #         famdb = FamDB(TestDatabase.file_dir, "r")
+    #         famdb = TestDatabase.famdb
     #         other_file.close()
 
     # def test_FamDB_id_check(self):

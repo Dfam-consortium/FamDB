@@ -302,7 +302,7 @@ class FamDBLeaf:
         LOGGER.info("Wrote %d taxonomy nodes in %f", count, delta)
 
     # Data Access Methods ------------------------------------------------------------------------------------------------
-    def has_taxon(self, tax_id):
+    def has_taxon(self, tax_id):  # TODO unused
         """Returns True if 'self' has a taxonomy entry for 'tax_id'"""
         # test if file has families or just taxonomy info
         return (
@@ -315,10 +315,9 @@ class FamDBLeaf:
         group = (
             self.file[FamDBLeaf.GROUP_NODES][str(tax_id)].get("Families")
             if f"{FamDBLeaf.GROUP_NODES}/{tax_id}" in self.file
-            else None
+            else {}
         )
-        if group:
-            return list(group.keys())
+        return list(group.keys())
 
     def get_lineage(self, tax_id, **kwargs):
         """
@@ -569,7 +568,7 @@ class FamDBLeaf:
                 yield accession
 
     # Family Getters --------------------------------------------------------------------------
-    def get_family_names(self):
+    def get_family_names(self):  # TODO unused
         """Returns a list of names of families in the database."""
         return sorted(self.file[FamDBLeaf.GROUP_LOOKUP_BYNAME].keys(), key=str.lower)
 
@@ -917,7 +916,6 @@ class FamDB:
         if location not in self.files:
             LOGGER.error(f"Taxon In Partion {location}, Partition File Not Found")
             return None
-
         # query lineage in correct file
         base_lineage = self.files[location].get_lineage(tax_id, **kwargs)
 
@@ -958,17 +956,16 @@ class FamDB:
             )
             base_lineage += root_lineage
 
-            # strip out leftover links
-            def remove_links(lineage):
-                for thing in lineage:
-                    if not thing or type(thing) == str:
-                        lineage.remove(thing)
-                    if type(thing) == list:
-                        remove_links(thing)
+        # strip out leftover links
+        def remove_links(lineage):
+            for thing in lineage:
+                if not thing or type(thing) == str:
+                    lineage.remove(thing)
+                if type(thing) == list:
+                    remove_links(thing)
 
-            remove_links(
-                base_lineage
-            )  # TODO doesn't seem to actually matter much, might be important later
+        if kwargs.get("remove_links") or base_lineage.descendants:
+            remove_links(base_lineage)
 
         return base_lineage
 
@@ -1004,6 +1001,7 @@ class FamDB:
             )
 
     def get_lineage_path(self, tax_id, **kwargs):
+        """method used in EMBL exports"""
         lineage = self.get_lineage_combined(tax_id, **kwargs)
         partition = (
             kwargs.get("partition") if kwargs.get("partition") is not None else True
@@ -1031,6 +1029,7 @@ class FamDB:
 
     # Wrapper methods ---------------------------------------------------------------------------------------
     def get_sanitized_name(self, tax_id):
+        """method used in EMBL exports"""
         return self.files[0].get_sanitized_name(tax_id)
 
     def get_db_info(self):
@@ -1046,7 +1045,10 @@ class FamDB:
         return self.files[0].get_taxon_name(tax_id, kind)
 
     def get_families_for_taxon(self, tax_id, partition):
-        return self.files[partition].get_families_for_taxon(tax_id)
+        if partition in self.files:
+            return self.files[partition].get_families_for_taxon(tax_id)
+        else:
+            return None
 
     def get_family_by_accession(self, accession):
         for file in self.files:

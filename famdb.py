@@ -120,11 +120,20 @@ def print_lineage_tree(file, tree, partition, gutter_self, gutter_children):
     """Pretty-prints a lineage tree with box drawing characters."""
     if not tree:
         return
+    if type(tree) == str:
+        tax_id = tree
+        children = []
+    else:
+        tax_id = tree[0]
+        children = tree[1:]
 
-    tax_id = tree[0]
-    children = tree[1:]
+    if "_link:" in str(tax_id):
+        tax_id = str(tax_id).split(":")[1]
     name, tax_partition = file.get_taxon_name(tax_id, "scientific name")
-    count = len(file.get_families_for_taxon(tax_id, partition))
+    fams = file.get_families_for_taxon(tax_id, tax_partition)
+    count = (
+        len(fams) if fams is not None else f"Partition {tax_partition} Not Installed"
+    )
     print(f"{gutter_self}{tax_id} {name}({tax_partition}) [{count}]")
 
     # All but the last child need a downward-pointing line that will link up
