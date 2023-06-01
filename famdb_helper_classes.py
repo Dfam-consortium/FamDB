@@ -623,11 +623,10 @@ class Family:  # pylint: disable=too-many-instance-attributes
                         name = spec.strip().lower()
                         if name:
                             tax_id = lookup.get(name)
-                            if tax_id:
+                            if tax_id is not None:
                                 family.clades += [tax_id]
                             else:
                                 LOGGER.warning("Could not find taxon for '%s'", name)
-
                 matches = re.search(r"SearchStages:\s*(\S+)", value)
                 if matches:
                     family.search_stages = matches.group(1).strip()

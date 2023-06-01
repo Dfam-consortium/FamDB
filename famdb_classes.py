@@ -302,7 +302,7 @@ class FamDBLeaf:
         LOGGER.info("Wrote %d taxonomy nodes in %f", count, delta)
 
     # Data Access Methods ------------------------------------------------------------------------------------------------
-    def has_taxon(self, tax_id):  # TODO unused
+    def has_taxon(self, tax_id):
         """Returns True if 'self' has a taxonomy entry for 'tax_id'"""
         # test if file has families or just taxonomy info
         return (
@@ -1069,6 +1069,32 @@ class FamDB:
         for file in self.files:
             accessions += self.files[file].get_accessions_filtered(**kwargs)
         return accessions
+
+    def finalize(self):
+        for file in self.files:
+            self.files[file].finalize()
+
+    def set_db_info(self, name, version, date, desc, copyright_text):
+        for file in self.files:
+            self.files[file].set_db_info(name, version, date, desc, copyright_text)
+
+    def get_existing(self):
+        seen = {"accession":[], "name":[]}
+        for file in self.files:
+            seen["accession"] += self.files[file].seen["accession"]
+            seen["name"] += self.files[file].seen["name"]
+        return seen
+    
+    def add_family(self, entry):
+        added = [] # track files added to in case family has multiple clades in same file
+        for taxon in entry.clades:
+            for partition in self.files:
+                file = self.files[partition]
+                if file.has_taxon(taxon) and partition not in added:
+                    file.add_family(entry)
+                    added += [partition]
+        if not added:
+            LOGGER.error(f"Family {entry.accession} not added to local files")
 
     # File Utils
     def close(self):

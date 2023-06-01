@@ -49,7 +49,7 @@ import os
 import re
 import sys
 
-from famdb_globals import LOGGER, FILE_DESCRIPTION, FAMILY_FORMATS_EPILOG
+from famdb_globals import LOGGER, FILE_DESCRIPTION, FAMILY_FORMATS_EPILOG, REPBASE_FILE
 from famdb_helper_classes import Family
 from famdb_helper_methods import sanitize_name
 from famdb_classes import FamDB
@@ -432,11 +432,8 @@ def command_append(args):
     """
 
     lookup = {}
-    for tax_id, names in args.db_dir.names_dump.items():
-        for name in names:
-            if name[0] == "scientific name":
-                sanitized_name = sanitize_name(name[1]).lower()
-                lookup[sanitized_name] = int(tax_id)
+    with open(REPBASE_FILE) as file:
+        lookup = json.load(file)
 
     header = None
 
@@ -446,8 +443,9 @@ def command_append(args):
 
     embl_iter = Family.read_embl_families(args.infile, lookup, set_header)
 
-    seen_accs = args.db_dir.seen["accession"]
-    seen_names = args.db_dir.seen["name"]
+    seen = args.db_dir.get_existing()
+    seen_accs = seen["accession"]
+    seen_names = seen["name"]
 
     for entry in embl_iter:
         acc = entry.accession

@@ -129,7 +129,7 @@ def parse_RMRB(args, session):
     with open(RB_file, "w+") as output:
         output.write(json.dumps(data))
 
-    with open(rb_taxa_file, "w+") as output:
+    with open(rb_taxa_file, "w+") as output: # TODO lowercase names
         sec_to_tax = {}
         for fam in data:
             if fam["species"] not in sec_to_tax:

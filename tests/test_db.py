@@ -303,9 +303,9 @@ class TestDatabase(unittest.TestCase):
     def test_resolve_one_species(self):
         with FamDBRoot(TestDatabase.filenames[0], "r") as db:
             self.assertEqual(db.resolve_one_species(3), [3, 0])
-            self.assertEqual(db.resolve_one_species(999), None)
+            self.assertEqual(db.resolve_one_species(999), (None, None))
             self.assertEqual(db.resolve_one_species("Species"), [6, 1])
-            self.assertEqual(db.resolve_one_species("Mus musculus"), None)
+            self.assertEqual(db.resolve_one_species("Mus musculus"), (None, None))
 
     def test_get_sanitized_name(self):  # TODO add more test cases
         with FamDBRoot(TestDatabase.filenames[0], "r") as db:
@@ -372,7 +372,7 @@ class TestDatabase(unittest.TestCase):
             famdb.get_lineage_combined(2, descendants=True), [2, [4, [6]], [5]]
         )
         # ancenstors from leaf
-        self.assertEqual(famdb.get_lineage_combined(4, ancestors=True), [1, [2, [4], 'leaf_link:5']])
+        self.assertEqual(famdb.get_lineage_combined(4, ancestors=True), [1, [2, [4]]])
         # ancestors from root
         self.assertEqual(famdb.get_lineage_combined(2, ancestors=True), [1, [2]])
         # decendants from leaf
@@ -389,7 +389,7 @@ class TestDatabase(unittest.TestCase):
                 ancestors=True,
                 descendants=True,
             ),
-            [1, [2, [4, [6]], 'leaf_link:5']],
+            [1, [2, [4, [6]]]],
         )
 
     @patch("sys.stdout", new_callable=io.StringIO)
@@ -444,6 +444,9 @@ class TestDatabase(unittest.TestCase):
             ],
         )
         # TODO race condition? only 3 of these will work at a time
+
+    def test_add_family(self):
+        pass # TODO
 
     # test missing root file, multiple exports, different ids TODO
     # def test_FamDB_file_check(self):

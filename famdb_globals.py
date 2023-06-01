@@ -8,6 +8,9 @@ FILE_VERSION = "0.5"
 LEAF_LINK = "leaf_link:"
 ROOT_LINK = "root_link:"
 
+# TODO replace with RMRB_spec_to_tax.json
+REPBASE_FILE = "stot_test.json"
+
 # TODO: make command-line options to customize these
 DESCRIPTION = (
     "Dfam - A database of transposable element (TE) sequence alignments and HMMs."
