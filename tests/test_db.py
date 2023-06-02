@@ -265,11 +265,11 @@ class TestDatabase(unittest.TestCase):
         with FamDBRoot(TestDatabase.filenames[0], "r") as db:
             self.assertEqual(
                 db.get_taxon_names(2),
-                [["scientific name", "Order"], ["common name", "Root Dummy 2"], 0],
+                [["scientific name", "Order"], ["common name", "Root Dummy 2"]],
             )
             self.assertEqual(
                 db.get_taxon_names(4),
-                [["scientific name", "Genus"], ["common name", "Leaf Dummy 4"], 1],
+                [["scientific name", "Genus"], ["common name", "Leaf Dummy 4"]],
             )
             self.assertEqual(db.get_taxon_names(10), [])
 
@@ -424,9 +424,48 @@ class TestDatabase(unittest.TestCase):
 
     def test_resolve_names(self):
         famdb = TestDatabase.famdb
-        # self.assertEqual(famdb.resolve_names(4), [[4, True, 1, [['scientific name', 'Genus'], ['common name', 'Leaf Dummy 4'], 1]]])
-        # self.assertEqual(famdb.resolve_names(2), [[2, True, 0, [['scientific name', 'Order'], ['common name', 'Root Dummy 2'], 0]]])
-        # self.assertEqual(famdb.resolve_names("Order"), [[2, True, 0, [['scientific name', 'Order'], ['common name', 'Root Dummy 2'], 0]], [3, False, 0, [['scientific name', 'Other Order'], ['common name', 'Root Dummy 3'], 0]]])
+        self.assertEqual(
+            famdb.resolve_names(4),
+            [
+                [
+                    4,
+                    True,
+                    1,
+                    [["scientific name", "Genus"], ["common name", "Leaf Dummy 4"]],
+                ]
+            ],
+        )
+        self.assertEqual(
+            famdb.resolve_names(2),
+            [
+                [
+                    2,
+                    True,
+                    0,
+                    [["scientific name", "Order"], ["common name", "Root Dummy 2"]],
+                ]
+            ],
+        )
+        self.assertEqual(
+            famdb.resolve_names("Order"),
+            [
+                [
+                    2,
+                    True,
+                    0,
+                    [["scientific name", "Order"], ["common name", "Root Dummy 2"]],
+                ],
+                [
+                    3,
+                    False,
+                    0,
+                    [
+                        ["scientific name", "Other Order"],
+                        ["common name", "Root Dummy 3"],
+                    ],
+                ],
+            ],
+        )
         self.assertEqual(
             famdb.resolve_names("Other Order"),
             [
@@ -437,12 +476,10 @@ class TestDatabase(unittest.TestCase):
                     [
                         ["scientific name", "Other Order"],
                         ["common name", "Root Dummy 3"],
-                        0,
                     ],
                 ]
             ],
         )
-        # TODO race condition? only 3 of these will work at a time
 
     def test_add_family(self):
         pass  # TODO

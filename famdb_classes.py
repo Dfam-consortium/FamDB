@@ -644,13 +644,11 @@ class FamDBRoot(FamDBLeaf):
         Checks names_dump for each partition and returns a list of [name_class, name_value, partition]
         of the taxon given by 'tax_id'.
         """
-        names_list = []
         for partition in self.names_dump:
             names = self.names_dump[partition].get(str(tax_id))
             if names:
-                names += [int(partition)]
-                names_list += names
-        return names_list
+                return names
+        return []
 
     def get_taxon_name(self, tax_id, kind="scientific name"):
         """
