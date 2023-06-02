@@ -15,14 +15,7 @@ from famdb_helper_classes import TaxNode, Family
  /   |
 6    |
 """
-TAX_DB = {
-    1: TaxNode(1, None),
-    2: TaxNode(2, 1),
-    3: TaxNode(3, 1),
-    4: TaxNode(4, 2),
-    5: TaxNode(5, 2),
-    6: TaxNode(6, 4),
-}
+
 TAX_NAMES = {
     1: "root",
     2: "Order",
@@ -95,18 +88,16 @@ def make_family(acc, clades, consensus, model):
     return fam
 
 
-FAMILIES = [
-    make_family("TEST0001", [1], "ACGT", "<model1>"),
-    make_family("TEST0002", [2, 3], None, "<model2>"),
-    make_family("TEST0003", [3], "GGTC", "<model3>"),
-    make_family("TEST0004", [4], "CCCCTTTT", None),
-    make_family("DR000000001", [5], "GCATATCG", None),
-    make_family("DR_Repeat1", [6], "CGACTAT", None),
-]
-
-
 def init_db_file(filename):
 
+    FAMILIES = [
+        make_family("TEST0001", [1], "ACGT", "<model1>"),
+        make_family("TEST0002", [2, 3], None, "<model2>"),
+        make_family("TEST0003", [3], "GGTC", "<model3>"),
+        make_family("TEST0004", [4], "CCCCTTTT", None),
+        make_family("DR000000001", [5], "GCATATCG", None),
+        make_family("DR_Repeat1", [6], "CGACTAT", None),
+    ]
     families = FAMILIES
 
     families[1].name = None
@@ -115,6 +106,14 @@ def init_db_file(filename):
     families[3].search_stages = "35"
     families[3].repeat_type = "SINE"
 
+    TAX_DB = {
+        1: TaxNode(1, None),
+        2: TaxNode(2, 1),
+        3: TaxNode(3, 1),
+        4: TaxNode(4, 2),
+        5: TaxNode(5, 2),
+        6: TaxNode(6, 4),
+    }
     taxa = build_taxa(TAX_DB)
 
     def write_test_metadata(db):

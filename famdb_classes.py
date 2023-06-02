@@ -978,7 +978,7 @@ class FamDB:
             partition_name = self.file_map[file]["T_root_name"]
             partition_detail = self.file_map[file]["F_roots_names"]
             filename = self.file_map[file]["filename"]
-            counts = None
+            counts = {"consensus": "Missing", "hmm": "Missing"}
             status = "Missing"
             if int(file) in self.files:
                 counts = self.files[int(file)].get_counts()
@@ -1081,14 +1081,15 @@ class FamDB:
             self.files[file].set_db_info(name, version, date, desc, copyright_text)
 
     def get_existing(self):
-        seen = {"accession":[], "name":[]}
+        seen = {"accession": [], "name": []}
         for file in self.files:
             seen["accession"] += self.files[file].seen["accession"]
             seen["name"] += self.files[file].seen["name"]
         return seen
-    
+
     def add_family(self, entry):
-        added = [] # track files added to in case family has multiple clades in same file
+        # track files added to in case family has multiple clades in same file
+        added = []
         for taxon in entry.clades:
             for partition in self.files:
                 file = self.files[partition]

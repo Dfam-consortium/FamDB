@@ -16,9 +16,8 @@ class TestDatabase(unittest.TestCase):
         init_db_file(db_dir)
         filenames = [f"{db_dir}.0.h5", f"{db_dir}.1.h5", f"{db_dir}.2.h5"]
         TestDatabase.filenames = filenames
-        TestDatabase.file_dir= file_dir
+        TestDatabase.file_dir = file_dir
         TestDatabase.famdb = FamDB(file_dir, "r")
-
 
     @classmethod
     def tearDownClass(cls):
@@ -119,7 +118,7 @@ class TestDatabase(unittest.TestCase):
                 ["Test family TEST0004", "Test family DR_Repeat1"],
             )
         with FamDBLeaf(TestDatabase.filenames[2], "r") as db:
-            self.assertCountEqual(db.get_family_names(), ["Test family DR0000001"])
+            self.assertCountEqual(db.get_family_names(), ["Test family DR000000001"])
 
     def test_get_family_by_name(self):
         with FamDBRoot(TestDatabase.filenames[0], "r") as db:
@@ -446,7 +445,7 @@ class TestDatabase(unittest.TestCase):
         # TODO race condition? only 3 of these will work at a time
 
     def test_add_family(self):
-        pass # TODO
+        pass  # TODO
 
     # test missing root file, multiple exports, different ids TODO
     # def test_FamDB_file_check(self):

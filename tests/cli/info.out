@@ -1,4 +1,4 @@
-File: /tmp/famdbtestfile.h5
+File: /tmp/cli
 FamDB Generator: famdb.py v0.4.3
 FamDB Format Version: 0.5
 FamDB Creation Date: 2023-01-09 09:57:56.026443
@@ -9,6 +9,18 @@ Date: 2020-07-15
 
 Test Database
 
+3 Files Present
 Total consensus sequences: 5
 Total HMMs: 3
+
+
+File Info: /tmp/cli
+ Partition 0 Present: Root Node  
+   unittest.0.h5 -> Consensi: 2, HMMs: 3
+
+ Partition 1 Present: Search Node  
+   unittest.1.h5 -> Consensi: 2, HMMs: 0
+
+ Partition 2 Present: Other Node - Other Node 
+   unittest.2.h5 -> Consensi: 1, HMMs: 0
 

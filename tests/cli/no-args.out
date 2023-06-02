@@ -40,7 +40,7 @@ subcommands:
 
   {info,names,lineage,families,family,append}
 
-File Info: /u1/home/agray/FamDB/./dfam
+File Info: /tmp/cli
  Partition 0 Present: Root Node  
    unittest.0.h5 -> Consensi: 2, HMMs: 3
 
