@@ -26,7 +26,7 @@ class FamDBLeaf:
     GROUP_TAXANAMES = "Partitions"
 
     # DF####### or DF########## or DR####### or DR##########
-    dfam_acc_pat = re.compile("^(D[FR])([0-9]{2})([0-9]{2})[0-9]{3,6}$")
+    dfam_acc_pat = re.compile("^(D[FR])([0-9]{2})([0-9]{2})([0-9]{2})[0-9]{3,6}$")
 
     def __init__(self, filename, mode="r"):
         if mode == "r":
@@ -202,6 +202,8 @@ class FamDBLeaf:
                 + dfam_match.group(2)
                 + "/"
                 + dfam_match.group(3)
+                + "/"
+                + dfam_match.group(4)
             )
         else:
             path = FamDBLeaf.GROUP_FAMILIES + "/Aux/" + acc[0:2].lower()
@@ -417,14 +419,14 @@ class FamDBLeaf:
         'curated=False' includes only uncurated families.
 
         Families are currently assumed to be curated unless their name is of the
-        form DR<7 digits>.
+        form DR<9 digits>.
 
         TODO: perhaps this should be a dedicated 'curated' boolean field on Family
         """
 
         is_curated = (
             accession.startswith("DR")
-            and len(accession) == 9
+            and len(accession) == 11
             and all((c >= "0" and c <= "9" for c in accession[2:]))
         )
 

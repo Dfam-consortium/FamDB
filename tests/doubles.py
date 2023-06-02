@@ -100,7 +100,7 @@ FAMILIES = [
     make_family("TEST0002", [2, 3], None, "<model2>"),
     make_family("TEST0003", [3], "GGTC", "<model3>"),
     make_family("TEST0004", [4], "CCCCTTTT", None),
-    make_family("DR0000001", [5], "GCATATCG", None),
+    make_family("DR000000001", [5], "GCATATCG", None),
     make_family("DR_Repeat1", [6], "CGACTAT", None),
 ]
 

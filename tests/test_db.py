@@ -187,7 +187,7 @@ class TestDatabase(unittest.TestCase):
         with FamDBLeaf(TestDatabase.filenames[2], "r") as db:
             self.assertEqual(
                 list(db.get_accessions_filtered(curated_only=True)),
-                ["DR0000001"],
+                ["DR000000001"],
             )
             self.assertEqual(
                 list(db.get_accessions_filtered(uncurated_only=True)),

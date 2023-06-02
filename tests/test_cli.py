@@ -75,6 +75,9 @@ class TestCliOutput(unittest.TestCase):
             os.remove(name)
         os.rmdir(TestCliOutput.file_dir)
 
+    # def test_pass(self):
+    #     pass
+
     # def test_no_args(self):
     #     test = 'no-args'
     #     cli = self.tests_dir + f'/{test}.args'
