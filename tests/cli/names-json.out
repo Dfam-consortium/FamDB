@@ -1,1 +1,1 @@
-[{"id": 5, "names": [{"kind": "scientific name", "value": "Drosophila <flies>"}]}, {"id": 6, "names": [{"kind": "scientific name", "value": "Drosophila <fungus>"}]}, {"id": 7, "names": [{"kind": "scientific name", "value": "Drosophila melanogaster"}]}]
+[{"id": 4, "partition": 1, "names": [{"kind": "scientific name", "value": "Genus"}, {"kind": "common name", "value": "Leaf Dummy 4"}]}, {"id": 5, "partition": 2, "names": [{"kind": "scientific name", "value": "Other Genus"}, {"kind": "common name", "value": "Leaf Dummy 5"}]}]

@@ -92,7 +92,7 @@ def command_names(args):
 
     if args.format == "pretty":
         prev_exact = None
-        for (tax_id, partition, is_exact, names) in entries:
+        for (tax_id, is_exact, partition, names) in entries:
             if is_exact != prev_exact:
                 if is_exact:
                     print("Exact Matches\n=============")
@@ -108,8 +108,8 @@ def command_names(args):
 
     elif args.format == "json":
         obj = []
-        for (tax_id, partition, _, names) in entries:
-            names_obj = [{"kind": name[0], "value": name[1]} for name in names]
+        for (tax_id, is_exact, partition, names) in entries:
+            names_obj = [{"kind": name[0], "value": name[1]} for name in names[:-1]]
             obj += [{"id": tax_id, "partition": partition, "names": names_obj}]
         print(json.dumps(obj))
     else:

@@ -79,5 +79,19 @@ class TestCliOutput(unittest.TestCase):
         args = ["info"]
         test_one(self, test, args)
 
+    def test_names_pretty(self):
+        test = "names-pretty"
+        args = ["names", "genus"]
+        test_one(self, test, args)
 
-# names, names json, lineage pretty, lineage json, lineage totals, families, family, print families all formats
+    def test_names_multi_arg(self):
+        test = "names-multi-arg"
+        args = ["names", "other", "genus"]
+        test_one(self, test, args)
+    
+    def test_names_json(self):
+        test = "names-json"
+        args = ["names", "--format", "json", "genus"]
+        test_one(self, test, args)
+
+# lineage pretty, lineage json, lineage totals, families, family, print families all formats
