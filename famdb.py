@@ -92,7 +92,7 @@ def command_names(args):
 
     if args.format == "pretty":
         prev_exact = None
-        for (tax_id, is_exact, partition, names) in entries:
+        for tax_id, is_exact, partition, names in entries:
             if is_exact != prev_exact:
                 if is_exact:
                     print("Exact Matches\n=============")
@@ -103,13 +103,13 @@ def command_names(args):
                 prev_exact = is_exact
 
             print(
-                f"Taxon: {tax_id}, Partition: {partition}, Names: {', '.join([f'{n[1]} ({n[0]})' for n in names[:-1]])}"
+                f"Taxon: {tax_id}, Partition: {partition}, Names: {', '.join([f'{n[1]} ({n[0]})' for n in names])}"
             )
 
     elif args.format == "json":
         obj = []
         for (tax_id, is_exact, partition, names) in entries:
-            names_obj = [{"kind": name[0], "value": name[1]} for name in names[:-1]]
+            names_obj = [{"kind": name[0], "value": name[1]} for name in names]
             obj += [{"id": tax_id, "partition": partition, "names": names_obj}]
         print(json.dumps(obj))
     else:
@@ -182,7 +182,9 @@ def print_lineage_semicolons(file, tree, partition, parent_name, starting_at):
     if not starting_at:
         fams = file.get_families_for_taxon(tax_id, tax_partition)
         count = (
-            len(fams) if fams is not None else f"Partition {tax_partition} Not Installed"
+            len(fams)
+            if fams is not None
+            else f"Partition {tax_partition} Not Installed"
         )
         print(f"{tax_id}({tax_partition}): {name} [{count}]")
 
@@ -237,9 +239,7 @@ def command_lineage(args):
     target_id, partition = args.db_dir.resolve_one_species(args.term)
 
     if not target_id:
-        print(
-            f"No species found for search term '{args.term}'", file=sys.stderr
-        )
+        print(f"No species found for search term '{args.term}'", file=sys.stderr)
         return
 
     tree = args.db_dir.get_lineage_combined(
