@@ -392,12 +392,10 @@ def command_family(args):
 
 def command_families(args):
     """The 'families' command outputs all families associated with the given taxon."""
-    target_id = args.db_dir.resolve_one_species(args.term)
-
+    target_id, partition = args.db_dir.resolve_one_species(args.term)
     if not target_id:
         print(f"No species found for search term '{args.term}'", file=sys.stderr)
         return
-
     families = []
 
     is_hmm = args.format.startswith("hmm")

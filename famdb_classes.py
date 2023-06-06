@@ -1067,7 +1067,8 @@ class FamDB:
     def get_accessions_filtered(self, **kwargs):
         accessions = []
         for file in self.files:
-            accessions += self.files[file].get_accessions_filtered(**kwargs)
+            if self.files[file].has_taxon(kwargs["tax_id"]):
+                accessions += self.files[file].get_accessions_filtered(**kwargs)
         return accessions
 
     def finalize(self):

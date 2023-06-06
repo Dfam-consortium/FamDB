@@ -82,7 +82,7 @@ import time
 import sqlalchemy
 
 import dfam_35 as dfam
-from famdb_classes import FamDB, FamDBRoot
+from famdb_classes import FamDBLeaf, FamDBRoot
 from famdb_data_loaders import (
     load_taxonomy_from_db,
     load_taxonomy_from_dump,
@@ -314,7 +314,7 @@ def main():
                 args.outfile = FamDBRoot(f"{out_str}.{n}.h5", "w")
                 args.outfile.write_taxa_names(tax_db, {n: F[n]["nodes"] for n in F})
             else:
-                args.outfile = FamDB(f"{out_str}.{n}.h5", "w")
+                args.outfile = FamDBLeaf(f"{out_str}.{n}.h5", "w")
             args.outfile.set_partition_info(n)
             args.outfile.set_file_info(file_info)
             args.outfile.set_db_info(
