@@ -890,7 +890,7 @@ class FamDB:
 
         self.db_dir = db_dir
         self.file_map = file_info["file_map"]
-        self.uuid = file_info["meta"]["id"]
+        self.uuid = file_info["meta"]["partition_id"]
         self.db_version = file_info["meta"]["db_version"]
         self.db_date = file_info["meta"]["db_date"]
 
@@ -898,7 +898,7 @@ class FamDB:
         for file in self.files:
             meta = self.files[file].get_file_info()["meta"]
             if (
-                self.uuid != meta["id"]
+                self.uuid != meta["partition_id"]
                 or self.db_version != meta["db_version"]
                 or self.db_date != meta["db_date"]
             ):
