@@ -69,40 +69,40 @@ class TestCliOutput(unittest.TestCase):
             os.remove(name)
         os.rmdir(TestCliOutput.file_dir)
 
-    # def test_families_embl_meta(self):
-    #     test = "families-embl_meta"
-    #     args = ["families", "--format", "embl_meta", "-d", "2"]
-    #     test_one(self, test, args)
+    def test_families_embl_meta(self): # TODO
+        test = "families-embl_meta"
+        args = ["families", "--format", "embl_meta", "-d", "2"]
+        test_one(self, test, args)
 
-    # def test_families_embl_seq(self):
-    #     test = "families-embl_seq"
-    #     args = ["families", "--format", "embl_seq", "2"]
-    #     test_one(self, test, args)
+    def test_families_embl_seq(self):
+        test = "families-embl_seq"
+        args = ["families", "--format", "embl_seq", "3"]
+        test_one(self, test, args)
 
-    # def test_families_embl(self):
-    #     test = "families-embl"
-    #     args = ["families", "--format", "embl", "-d", "2"]
-    #     test_one(self, test, args)
+    def test_families_embl(self): # TODO
+        test = "families-embl"
+        args = ["families", "--format", "embl", "-d", "3"]
+        test_one(self, test, args)
 
-    # def test_families_fasta_acc(self):
-    #     test = "families-fasta_acc"
-    #     args = ["families", "--format", "fasta_acc", "--add-reverse-complement", "-a", "3"]
-    #     test_one(self, test, args)
+    def test_families_fasta_acc(self): # TODO
+        test = "families-fasta_acc"
+        args = ["families", "--format", "fasta_acc", "--add-reverse-complement", "-a", "3"]
+        test_one(self, test, args)
 
-    # def test_families_fasta_names(self):
-    #     test = "families-fasta_names"
-    #     args = ["families", "--format", "fasta_name", "--curated", "-a", "6"]
-    #     test_one(self, test, args)
+    def test_families_fasta_name(self):
+        test = "families-fasta_name"
+        args = ["families", "--format", "fasta_name", "-a", "6"]
+        test_one(self, test, args)
 
-    # def test_families_hmm_speciies(self):
-    #     test = "families-hmm_speciies"
-    #     args = ["families", "--format", "hmm_speciies", "-ad", "3"]
-    #     test_one(self, test, args)
+    def test_families_hmm_speciies(self):
+        test = "families-hmm_species"
+        args = ["families", "--format", "hmm_species", "-ad", "3"]
+        test_one(self, test, args)
 
-    # def test_families_hmm(self):
-    #     test = "families-hmm"
-    #     args = ["families", "--format", "hmm", "-ad", "5"]
-    #     test_one(self, test, args)
+    def test_families_hmm(self):
+        test = "families-hmm"
+        args = ["families", "--format", "hmm", "-ad", "3"]
+        test_one(self, test, args)
 
     def test_families_summary(self):
         test = "families-summary"
@@ -168,6 +168,3 @@ class TestCliOutput(unittest.TestCase):
         test = "no-args"
         args = []
         test_one(self, test, args)
-
-
-# lineage pretty, lineage json, lineage totals, families, family, print families all formats
