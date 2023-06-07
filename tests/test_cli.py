@@ -69,7 +69,7 @@ class TestCliOutput(unittest.TestCase):
             os.remove(name)
         os.rmdir(TestCliOutput.file_dir)
 
-    def test_families_embl_meta(self): # TODO
+    def test_families_embl_meta(self):
         test = "families-embl_meta"
         args = ["families", "--format", "embl_meta", "-d", "2"]
         test_one(self, test, args)
@@ -79,14 +79,21 @@ class TestCliOutput(unittest.TestCase):
         args = ["families", "--format", "embl_seq", "3"]
         test_one(self, test, args)
 
-    def test_families_embl(self): # TODO
+    def test_families_embl(self):
         test = "families-embl"
-        args = ["families", "--format", "embl", "-d", "3"]
+        args = ["families", "--format", "embl", "-d", "2"]
         test_one(self, test, args)
 
-    def test_families_fasta_acc(self): # TODO
+    def test_families_fasta_acc(self):
         test = "families-fasta_acc"
-        args = ["families", "--format", "fasta_acc", "--add-reverse-complement", "-a", "3"]
+        args = [
+            "families",
+            "--format",
+            "fasta_acc",
+            "--add-reverse-complement",
+            "-a",
+            "4",
+        ]
         test_one(self, test, args)
 
     def test_families_fasta_name(self):

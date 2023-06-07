@@ -930,7 +930,7 @@ class FamDB:
             # special case: Searching the whole database, going directly via
             # Families/ is faster than repeatedly traversing the tree
             elif tax_id == 1 and descendants:
-                # yield from self.file[FamDBLeaf.GROUP_LOOKUP_BYACC].keys()
+                # yield from self.file[FamDBLeaf.GROUP_LOOKUP_BYACC].keys() # TODO unused
                 for file in files:
                     names = families_iterator(
                         files[file].file[GROUP_FAMILIES], "Families"
@@ -941,8 +941,8 @@ class FamDB:
                 lineage = self.get_lineage_combined(
                     tax_id, ancestors=ancestors, descendants=descendants
                 )
-                location = self.files[0].find_taxon(tax_id)
                 for node in walk_tree(lineage):
+                    location = self.files[0].find_taxon(node)
                     fams = self.get_families_for_taxon(node, location)
                     if fams:
                         yield from fams

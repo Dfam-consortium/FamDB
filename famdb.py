@@ -417,7 +417,6 @@ def command_families(args):
             name=args.name,
         )
     )
-
     families = map(args.db_dir.get_family_by_accession, accessions)
 
     print_families(args, families, True, target_id)
