@@ -6,6 +6,8 @@ XX
 XX
 KW   /.
 XX
+OS   root
+OC   .
 XX
 CC
 CC   RepeatMasker Annotations:

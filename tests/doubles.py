@@ -36,7 +36,7 @@ COMMON_NAMES = {
 NODES = {0: [1, 2, 3], 1: [4, 6], 2: [5]}
 
 FILE_INFO = {
-    "meta": {"id": "uuidXX", "db_version": "V1", "db_date": "2020-07-15"},
+    "meta": {"partition_id": "uuidXX", "db_version": "V1", "db_date": "2020-07-15"},
     "file_map": {
         "0": {
             "T_root": 1,
