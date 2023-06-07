@@ -1,6 +1,124 @@
 import re
+import h5py
+from famdb_globals import (
+    SOUNDEX_LOOKUP,
+    GROUP_LOOKUP_BYSTAGE,
+    GROUP_FAMILIES,
+    dfam_acc_pat,
+)
+from famdb_helper_classes import Family
 
-from famdb_globals import SOUNDEX_LOOKUP
+
+def accession_bin(acc):
+    """Maps an accession (Dfam or otherwise) into apropriate bins (groups) in HDF5"""
+    dfam_match = dfam_acc_pat.match(acc)
+    if dfam_match:
+        path = (
+            GROUP_FAMILIES
+            + "/"
+            + dfam_match.group(1)
+            + "/"
+            + dfam_match.group(2)
+            + "/"
+            + dfam_match.group(3)
+            + "/"
+            + dfam_match.group(4)
+        )
+    else:
+        path = GROUP_FAMILIES + "/Aux/" + acc[0:2].lower()
+    return path
+
+
+def get_family(entry):
+    if not entry:
+        return None
+
+    family = Family()
+
+    # Read the family attributes and data
+    for k in entry.attrs:
+        value = entry.attrs[k]
+        setattr(family, k, value)
+
+    return family
+
+
+def families_iterator(g, prefix=""):
+    for key, item in g.items():
+        path = "{}/{}".format(prefix, key)
+        if isinstance(item, h5py.Dataset):  # test for dataset
+            yield (key)
+        elif isinstance(item, h5py.Group):  # test for group (go down)
+            yield from families_iterator(item, path)
+
+
+# Filter methods --------------------------------------------------------------------------
+def filter_name(family, name):
+    """Returns True if the family's name begins with 'name'."""
+
+    if family.attrs.get("name"):
+        if family.attrs["name"].lower().startswith(name):
+            return True
+
+    return False
+
+
+# def filter_stages(self, accession, stages): # TODO confirm this
+#     """Returns True if the family belongs to a search or buffer stage in 'stages'."""
+#     for stage in stages:
+#         grp = self.file[GROUP_LOOKUP_BYSTAGE].get(stage)
+#         if grp and accession in grp:
+#             return True
+
+#     return False
+
+
+def filter_search_stages(family, stages):
+    """Returns True if the family belongs to a search stage in 'stages'."""
+    if family.attrs.get("search_stages"):
+        sstages = (ss.strip() for ss in family.attrs["search_stages"].split(","))
+        for family_ss in sstages:
+            if family_ss in stages:
+                return True
+
+    return False
+
+
+def filter_repeat_type(family, rtype):
+    """
+    Returns True if the family's RepeatMasker Type plus SubType
+    (e.g. "DNA/CMC-EnSpm") starts with 'rtype'.
+    """
+    if family.attrs.get("repeat_type"):
+        full_type = family.attrs["repeat_type"]
+        if family.attrs.get("repeat_subtype"):
+            full_type = full_type + "/" + family.attrs["repeat_subtype"]
+
+        if full_type.lower().startswith(rtype):
+            return True
+
+    return False
+
+
+def filter_curated(accession, curated):
+    """
+    Returns True if the family's curatedness is the same as 'curated'. In
+    other words, 'curated=True' includes only curated familes and
+    'curated=False' includes only uncurated families.
+
+    Families are currently assumed to be curated unless their name is of the
+    form DR<9 digits>.
+
+    TODO: perhaps this should be a dedicated 'curated' boolean field on Family
+    """
+
+    is_curated = (
+        accession.startswith("DR")
+        and len(accession) == 11
+        and all((c >= "0" and c <= "9" for c in accession[2:]))
+    )
+
+    return is_curated == curated
 
 
 def soundex(word):

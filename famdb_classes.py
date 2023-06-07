@@ -9,24 +9,34 @@ import h5py
 import numpy
 
 from famdb_helper_classes import Family, Lineage
-from famdb_globals import LOGGER, FILE_VERSION, LEAF_LINK, ROOT_LINK
-from famdb_helper_methods import sanitize_name, sounds_like
+from famdb_globals import (
+    LOGGER,
+    FILE_VERSION,
+    LEAF_LINK,
+    ROOT_LINK,
+    GROUP_FAMILIES,
+    GROUP_LOOKUP_BYNAME,
+    GROUP_LOOKUP_BYSTAGE,
+    GROUP_NODES,
+    GROUP_TAXANAMES,
+)
+from famdb_helper_methods import (
+    sanitize_name,
+    sounds_like,
+    families_iterator,
+    filter_curated,
+    filter_repeat_type,
+    filter_search_stages,
+    filter_name,
+    get_family,
+    accession_bin,
+)
 
 
 class FamDBLeaf:
     """Transposable Element Family and taxonomy database."""
 
     dtype_str = h5py.special_dtype(vlen=str)
-
-    GROUP_FAMILIES = "Families"
-    GROUP_LOOKUP_BYNAME = "Lookup/ByName"
-    GROUP_LOOKUP_BYACC = "Lookup/ByAccession"
-    GROUP_LOOKUP_BYSTAGE = "Lookup/ByStage"
-    GROUP_NODES = "Taxonomy/Nodes"
-    GROUP_TAXANAMES = "Partitions"
-
-    # DF####### or DF########## or DR####### or DR##########
-    dfam_acc_pat = re.compile("^(D[FR])([0-9]{2})([0-9]{2})([0-9]{2})[0-9]{3,6}$")
 
     def __init__(self, filename, mode="r"):
         if mode == "r":
@@ -189,35 +199,6 @@ class FamDBLeaf:
 
         seen[key].add(value)
 
-    @staticmethod
-    def __accession_bin(acc):
-        """Maps an accession (Dfam or otherwise) into apropriate bins (groups) in HDF5"""
-        dfam_match = FamDBLeaf.dfam_acc_pat.match(acc)
-        if dfam_match:
-            path = (
-                FamDBLeaf.GROUP_FAMILIES
-                + "/"
-                + dfam_match.group(1)
-                + "/"
-                + dfam_match.group(2)
-                + "/"
-                + dfam_match.group(3)
-                + "/"
-                + dfam_match.group(4)
-            )
-        else:
-            path = FamDBLeaf.GROUP_FAMILIES + "/Aux/" + acc[0:2].lower()
-        return path
-
-    @staticmethod
-    def __families_iterator(g, prefix=""):
-        for key, item in g.items():
-            path = "{}/{}".format(prefix, key)
-            if isinstance(item, h5py.Dataset):  # test for dataset
-                yield (key)
-            elif isinstance(item, h5py.Group):  # test for group (go down)
-                yield from FamDBLeaf.__families_iterator(item, path)
-
     def add_family(self, family):
         """Adds the family described by 'family' to the database."""
         # Verify uniqueness of name and accession.
@@ -234,7 +215,7 @@ class FamDBLeaf:
 
         # Create the family data
         # In v0.5 we bin the datasets into subgroups to improve performance
-        group_path = self.__accession_bin(family.accession)
+        group_path = accession_bin(family.accession)
         dset = self.file.require_group(group_path).create_dataset(
             family.accession, (0,)
         )
@@ -248,7 +229,7 @@ class FamDBLeaf:
         # Create links
         fam_link = f"/{group_path}/{family.accession}"
         if family.name:
-            self.file.require_group(FamDBLeaf.GROUP_LOOKUP_BYNAME)[
+            self.file.require_group(GROUP_LOOKUP_BYNAME)[
                 str(family.name)
             ] = h5py.SoftLink(fam_link)
         # In FamDB format version 0.5 we removed the /Families/ByAccession group as it's redundant
@@ -256,16 +237,16 @@ class FamDBLeaf:
         # the number of entries in a group exceeds 200-500k.
 
         for clade_id in family.clades:
-            taxon_group = self.file.require_group(FamDBLeaf.GROUP_NODES).require_group(
+            taxon_group = self.file.require_group(GROUP_NODES).require_group(
                 str(clade_id)
             )
             families_group = taxon_group.require_group("Families")
             families_group[family.accession] = h5py.SoftLink(fam_link)
 
         def add_stage_link(stage, accession):
-            stage_group = self.file.require_group(
-                FamDBLeaf.GROUP_LOOKUP_BYSTAGE
-            ).require_group(stage.strip())
+            stage_group = self.file.require_group(GROUP_LOOKUP_BYSTAGE).require_group(
+                stage.strip()
+            )
             if accession not in stage_group:
                 stage_group[accession] = h5py.SoftLink(fam_link)
 
@@ -289,7 +270,7 @@ class FamDBLeaf:
         count = 0
         for node in nodes:
             count += 1
-            group = self.file.require_group(FamDBLeaf.GROUP_NODES).require_group(
+            group = self.file.require_group(GROUP_NODES).require_group(
                 str(tax_db[node].tax_id)
             )
             parent_id = int(tax_db[node].parent_id) if tax_db[node].parent_id else None
@@ -308,15 +289,15 @@ class FamDBLeaf:
         """Returns True if 'self' has a taxonomy entry for 'tax_id'"""
         # test if file has families or just taxonomy info
         return (
-            str(tax_id) in self.file[FamDBLeaf.GROUP_NODES]
-            and "Families" in self.file[FamDBLeaf.GROUP_NODES][str(tax_id)]
+            str(tax_id) in self.file[GROUP_NODES]
+            and "Families" in self.file[GROUP_NODES][str(tax_id)]
         )
 
     def get_families_for_taxon(self, tax_id):
         """Returns a list of the accessions for each family directly associated with 'tax_id'."""
         group = (
-            self.file[FamDBLeaf.GROUP_NODES][str(tax_id)].get("Families")
-            if f"{FamDBLeaf.GROUP_NODES}/{tax_id}" in self.file
+            self.file[GROUP_NODES][str(tax_id)].get("Families")
+            if f"{GROUP_NODES}/{tax_id}" in self.file
             else {}
         )
         return list(group.keys())
@@ -330,7 +311,7 @@ class FamDBLeaf:
         where '2' may have been the passed-in 'tax_id'.
         """
 
-        group_nodes = self.file[FamDBLeaf.GROUP_NODES]
+        group_nodes = self.file[GROUP_NODES]
         ancestors = True if kwargs.get("ancestors") else False
         descendants = True if kwargs.get("descendants") else False
         if descendants:
@@ -364,236 +345,17 @@ class FamDBLeaf:
         lineage = Lineage(tree, self.is_root(), self.get_partition_num())
         return lineage
 
-    # Filter methods --------------------------------------------------------------------------
-    @staticmethod
-    def __filter_name(family, name):
-        """Returns True if the family's name begins with 'name'."""
-
-        if family.attrs.get("name"):
-            if family.attrs["name"].lower().startswith(name):
-                return True
-
-        return False
-
-    def __filter_stages(self, accession, stages):
-        """Returns True if the family belongs to a search or buffer stage in 'stages'."""
-        for stage in stages:
-            grp = self.file[FamDBLeaf.GROUP_LOOKUP_BYSTAGE].get(stage)
-            if grp and accession in grp:
-                return True
-
-        return False
-
-    @staticmethod
-    def __filter_search_stages(family, stages):
-        """Returns True if the family belongs to a search stage in 'stages'."""
-        if family.attrs.get("search_stages"):
-            sstages = (ss.strip() for ss in family.attrs["search_stages"].split(","))
-            for family_ss in sstages:
-                if family_ss in stages:
-                    return True
-
-        return False
-
-    @staticmethod
-    def __filter_repeat_type(family, rtype):
-        """
-        Returns True if the family's RepeatMasker Type plus SubType
-        (e.g. "DNA/CMC-EnSpm") starts with 'rtype'.
-        """
-        if family.attrs.get("repeat_type"):
-            full_type = family.attrs["repeat_type"]
-            if family.attrs.get("repeat_subtype"):
-                full_type = full_type + "/" + family.attrs["repeat_subtype"]
-
-            if full_type.lower().startswith(rtype):
-                return True
-
-        return False
-
-    @staticmethod
-    def __filter_curated(accession, curated):
-        """
-        Returns True if the family's curatedness is the same as 'curated'. In
-        other words, 'curated=True' includes only curated familes and
-        'curated=False' includes only uncurated families.
-
-        Families are currently assumed to be curated unless their name is of the
-        form DR<9 digits>.
-
-        TODO: perhaps this should be a dedicated 'curated' boolean field on Family
-        """
-
-        is_curated = (
-            accession.startswith("DR")
-            and len(accession) == 11
-            and all((c >= "0" and c <= "9" for c in accession[2:]))
-        )
-
-        return is_curated == curated
-
-    def get_accessions_filtered(self, **kwargs):
-        """
-        Returns an iterator that yields accessions for the given search terms.
-
-        Filters are specified in kwargs:
-            tax_id: int
-            ancestors: boolean, default False
-            descendants: boolean, default False
-                If none of (tax_id, ancestors, descendants) are
-                specified, *all* families will be checked.
-            curated_only = boolean
-            uncurated_only = boolean
-            stage = int
-            is_hmm = boolean
-            repeat_type = string (prefix)
-            name = string (prefix)
-                If any of stage, repeat_type, or name are
-                omitted (or None), they will not be used to filter.
-
-                The behavior of 'stage' depends on 'is_hmm': if is_hmm is True,
-                stage must match in SearchStages (a match in BufferStages is not
-                enough).
-        """
-
-        if not ("tax_id" in kwargs or "ancestors" in kwargs or "descendants" in kwargs):
-            tax_id = 1
-            ancestors = True
-            descendants = True
-        else:
-            tax_id = kwargs["tax_id"]
-            ancestors = kwargs.get("ancestors") or False
-            descendants = kwargs.get("descendants") or False
-
-        # Define family filters (logically ANDed together)
-        filters = []
-
-        if kwargs.get("curated_only"):
-            filters += [lambda a, f: self.__filter_curated(a, True)]
-        if kwargs.get("uncurated_only"):
-            filters += [lambda a, f: self.__filter_curated(a, False)]
-
-        filter_stage = kwargs.get("stage")
-        filter_stages = None
-        if filter_stage:
-            if filter_stage == 80:
-                # "stage 80" = "all stages", so skip filtering
-                pass
-            elif filter_stage == 95:
-                # "stage 95" = this specific stage list:
-                filter_stages = ["35", "50", "55", "60", "65", "70", "75"]
-                filters += [lambda a, f: self.__filter_stages(a, filter_stages)]
-            else:
-                filter_stages = [str(filter_stage)]
-                filters += [lambda a, f: self.__filter_stages(a, filter_stages)]
-
-        # HMM only: add a search stage filter to "un-list" families that were
-        # allowed through only because they match in buffer stage
-        if kwargs.get("is_hmm") and filter_stages:
-            filters += [lambda a, f: self.__filter_search_stages(f(), filter_stages)]
-
-        filter_repeat_type = kwargs.get("repeat_type")
-        if filter_repeat_type:
-            filter_repeat_type = filter_repeat_type.lower()
-            filters += [lambda a, f: self.__filter_repeat_type(f(), filter_repeat_type)]
-
-        filter_name = kwargs.get("name")
-        if filter_name:
-            filter_name = filter_name.lower()
-            filters += [lambda a, f: self.__filter_name(f(), filter_name)]
-
-        # Recursive iterator flattener
-        def walk_tree(tree):
-            """Returns all elements in 'tree' with all levels flattened."""
-            if hasattr(tree, "__iter__"):
-                for elem in tree:
-                    yield from walk_tree(elem)
-            else:
-                yield tree
-
-        seen = set()
-
-        def iterate_accs():
-            # special case: Searching the whole database in a specific
-            # stage only is a common usage pattern in RepeatMasker.
-            # When searching the whole database instead of a species,
-            # the number of accessions to read through is shorter
-            # when going off of only the stage indexes.
-            if (
-                tax_id == 1
-                and descendants
-                and filter_stages
-                and not filter_repeat_type
-                and not filter_name
-            ):
-                for stage in filter_stages:
-                    grp = self.file[FamDBLeaf.GROUP_LOOKUP_BYSTAGE].get(stage)
-                    if grp:
-                        yield from grp.keys()
-
-            # special case: Searching the whole database, going directly via
-            # Families/ is faster than repeatedly traversing the tree
-            elif tax_id == 1 and descendants:
-                # yield from self.file[FamDBLeaf.GROUP_LOOKUP_BYACC].keys()
-                for name in self.__families_iterator(
-                    self.file[FamDBLeaf.GROUP_FAMILIES], "Families"
-                ):
-                    yield name
-            else:
-                lineage = self.get_lineage(
-                    tax_id, ancestors=ancestors, descendants=descendants
-                )
-                for node in walk_tree(lineage):
-                    fams = self.get_families_for_taxon(node)
-                    if fams:
-                        yield from fams
-
-        for accession in iterate_accs():
-            if accession in seen:
-                continue
-            seen.add(accession)
-
-            cached_family = None
-
-            def family_getter():
-                nonlocal cached_family
-                if not cached_family:
-                    path = self.__accession_bin(accession)
-                    cached_family = self.file[path].get(accession)
-                return cached_family
-
-            match = True
-            for filt in filters:
-                if not filt(accession, family_getter):
-                    match = False
-            if match:
-                yield accession
-
     # Family Getters --------------------------------------------------------------------------
     def get_family_names(self):  # TODO unused
         """Returns a list of names of families in the database."""
-        return sorted(self.file[FamDBLeaf.GROUP_LOOKUP_BYNAME].keys(), key=str.lower)
-
-    @staticmethod
-    def __get_family(entry):
-        if not entry:
-            return None
-
-        family = Family()
-
-        # Read the family attributes and data
-        for k in entry.attrs:
-            value = entry.attrs[k]
-            setattr(family, k, value)
-
-        return family
+        return sorted(self.file[GROUP_LOOKUP_BYNAME].keys(), key=str.lower)
 
     def get_family_by_accession(self, accession):
         """Returns the family with the given accession."""
-        path = self.__accession_bin(accession)
+        path = accession_bin(accession)
         if path in self.file:
             entry = self.file[path].get(accession)
-            return self.__get_family(entry)
+            return get_family(entry)
         return None
 
     def get_family_by_name(self, name):
@@ -601,8 +363,8 @@ class FamDBLeaf:
         # TODO: This will also suffer the performance issues seen with
         #       other groups that exceed 200-500k entries in a single group
         #       at some point.  This needs to be refactored to scale appropriately.
-        entry = self.file[FamDBLeaf.GROUP_LOOKUP_BYNAME].get(name)
-        return self.__get_family(entry)
+        entry = self.file[GROUP_LOOKUP_BYNAME].get(name)
+        return get_family(entry)
 
 
 class FamDBRoot(FamDBLeaf):
@@ -612,11 +374,9 @@ class FamDBRoot(FamDBLeaf):
         if mode == "r" or mode == "r+":
             self.names_dump = {
                 partition: json.loads(
-                    self.file[f"{FamDBRoot.GROUP_TAXANAMES}/{partition}"]["TaxaNames"][
-                        0
-                    ]
+                    self.file[f"{GROUP_TAXANAMES}/{partition}"]["TaxaNames"][0]
                 )
-                for partition in self.file[FamDBRoot.GROUP_TAXANAMES]
+                for partition in self.file[GROUP_TAXANAMES]
             }
             self.file_info = self.get_file_info()
             self.__lineage_cache = {}
@@ -627,9 +387,7 @@ class FamDBRoot(FamDBLeaf):
         """
         LOGGER.info("Writing TaxaNames")
         for partition in nodes:
-            taxnames_group = self.file.require_group(
-                FamDBLeaf.GROUP_TAXANAMES + f"/{partition}"
-            )
+            taxnames_group = self.file.require_group(GROUP_TAXANAMES + f"/{partition}")
             names_dump = {}
             for node in nodes[partition]:
                 names_dump[node] = tax_db[node].names
@@ -852,7 +610,7 @@ up with the 'names' command.""".format(
         return None
 
     def parent_of(self, tax_id):
-        group_nodes = self.file[FamDBLeaf.GROUP_NODES]
+        group_nodes = self.file[GROUP_NODES]
         for node in group_nodes:
             if int(tax_id) in group_nodes[node]["Children"]:
                 return node
@@ -1064,12 +822,155 @@ class FamDB:
                 return fam
         return None
 
+    def assemble_filters(self, **kwargs):
+        """Define family filters (logically ANDed together)"""
+        filters = []
+        if kwargs.get("curated_only"):
+            filters += [lambda a, f: filter_curated(a, True)]
+        if kwargs.get("uncurated_only"):
+            filters += [lambda a, f: filter_curated(a, False)]
+
+        filter_stage = kwargs.get("stage")
+        stages = []
+        if filter_stage:
+            if filter_stage == 80:
+                # "stage 80" = "all stages", so skip filtering
+                pass
+            elif filter_stage == 95:
+                # "stage 95" = this specific stage list:
+                stages = ["35", "50", "55", "60", "65", "70", "75"]
+            else:
+                stages = [str(filter_stage)]
+
+        # HMM only: add a search stage filter to "un-list" families that were
+        # allowed through only because they match in buffer stage
+        if kwargs.get("is_hmm") and stages:
+            filters += [lambda a, f: filter_search_stages(f(), stages)]
+
+        repeat_type = kwargs.get("repeat_type")
+        if repeat_type:
+            repeat_type = repeat_type.lower()
+            filters += [lambda a, f: filter_repeat_type(f(), repeat_type)]
+
+        name = kwargs.get("name")
+        if name:
+            name = name.lower()
+            filters += [lambda a, f: filter_name(f(), name)]
+
+        return filters, stages, repeat_type, name
+
     def get_accessions_filtered(self, **kwargs):
-        accessions = []
-        for file in self.files:
-            if self.files[file].has_taxon(kwargs["tax_id"]):
-                accessions += self.files[file].get_accessions_filtered(**kwargs)
-        return accessions
+        """
+        Returns an iterator that yields accessions for the given search terms.
+
+        Filters are specified in kwargs:
+            tax_id: int
+            ancestors: boolean, default False
+            descendants: boolean, default False
+                If none of (tax_id, ancestors, descendants) are
+                specified, *all* families will be checked.
+            curated_only = boolean
+            uncurated_only = boolean
+            stage = int
+            is_hmm = boolean
+            repeat_type = string (prefix)
+            name = string (prefix)
+                If any of stage, repeat_type, or name are
+                omitted (or None), they will not be used to filter.
+
+                The behavior of 'stage' depends on 'is_hmm': if is_hmm is True,
+                stage must match in SearchStages (a match in BufferStages is not
+                enough).
+        """
+
+        if not ("tax_id" in kwargs or "ancestors" in kwargs or "descendants" in kwargs):
+            tax_id = 1
+            ancestors = True
+            descendants = True
+        else:
+            tax_id = kwargs["tax_id"]
+            ancestors = kwargs.get("ancestors") or False
+            descendants = kwargs.get("descendants") or False
+
+        filters, stages, repeat_type, name_filter = self.assemble_filters(**kwargs)
+
+        # Recursive iterator flattener
+        def walk_tree(tree):
+            """Returns all elements in 'tree' with all levels flattened."""
+            if hasattr(tree, "__iter__"):
+                for elem in tree:
+                    yield from walk_tree(elem)
+            else:
+                yield tree
+
+        seen = set()
+
+        def iterate_accs():
+            # special case: Searching the whole database in a specific
+            # stage only is a common usage pattern in RepeatMasker.
+            # When searching the whole database instead of a species,
+            # the number of accessions to read through is shorter
+            # when going off of only the stage indexes.
+            files = self.files
+            if (
+                tax_id == 1
+                and descendants
+                and stages
+                and not repeat_type
+                and not name_filter
+            ):
+                for stage in stages:
+                    for file in files:
+                        by_stage = files[file].file.get(GROUP_LOOKUP_BYSTAGE)
+                        if by_stage:
+                            grp = by_stage.get(stage)
+                            if grp:
+                                yield from grp.keys()
+
+            # special case: Searching the whole database, going directly via
+            # Families/ is faster than repeatedly traversing the tree
+            elif tax_id == 1 and descendants:
+                # yield from self.file[FamDBLeaf.GROUP_LOOKUP_BYACC].keys()
+                for file in files:
+                    names = families_iterator(
+                        files[file].file[GROUP_FAMILIES], "Families"
+                    )
+                    for name in names:
+                        yield name
+            else:
+                lineage = self.get_lineage_combined(
+                    tax_id, ancestors=ancestors, descendants=descendants
+                )
+                location = self.files[0].find_taxon(tax_id)
+                for node in walk_tree(lineage):
+                    fams = self.get_families_for_taxon(node, location)
+                    if fams:
+                        yield from fams
+
+        for accession in iterate_accs():
+            if accession in seen:
+                continue
+            seen.add(accession)
+
+            cached_family = None
+
+            def family_getter():
+                nonlocal cached_family
+                if not cached_family:
+                    path = accession_bin(accession)
+                    for file in self.files:
+                        if self.files[file].file.get(path):
+                            fam = self.files[file].file[path].get(accession)
+                            if fam:
+                                cached_family = fam
+                return cached_family
+
+            match = True
+            for filt in filters:
+                if not filt(accession, family_getter):
+                    match = False
+            if match:
+                yield accession
 
     def finalize(self):
         for file in self.files:

@@ -1,6 +1,17 @@
 import logging
+import re
 
 LOGGER = logging.getLogger(__name__)
+
+GROUP_FAMILIES = "Families"
+GROUP_LOOKUP_BYNAME = "Lookup/ByName"
+GROUP_LOOKUP_BYACC = "Lookup/ByAccession"
+GROUP_LOOKUP_BYSTAGE = "Lookup/ByStage"
+GROUP_NODES = "Taxonomy/Nodes"
+GROUP_TAXANAMES = "Partitions"
+
+# DF####### or DF########## or DR####### or DR##########
+dfam_acc_pat = re.compile("^(D[FR])([0-9]{2})([0-9]{2})([0-9]{2})[0-9]{3,6}$")
 
 # The current version of the file format
 FILE_VERSION = "0.5"
