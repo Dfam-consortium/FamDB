@@ -158,3 +158,27 @@ def init_db_file(filename):
 
         db.write_taxonomy(taxa, NODES[2])
         db.finalize()
+
+
+def init_single_file(n, db_dir):
+    """This method mirrors the process of file creation from export_dfam.py, without export_families()"""
+    TAX_DB = {
+        1: TaxNode(1, None),
+        2: TaxNode(2, 1),
+        3: TaxNode(3, 1),
+        4: TaxNode(4, 2),
+        5: TaxNode(5, 2),
+        6: TaxNode(6, 4),
+    }
+    filename = f"{db_dir}.{n}.h5"
+    if n == 0:
+        file = FamDBRoot(filename, "w")
+        file.write_taxa_names(build_taxa(TAX_DB), {n: NODES[n] for n in NODES})
+    else:
+        file = FamDBLeaf(filename, "w")
+    file.set_partition_info(n)
+    file.set_file_info(FILE_INFO)
+    file.set_db_info(*DB_INFO)
+    nodes = NODES[n]
+    file.write_taxonomy(TAX_DB, nodes)
+    file.finalize()
