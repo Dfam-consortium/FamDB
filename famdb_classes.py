@@ -80,11 +80,15 @@ class FamDBLeaf:
             self.__write_metadata()
         elif self.mode == "r+":
             self.seen = {}
-            self.seen["name"] = set(self.file[FamDBLeaf.GROUP_LOOKUP_BYNAME].keys())
+            self.seen["name"] = (
+                set(self.file[GROUP_LOOKUP_BYNAME].keys())
+                if self.file.get(GROUP_LOOKUP_BYNAME)
+                else set()
+            )
             self.seen["accession"] = set(
-                self.__families_iterator(
-                    self.file[FamDBLeaf.GROUP_FAMILIES], "Families"
-                )
+                self.__families_iterator(self.file[GROUP_FAMILIES], "Families")
+                if self.file.get(GROUP_FAMILIES)
+                else set()
             )
             self.added = self.get_counts()
 
@@ -287,10 +291,9 @@ class FamDBLeaf:
     # Data Access Methods ------------------------------------------------------------------------------------------------
     def has_taxon(self, tax_id):
         """Returns True if 'self' has a taxonomy entry for 'tax_id'"""
-        # test if file has families or just taxonomy info
         return (
-            str(tax_id) in self.file[GROUP_NODES]
-            and "Families" in self.file[GROUP_NODES][str(tax_id)]
+            str(tax_id)
+            in self.file[GROUP_NODES]
         )
 
     def get_families_for_taxon(self, tax_id):
@@ -640,7 +643,7 @@ class FamDB:
             else:
                 self.files[num] = FamDBLeaf(f"{db_dir}/{file}", mode)
 
-        if not self.files[0]:
+        if not self.files.get(0):
             LOGGER.error("Missing Root Partition File")
             exit()
 

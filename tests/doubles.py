@@ -1,7 +1,7 @@
 """
 Fakes, stubs, etc. for use in testing FamDB
 """
-
+from copy import deepcopy
 from famdb_classes import FamDBLeaf, FamDBRoot
 from famdb_helper_classes import TaxNode, Family
 
@@ -160,7 +160,7 @@ def init_db_file(filename):
         db.finalize()
 
 
-def init_single_file(n, db_dir):
+def init_single_file(n, db_dir, change_id=False):
     """This method mirrors the process of file creation from export_dfam.py, without export_families()"""
     TAX_DB = {
         1: TaxNode(1, None),
@@ -171,14 +171,20 @@ def init_single_file(n, db_dir):
         6: TaxNode(6, 4),
     }
     filename = f"{db_dir}.{n}.h5"
+    taxa = build_taxa(TAX_DB)
     if n == 0:
         file = FamDBRoot(filename, "w")
-        file.write_taxa_names(build_taxa(TAX_DB), {n: NODES[n] for n in NODES})
+        file.write_taxa_names(taxa, {n: NODES[n] for n in NODES})
     else:
         file = FamDBLeaf(filename, "w")
     file.set_partition_info(n)
-    file.set_file_info(FILE_INFO)
+    if change_id:
+        new_info = deepcopy(FILE_INFO)
+        new_info["meta"]["partition_id"] = "uuidYY"
+        file.set_file_info(new_info)
+    else:
+        file.set_file_info(FILE_INFO)
     file.set_db_info(*DB_INFO)
     nodes = NODES[n]
-    file.write_taxonomy(TAX_DB, nodes)
+    file.write_taxonomy(taxa, nodes)
     file.finalize()
