@@ -291,10 +291,7 @@ class FamDBLeaf:
     # Data Access Methods ------------------------------------------------------------------------------------------------
     def has_taxon(self, tax_id):
         """Returns True if 'self' has a taxonomy entry for 'tax_id'"""
-        return (
-            str(tax_id)
-            in self.file[GROUP_NODES]
-        )
+        return str(tax_id) in self.file[GROUP_NODES]
 
     def get_families_for_taxon(self, tax_id):
         """Returns a list of the accessions for each family directly associated with 'tax_id'."""
@@ -317,6 +314,7 @@ class FamDBLeaf:
         group_nodes = self.file[GROUP_NODES]
         ancestors = True if kwargs.get("ancestors") else False
         descendants = True if kwargs.get("descendants") else False
+        root = self.is_root()
         if descendants:
 
             def descendants_of(tax_id):
@@ -324,7 +322,7 @@ class FamDBLeaf:
                 for child in group_nodes[str(tax_id)]["Children"]:
                     if str(child) in group_nodes:
                         descendants += [descendants_of(child)]
-                    else:
+                    elif root:
                         descendants += [f"{LEAF_LINK}{child}"]
                 return descendants
 
@@ -345,7 +343,7 @@ class FamDBLeaf:
                 else:
                     tax_id = None
 
-        lineage = Lineage(tree, self.is_root(), self.get_partition_num())
+        lineage = Lineage(tree, root, self.get_partition_num())
         return lineage
 
     # Family Getters --------------------------------------------------------------------------
@@ -547,13 +545,12 @@ class FamDBRoot(FamDBLeaf):
             return results[0][:2]
         elif len(results) > 1:
             print(
-                """Ambiguous search term '{}' (found {} results, {} exact).
+                f"""Ambiguous search term '{term}' (found {len(results)} results, {len(exact_matches)} exact).
 Please use a more specific name or taxa ID, which can be looked
-up with the 'names' command.""".format(
-                    term, len(results), len(exact_matches)
-                ),
+up with the 'names' command.""",
                 file=sys.stderr,
             )
+            return "Ambiguous", "Ambiguous"
         return None, None
 
     def get_sanitized_name(self, tax_id):

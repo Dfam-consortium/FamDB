@@ -241,6 +241,8 @@ def command_lineage(args):
     if not target_id:
         print(f"No species found for search term '{args.term}'", file=sys.stderr)
         return
+    if target_id == 'Ambiguous':
+        return
 
     tree = args.db_dir.get_lineage_combined(
         target_id,
@@ -396,6 +398,9 @@ def command_families(args):
     if not target_id:
         print(f"No species found for search term '{args.term}'", file=sys.stderr)
         return
+    elif target_id == 'Ambiguous':
+        return
+
     families = []
 
     is_hmm = args.format.startswith("hmm")
@@ -717,7 +722,10 @@ with a given clade, optionally filtered by additional criteria",
         return
 
     if "func" in args:
-        args.func(args)
+        try:
+            args.func(args)
+        except:
+            print("Double-Check Command")
     else:
         parser.print_help()
         args.db_dir.show_files()
