@@ -128,12 +128,13 @@ def init_db_file(filename):
         db.set_partition_info(0)
         write_test_metadata(db)
 
+        db.write_taxonomy(taxa, NODES[0])
+        db.write_taxa_names(taxa, NODES)
+
         db.add_family(families[0])
         db.add_family(families[1])
         db.add_family(families[2])
 
-        db.write_taxonomy(taxa, NODES[0])
-        db.write_taxa_names(taxa, NODES)
         db.finalize()
 
     with FamDBLeaf(f"{filename}.1.h5", "w") as db:
@@ -142,10 +143,11 @@ def init_db_file(filename):
         db.set_partition_info(1)
         write_test_metadata(db)
 
+        db.write_taxonomy(taxa, NODES[1])
+
         db.add_family(families[3])
         db.add_family(families[5])
 
-        db.write_taxonomy(taxa, NODES[1])
         db.finalize()
 
     with FamDBLeaf(f"{filename}.2.h5", "w") as db:
@@ -154,9 +156,10 @@ def init_db_file(filename):
         db.set_partition_info(2)
         write_test_metadata(db)
 
+        db.write_taxonomy(taxa, NODES[2])
+
         db.add_family(families[4])
 
-        db.write_taxonomy(taxa, NODES[2])
         db.finalize()
 
 

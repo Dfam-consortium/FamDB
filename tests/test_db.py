@@ -199,7 +199,7 @@ class TestDatabase(unittest.TestCase):
     def test_get_taxon_name(self):
         with FamDBRoot(TestDatabase.filenames[0], "r") as db:
             self.assertEqual(db.get_taxon_name(2), ["Order", 0])
-            self.assertEqual(db.get_taxon_name(10), None)
+            self.assertEqual(db.get_taxon_name(10), ("Not Found", "N/A"))
             self.assertEqual(db.get_taxon_name(2, "common name"), ["Root Dummy 2", 0])
             self.assertEqual(db.get_taxon_name(4), ["Genus", 1])
 
