@@ -241,7 +241,7 @@ def command_lineage(args):
     if not target_id:
         print(f"No species found for search term '{args.term}'", file=sys.stderr)
         return
-    if target_id == 'Ambiguous':
+    if target_id == "Ambiguous":
         return
 
     tree = args.db_dir.get_lineage_combined(
@@ -398,7 +398,7 @@ def command_families(args):
     if not target_id:
         print(f"No species found for search term '{args.term}'", file=sys.stderr)
         return
-    elif target_id == 'Ambiguous':
+    elif target_id == "Ambiguous":
         return
 
     families = []

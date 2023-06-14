@@ -321,8 +321,8 @@ def main():
                 "Dfam", db_version, db_date, DESCRIPTION, copyright_text
             )
             nodes = F[n]["nodes"]
-            export_families(args, session, tax_db, tax_lookup, partition=F[n])
             args.outfile.write_taxonomy(tax_db, nodes)
+            export_families(args, session, tax_db, tax_lookup, partition=F[n])
             args.outfile.finalize()
 
     LOGGER.info("Finished import")

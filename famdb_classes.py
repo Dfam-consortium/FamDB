@@ -86,7 +86,7 @@ class FamDBLeaf:
                 else set()
             )
             self.seen["accession"] = set(
-                self.__families_iterator(self.file[GROUP_FAMILIES], "Families")
+                families_iterator(self.file[GROUP_FAMILIES], "Families")
                 if self.file.get(GROUP_FAMILIES)
                 else set()
             )
@@ -241,11 +241,11 @@ class FamDBLeaf:
         # the number of entries in a group exceeds 200-500k.
 
         for clade_id in family.clades:
-            taxon_group = self.file.require_group(GROUP_NODES).require_group(
-                str(clade_id)
-            )
-            families_group = taxon_group.require_group("Families")
-            families_group[family.accession] = h5py.SoftLink(fam_link)
+            clade = str(clade_id)
+            nodes = self.file[GROUP_NODES]
+            if clade in nodes:
+                families_group = nodes[clade].require_group("Families")
+                families_group[family.accession] = h5py.SoftLink(fam_link)
 
         def add_stage_link(stage, accession):
             stage_group = self.file.require_group(GROUP_LOOKUP_BYSTAGE).require_group(
@@ -277,7 +277,7 @@ class FamDBLeaf:
             group = self.file.require_group(GROUP_NODES).require_group(
                 str(tax_db[node].tax_id)
             )
-            parent_id = int(tax_db[node].parent_id) if tax_db[node].parent_id else None
+            parent_id = int(tax_db[node].parent_id) if node != 1 else None
             if parent_id:
                 group.create_dataset("Parent", data=numpy.array([parent_id]))
 
@@ -297,7 +297,7 @@ class FamDBLeaf:
         """Returns a list of the accessions for each family directly associated with 'tax_id'."""
         group = (
             self.file[GROUP_NODES][str(tax_id)].get("Families")
-            if f"{GROUP_NODES}/{tax_id}" in self.file
+            if f"{GROUP_NODES}/{tax_id}/Families" in self.file
             else {}
         )
         return list(group.keys())
@@ -320,7 +320,7 @@ class FamDBLeaf:
             def descendants_of(tax_id):
                 descendants = [int(tax_id)]
                 for child in group_nodes[str(tax_id)]["Children"]:
-                    if str(child) in group_nodes:
+                    if not kwargs.get("for_combine") and str(child) in group_nodes:
                         descendants += [descendants_of(child)]
                     elif root:
                         descendants += [f"{LEAF_LINK}{child}"]
@@ -420,7 +420,7 @@ class FamDBRoot(FamDBLeaf):
                 for name in names:
                     if name[0] == kind:
                         return [name[1], int(partition)]
-        return None
+        return "Not Found", "N/A"
 
     def search_taxon_names(self, text, kind=None, search_similar=False):
         """
@@ -710,7 +710,7 @@ class FamDB:
                 list(base_lineage.links[ROOT_LINK].keys())[0]
             )  # TODO this is probably really slow
             root_lineage = self.files[0].get_lineage(
-                ancestor_node, descendants=True, ancestors=True
+                ancestor_node, descendants=True, ancestors=True, for_combine=True
             )
             base_lineage += root_lineage
 
