@@ -320,6 +320,7 @@ class FamDBLeaf:
             def descendants_of(tax_id):
                 descendants = [int(tax_id)]
                 for child in group_nodes[str(tax_id)]["Children"]:
+                    # only list the decendants of the target node if it's not being combined with another decendant lineage
                     if not kwargs.get("for_combine") and str(child) in group_nodes:
                         descendants += [descendants_of(child)]
                     elif root:
