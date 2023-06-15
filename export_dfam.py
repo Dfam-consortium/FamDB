@@ -25,6 +25,7 @@
     -p, --partition          : Specify which partitions in F to export. Defaults to all partitions.
     --from-db                : Connection string to MySQL database to import from
     -r, --include-uncurated  : Include uncurated families (DR*) records, not only DF* (the default)
+    -t, --test_set           : Only include 5 families per file
     --from-tax-dump          : Use taxonomy from NCBI database dump, instead of the database
                                (or if building from files instead of the database)
     --from-embl              : Additional Dfam EMBL-formatted file to import; can be given multiple times.
@@ -151,20 +152,17 @@ def export_families(
         target_count += query.count()
         LOGGER.info("Including %d families from database", target_count)
 
-        to_import = itertools.chain(
-            to_import, iterate_db_families(session, tax_db, query)
-        )
+        to_import = itertools.chain(to_import, iterate_db_families(session, query))
 
     for embl_file in args.from_embl:
-        LOGGER.info("Including all families from file: %s", embl_file)
         to_import = itertools.chain(
-            to_import, Family.read_embl_families(embl_file, tax_lookup)
+            to_import,
+            Family.read_embl_families(embl_file, tax_lookup, partition["nodes"]),
         )
 
     for hmm_file in args.from_hmm:
-        LOGGER.info("Including all families from file: %s", hmm_file)
         to_import = itertools.chain(
-            to_import, read_hmm_families(hmm_file, tax_db, tax_lookup)
+            to_import, read_hmm_families(hmm_file, tax_lookup, partition["nodes"])
         )
 
     if args.from_embl or args.from_hmm:

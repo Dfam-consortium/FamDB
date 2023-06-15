@@ -84,7 +84,9 @@ import DfamVersion as dfVersion
 
 LOGGER = logging.getLogger(__name__)
 PREPPED_DIR = "partitions"
+# RMRB_spec_to_tax.json maps species names from embl format to taxon ids. Used for adding embl files to FamDB files with append command
 rb_taxa_file = f"{PREPPED_DIR}/RMRB_spec_to_tax.json"
+# RMRB_sizes.json contains species, taxon, and the total size of each taxon. Used for partitioning
 RB_file = f"{PREPPED_DIR}/RMRB_sizes.json"
 T_file = f"{PREPPED_DIR}/T.pkl"
 

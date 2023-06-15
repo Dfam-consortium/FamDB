@@ -159,7 +159,7 @@ def load_classification(session):
     return nodes
 
 
-def iterate_db_families(session, tax_db, families_query):
+def iterate_db_families(session, families_query):
     """Returns an iterator over families in the Dfam MySQL database."""
     class_db = load_classification(session)
 
@@ -332,8 +332,6 @@ def iterate_db_families(session, tax_db, families_query):
             th_values += [
                 "{}, {}, {}, {}, {}".format(tax_id, spec_ga, spec_tc, spec_nc, spec_fdr)
             ]
-            # tax_db[tax_id].mark_ancestry_used()
-            tax_db[tax_id].used = True
 
         if th_values:
             family.taxa_thresholds = "\n".join(th_values)
@@ -424,7 +422,7 @@ def iterate_db_families(session, tax_db, families_query):
         yield family
 
 
-def read_hmm_families(filename, tax_db, tax_lookup):
+def read_hmm_families(filename, tax_lookup, nodes):
     """
     Iterates over Family objects from the .hmm file 'filename'. The format
     should match the output format of to_hmm(), but this is not thoroughly
@@ -454,8 +452,6 @@ def read_hmm_families(filename, tax_db, tax_lookup):
             )
             if match:
                 tax_id = int(match.group(1))
-                # tax_db[tax_id].mark_ancestry_used()
-                tax_db[tax_id].used = True
                 tc_value = float(match.group(4))
                 if family.general_cutoff is None or family.general_cutoff < tc_value:
                     family.general_cutoff = tc_value
@@ -556,5 +552,10 @@ def read_hmm_families(filename, tax_db, tax_lookup):
                 # '//' line indicates end of a model
                 elif line.startswith("//"):
                     family.model = model
-                    yield family
+                    for clade in family.clades:
+                        if clade in nodes:
+                            LOGGER.info(
+                                f"Including {family.accession} in taxa {clade} from {filename}"
+                            )
+                            yield family
                     family = None

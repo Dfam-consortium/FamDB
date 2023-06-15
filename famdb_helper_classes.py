@@ -577,7 +577,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
         return out
 
     @staticmethod
-    def read_embl_families(filename, lookup, header_cb=None):
+    def read_embl_families(filename, lookup, nodes, header_cb=None):
         """
         Iterates over Family objects from the .embl file 'filename'. The format
         should match the output format of to_embl(), but this is not thoroughly
@@ -681,8 +681,12 @@ class Family:  # pylint: disable=too-many-instance-attributes
                     # '//' line indicates end of the sequence area
                     elif line.startswith("//"):
                         family.length = len(family.consensus)
-
-                        yield family
+                        for clade in family.clades:
+                            if clade in nodes:
+                                LOGGER.info(
+                                    f"Including {family.accession} in taxa {clade} from {filename}"
+                                )
+                                yield family
                         family = None
 
                     # Part of the sequence area
