@@ -63,26 +63,26 @@ FILE_DESCRIPTION = f"""This is famdb.py version {FILE_VERSION}.
 
 example commands, including the most commonly used options:
 
-  famdb.py [-i FILE] info
+  famdb.py [-i DB_DIR] info
     Prints information about the file including database name and date.
 
-  famdb.py [-i FILE] names 'mus' | head
+  famdb.py [-i DB_DIR] names 'mus' | head
     Prints taxonomy nodes that include 'mus', and the corresponding IDs.
     The IDs and names are stored in the FamDB file, and are based
     on the NCBI taxonomy database (https://www.ncbi.nlm.nih.gov/taxonomy).
 
-  famdb.py [-i FILE] lineage -ad 'Homo sapiens'
-  famdb.py [-i FILE] lineage -ad --format totals 9606
+  famdb.py [-i DB_DIR] lineage -ad 'Homo sapiens'
+  famdb.py [-i DB_DIR] lineage -ad --format totals 9606
     Prints a taxonomic tree including the given clade and optionally ancestors
     and/or descendants, with the number of repeats indicated at each level of
     the hierarchy. With the 'totals' format, prints the number of matching
     ancestral and lineage-specific entries.
 
-  famdb.py [-i FILE] family --format fasta_acc MIR3
+  famdb.py [-i DB_DIR] family --format fasta_acc MIR3
     Exports a single family from the database in one of several formats.
 
-  famdb.py [-i FILE] families -f embl_meta -ad --curated 'Drosophila melanogaster'
-  famdb.py [-i FILE] families -f hmm -ad --curated --class LTR 7227
+  famdb.py [-i DB_DIR] families -f embl_meta -ad --curated 'Drosophila melanogaster'
+  famdb.py [-i DB_DIR] families -f hmm -ad --curated --class LTR 7227
     Searches and exports multiple families from the database, in one of several formats.
 
 """

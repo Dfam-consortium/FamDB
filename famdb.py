@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
     famdb.py, version 0.5
-    Usage: famdb.py [-h] [-l LOG_LEVEL] [-i FILE] command ...
+    Usage: famdb.py [-h] [-l LOG_LEVEL] [-i DB_DIR] command ...
 
     Queries or modifies the contents of a famdb file. For more detailed help
     and information about program options, run `famdb.py --help` or
@@ -77,8 +77,8 @@ Date: {db_info["date"]}
 {db_info["description"]}
 
 {counts['file']} Files Present
-Total consensus sequences: {counts["consensus"]}
-Total HMMs: {counts["hmm"]}
+Total consensus sequences present: {counts["consensus"]}
+Total HMMs present: {counts["hmm"]}
 """
     )
     args.db_dir.show_files()
@@ -497,7 +497,7 @@ def main():  # =================================================================
     )
     parser.add_argument("-l", "--log-level", default="INFO")
 
-    parser.add_argument("-i", "--db_dir", help="specifies the file to query")
+    parser.add_argument("-i", "--db_dir", help="specifies the directory to query")
 
     subparsers = parser.add_subparsers(
         description="""Specifies the kind of query to perform.
@@ -613,12 +613,12 @@ with a given clade, optionally filtered by additional criteria",
     p_families.add_argument(
         "--uncurated",
         action="store_true",
-        help="include only 'uncurated' families (i.e. named DRXXXXXXX)",
+        help="include only 'uncurated' families (i.e. named DRXXXXXXXXX)",
     )
     p_families.add_argument(
         "--curated",
         action="store_true",
-        help="include only 'curated' families (i.e. not named DRXXXXXXX)",
+        help="include only 'curated' families (i.e. not named DFXXXXXXXXX)",
     )
     p_families.add_argument(
         "-f",

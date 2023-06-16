@@ -747,17 +747,20 @@ class FamDB:
                 "counts": counts,
                 "status": status,
             }
+        # move root partition to front to print it first
+        keys = list(files.keys())
+        keys.remove("0")
+        keys.insert(0, "0")
 
-        print(f"\nFile Info: {self.db_dir}")
-        for partition in files:
+        print(f"\nFile Info: {self.db_dir}\n---------------------------------------")
+        for partition in keys:
             file = files[partition]
             details = f"{', '.join(file['partition_detail'])}"
-            print(
-                f" Partition {partition} {file['status']}: "
-                f"{file['partition_name']} {f'- {details}' if details else ''} \n"
-                f"   {file['filename']} -> "
-                f"Consensi: {file['counts']['consensus']}, HMMs: {file['counts']['hmm']}\n"
-            )
+            status = file["status"]
+            outstr = f" Partition {partition} {status}: {file['partition_name']} {f'- {details}' if details else ''} \n"
+            if status != "Missing":
+                outstr += f"   {file['filename']} -> Consensi: {file['counts']['consensus']}, HMMs: {file['counts']['hmm']}\n"
+            print(outstr)
 
     def get_lineage_path(self, tax_id, **kwargs):
         """method used in EMBL exports"""

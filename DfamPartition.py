@@ -394,6 +394,41 @@ def main(*args):
     for n in F:
         trace_root_path(F[n]["T_root"])
 
+    # determine f_roots for root partition
+    root_leaves = []
+    for n in T:
+        if T[n]["chunk"] == 0 and not T[n]["children"] and T[n]["filesize"] and n != 1:
+            root_leaves += [n]
+
+    # find path from leaf to root
+    def ancestral_path(n, parents=[]):
+        parent = T[n]["parent"]
+        if parent:
+            parents += [parent]
+            parents = ancestral_path(parent, parents)
+        return parents
+
+    # determine if a node has any children in leaf partitions
+    def has_non_root_children(n):
+        has_non_root_child = False
+        for child in T[n]["children"]:
+            if T[child]["chunk"] != 0:
+                return True
+            has_non_root_child = has_non_root_children(child)
+            if has_non_root_child:
+                return True
+        return has_non_root_child
+
+    # find hightest root-partition ancestor for each leaf node
+    f_roots = set()
+    for leaf in root_leaves:
+        ancestors = ancestral_path(leaf)
+        for ancestor in ancestors[::-1]:
+            if not has_non_root_children(ancestor):
+                f_roots.add(ancestor)
+                break
+    F[0]["F_roots"] += list(f_roots)
+
     # ~ MAP T nodes to F chunks ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # fill nodes in F
     for n in T:
