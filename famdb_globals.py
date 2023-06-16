@@ -108,6 +108,16 @@ Supported formats:
   * 'embl_meta'   : Same as 'embl', but with only the metadata included.
   * 'embl_seq'    : Same as 'embl', but with only the sequences included.
 """
+
+MISSING_FILE = """
+\tTaxon in Partition %s, Partition File Not Found
+\t      
+\tThis partition is available for download from Dfam and may
+\tbe installed in the %s directory.  Please see
+\t%s for more details."""
+
+HELP_URL = "http://www.dfam.org/home"
+
 # Soundex codes
 SOUNDEX_LOOKUP = {
     "A": 0,

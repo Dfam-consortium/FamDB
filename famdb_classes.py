@@ -19,6 +19,8 @@ from famdb_globals import (
     GROUP_LOOKUP_BYSTAGE,
     GROUP_NODES,
     GROUP_TAXANAMES,
+    MISSING_FILE,
+    HELP_URL,
 )
 from famdb_helper_methods import (
     sanitize_name,
@@ -300,6 +302,7 @@ class FamDBLeaf:
             if f"{GROUP_NODES}/{tax_id}/Families" in self.file
             else {}
         )
+
         return list(group.keys())
 
     def get_lineage(self, tax_id, **kwargs):
@@ -417,7 +420,7 @@ class FamDBRoot(FamDBLeaf):
         """
         for partition in self.names_dump:
             names = self.names_dump[partition].get(str(tax_id))
-            if names:
+            if names is not None:
                 for name in names:
                     if name[0] == kind:
                         return [name[1], int(partition)]
@@ -668,12 +671,12 @@ class FamDB:
 
     def get_lineage_combined(self, tax_id, **kwargs):
         # check if tax_id exists in Dfam
-        location = self.files[0].find_taxon(tax_id)
+        location = self.find_taxon(tax_id)
         if location is None:
             print("Taxon Not Found In Dfam")
             return None
         if location not in self.files:
-            print(f"Taxon In Partion {location}, Partition File Not Found")
+            print(MISSING_FILE % (location, self.db_dir, HELP_URL))
             return None
         # query lineage in correct file
         base_lineage = self.files[location].get_lineage(tax_id, **kwargs)
@@ -683,7 +686,7 @@ class FamDB:
             missing = {}
             for taxa in base_lineage.links[LEAF_LINK].values():
                 # find location of each linked node
-                loc = self.files[0].find_taxon(taxa)
+                loc = self.find_taxon(taxa)
                 if loc and loc in self.files:
                     # query and save subtree if file is installed
                     add_lineages += [
@@ -826,6 +829,9 @@ class FamDB:
                 return fam
         return None
 
+    def find_taxon(self, tax_id):
+        return self.files[0].find_taxon(tax_id)
+
     def assemble_filters(self, **kwargs):
         """Define family filters (logically ANDed together)"""
         filters = []
@@ -946,7 +952,7 @@ class FamDB:
                     tax_id, ancestors=ancestors, descendants=descendants
                 )
                 for node in walk_tree(lineage):
-                    location = self.files[0].find_taxon(node)
+                    location = self.find_taxon(node)
                     fams = self.get_families_for_taxon(node, location)
                     if fams:
                         yield from fams

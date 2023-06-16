@@ -338,6 +338,7 @@ class TestDatabase(unittest.TestCase):
         famdb = TestDatabase.famdb
         famdb.show_files()
         out = f"""\nFile Info: {TestDatabase.file_dir}
+---------------------------------------
  Partition 0 Present: Root Node  
    unittest.0.h5 -> Consensi: 2, HMMs: 3
 

@@ -49,7 +49,14 @@ import os
 import re
 import sys
 
-from famdb_globals import LOGGER, FILE_DESCRIPTION, FAMILY_FORMATS_EPILOG, REPBASE_FILE
+from famdb_globals import (
+    LOGGER,
+    FILE_DESCRIPTION,
+    FAMILY_FORMATS_EPILOG,
+    REPBASE_FILE,
+    MISSING_FILE,
+    HELP_URL,
+)
 from famdb_helper_classes import Family
 from famdb_helper_methods import sanitize_name
 from famdb_classes import FamDB
@@ -130,11 +137,15 @@ def print_lineage_tree(file, tree, partition, gutter_self, gutter_children):
     if "_link:" in str(tax_id):
         tax_id = str(tax_id).split(":")[1]
     name, tax_partition = file.get_taxon_name(tax_id, "scientific name")
-    fams = file.get_families_for_taxon(tax_id, tax_partition)
-    count = (
-        len(fams) if fams is not None else f"Partition {tax_partition} Not Installed"
-    )
-    print(f"{gutter_self}{tax_id} {name}({tax_partition}) [{count}]")
+    if name != "Not Found":
+        fams = file.get_families_for_taxon(tax_id, tax_partition)
+        missing_message = MISSING_FILE % (tax_partition, file.db_dir, HELP_URL)
+        missing_message = (
+            missing_message.replace("\t", f"{gutter_self[:-2]}│ * \t")
+            + f"\n{gutter_self[:-2]}│"
+        )
+        count = f"[{len(fams)}]" if fams is not None else missing_message
+        print(f"{gutter_self}{tax_id} {name}({tax_partition}) {count}")
 
     # All but the last child need a downward-pointing line that will link up
     # to the next child, so this is split into two cases
@@ -173,23 +184,25 @@ def print_lineage_semicolons(file, tree, partition, parent_name, starting_at):
     tax_id = tree[0]
     children = tree[1:]
     name, tax_partition = file.get_taxon_name(tax_id, "scientific name")
-    if parent_name:
-        name = parent_name + ";" + name
 
-    if starting_at == tax_id:
-        starting_at = None
+    if name != "Not Found":
+        if parent_name:
+            name = parent_name + ";" + name
 
-    if not starting_at:
-        fams = file.get_families_for_taxon(tax_id, tax_partition)
-        count = (
-            len(fams)
-            if fams is not None
-            else f"Partition {tax_partition} Not Installed"
-        )
-        print(f"{tax_id}({tax_partition}): {name} [{count}]")
+        if starting_at == tax_id:
+            starting_at = None
 
-    for child in children:
-        print_lineage_semicolons(file, child, tax_partition, name, starting_at)
+        if not starting_at:
+            fams = file.get_families_for_taxon(tax_id, tax_partition)
+            count = (
+                f"[{len(fams)}]"
+                if fams is not None
+                else f"(Taxon in Partition {tax_partition}, Partition File Not Found)"
+            )
+            print(f"{tax_id}({tax_partition}): {name} {count}")
+
+        for child in children:
+            print_lineage_semicolons(file, child, tax_partition, name, starting_at)
 
 
 def get_lineage_totals(file, tree, target_id, partition, seen=None):
@@ -219,9 +232,11 @@ def get_lineage_totals(file, tree, target_id, partition, seen=None):
 
     counts = [0, 0]
     for child in children:
-        anc, desc = get_lineage_totals(file, child, target_id, partition, seen)
-        counts[0] += anc
-        counts[1] += desc
+        partition = file.find_taxon(tax_id)
+        if partition is not None:
+            anc, desc = get_lineage_totals(file, child, target_id, partition, seen)
+            counts[0] += anc
+            counts[1] += desc
 
     if target_id is None:
         counts[1] += count_here
@@ -424,7 +439,8 @@ def command_families(args):
     )
     families = map(args.db_dir.get_family_by_accession, accessions)
 
-    print_families(args, families, True, target_id)
+    header = True if accessions else False
+    print_families(args, families, header, target_id)
 
 
 def command_append(args):
