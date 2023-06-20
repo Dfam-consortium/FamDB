@@ -56,6 +56,7 @@ from famdb_globals import (
     REPBASE_FILE,
     MISSING_FILE,
     HELP_URL,
+    LEAF_LINK,
 )
 from famdb_helper_classes import Family
 from famdb_helper_methods import sanitize_name
@@ -205,7 +206,7 @@ def print_lineage_semicolons(file, tree, partition, parent_name, starting_at):
             print_lineage_semicolons(file, child, tax_partition, name, starting_at)
 
 
-def get_lineage_totals(file, tree, target_id, partition, seen=None):
+def get_lineage_totals(file, tree, target_id, partition, seen=None, present=None):
     """
     Recursively calculates the total number of families
     on ancestors and descendants of 'target_id' in the given 'tree'.
@@ -216,6 +217,8 @@ def get_lineage_totals(file, tree, target_id, partition, seen=None):
     """
     if not seen:
         seen = set()
+    if not present:
+        present = set()
 
     tax_id = tree[0]
     children = tree[1:]
@@ -234,16 +237,20 @@ def get_lineage_totals(file, tree, target_id, partition, seen=None):
     for child in children:
         partition = file.find_taxon(tax_id)
         if partition is not None:
-            anc, desc = get_lineage_totals(file, child, target_id, partition, seen)
-            counts[0] += anc
-            counts[1] += desc
+            new_counts, new_present = get_lineage_totals(
+                file, child, target_id, partition, seen, present
+            )
+            counts[0] += new_counts[0]
+            counts[1] += new_counts[1]
+            present.add(partition)
+            present.update(new_present)
 
     if target_id is None:
         counts[1] += count_here
     else:
         counts[0] += count_here
 
-    return counts
+    return counts, present
 
 
 def command_lineage(args):
@@ -273,11 +280,16 @@ def command_lineage(args):
     elif args.format == "semicolon":
         print_lineage_semicolons(args.db_dir, tree, partition, "", target_id)
     elif args.format == "totals":
-        totals = get_lineage_totals(args.db_dir, tree, target_id, partition)
+        totals, present = get_lineage_totals(args.db_dir, tree, target_id, partition)
+        present = ", ".join([str(val) for val in present])
+        missing = (
+            " absent related partitions: "
+            + ", ".join([str(val) for val in set(tree.missing.values())])
+            if hasattr(tree, "missing")
+            else ""
+        )
         print(
-            "{} entries in ancestors; {} lineage-specific entries".format(
-                totals[0], totals[1]
-            )
+            f"{totals[0]} entries in ancestors; {totals[1]} lineage-specific entries; found in partitions: {present};{missing}"
         )
     else:
         raise ValueError("Unimplemented lineage format: %s" % args.format)
