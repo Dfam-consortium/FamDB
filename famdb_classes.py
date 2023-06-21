@@ -350,6 +350,15 @@ class FamDBLeaf:
         lineage = Lineage(tree, root, self.get_partition_num())
         return lineage
 
+    def filter_stages(self, accession, stages):
+        """Returns True if the family belongs to a search or buffer stage in 'stages'."""
+        for stage in stages:
+            grp = self.file[GROUP_LOOKUP_BYSTAGE].get(stage)
+            if grp and accession in grp:
+                return True
+
+        return False
+
     # Family Getters --------------------------------------------------------------------------
     def get_family_names(self):  # TODO unused
         """Returns a list of names of families in the database."""
@@ -765,73 +774,6 @@ class FamDB:
                 outstr += f"   {file['filename']} -> Consensi: {file['counts']['consensus']}, HMMs: {file['counts']['hmm']}\n"
             print(outstr)
 
-    def get_lineage_path(self, tax_id, **kwargs):
-        """method used in EMBL exports"""
-        lineage = self.get_lineage_combined(tax_id, **kwargs)
-        partition = (
-            kwargs.get("partition") if kwargs.get("partition") is not None else True
-        )
-        cache = kwargs.get("cache") if kwargs.get("cache") is not None else True
-        return self.files[0].get_lineage_path(
-            tax_id, lineage, cache=cache, partition=partition
-        )
-
-    def get_counts(self):
-        counts = {"consensus": 0, "hmm": 0, "file": 0}
-        for file in self.files:
-            file_counts = self.files[file].get_counts()
-            counts["consensus"] += file_counts["consensus"]
-            counts["hmm"] += file_counts["hmm"]
-            counts["file"] += 1
-        return counts
-
-    def resolve_names(self, term):
-        entries = []
-        for tax_id, partition, is_exact in self.files[0].resolve_species(term):
-            names = self.files[0].get_taxon_names(tax_id)
-            entries += [[tax_id, is_exact, partition, names]]
-        return entries
-
-    # Wrapper methods ---------------------------------------------------------------------------------------
-    def get_sanitized_name(self, tax_id):
-        """method used in EMBL exports"""
-        return self.files[0].get_sanitized_name(tax_id)
-
-    def get_db_info(self):
-        return self.files[0].get_db_info()
-
-    def resolve_one_species(self, term):
-        return self.files[0].resolve_one_species(term)
-
-    def get_metadata(self):
-        return self.files[0].get_metadata()
-
-    def get_taxon_name(self, tax_id, kind):
-        return self.files[0].get_taxon_name(tax_id, kind)
-
-    def get_families_for_taxon(self, tax_id, partition):
-        if partition in self.files:
-            return self.files[partition].get_families_for_taxon(tax_id)
-        else:
-            return None
-
-    def get_family_by_accession(self, accession):
-        for file in self.files:
-            fam = self.files[file].get_family_by_accession(accession)
-            if fam:
-                return fam
-        return None
-
-    def get_family_by_name(self, accession):
-        for file in self.files:
-            fam = self.files[file].get_family_by_name(accession)
-            if fam:
-                return fam
-        return None
-
-    def find_taxon(self, tax_id):
-        return self.files[0].find_taxon(tax_id)
-
     def assemble_filters(self, **kwargs):
         """Define family filters (logically ANDed together)"""
         filters = []
@@ -849,8 +791,10 @@ class FamDB:
             elif filter_stage == 95:
                 # "stage 95" = this specific stage list:
                 stages = ["35", "50", "55", "60", "65", "70", "75"]
+                filters += [lambda a, f: self.filter_stages(a, stages)]
             else:
                 stages = [str(filter_stage)]
+                filters += [lambda a, f: self.filter_stages(a, stages)]
 
         # HMM only: add a search stage filter to "un-list" families that were
         # allowed through only because they match in buffer stage
@@ -982,13 +926,12 @@ class FamDB:
             if match:
                 yield accession
 
-    def finalize(self):
-        for file in self.files:
-            self.files[file].finalize()
-
-    def set_db_info(self, name, version, date, desc, copyright_text):
-        for file in self.files:
-            self.files[file].set_db_info(name, version, date, desc, copyright_text)
+    def resolve_names(self, term):
+        entries = []
+        for tax_id, partition, is_exact in self.files[0].resolve_species(term):
+            names = self.files[0].get_taxon_names(tax_id)
+            entries += [[tax_id, is_exact, partition, names]]
+        return entries
 
     def get_existing(self):
         seen = {"accession": [], "name": []}
@@ -996,6 +939,74 @@ class FamDB:
             seen["accession"] += self.files[file].seen["accession"]
             seen["name"] += self.files[file].seen["name"]
         return seen
+
+    # Wrapper methods ---------------------------------------------------------------------------------------
+    def get_counts(self):
+        counts = {"consensus": 0, "hmm": 0, "file": 0}
+        for file in self.files:
+            file_counts = self.files[file].get_counts()
+            counts["consensus"] += file_counts["consensus"]
+            counts["hmm"] += file_counts["hmm"]
+            counts["file"] += 1
+        return counts
+
+    def get_lineage_path(self, tax_id, **kwargs):
+        """method used in EMBL exports"""
+        lineage = self.get_lineage_combined(tax_id, **kwargs)
+        partition = (
+            kwargs.get("partition") if kwargs.get("partition") is not None else True
+        )
+        cache = kwargs.get("cache") if kwargs.get("cache") is not None else True
+        return self.files[0].get_lineage_path(
+            tax_id, lineage, cache=cache, partition=partition
+        )
+
+    def get_sanitized_name(self, tax_id):
+        """method used in EMBL exports"""
+        return self.files[0].get_sanitized_name(tax_id)
+
+    def get_db_info(self):
+        return self.files[0].get_db_info()
+
+    def resolve_one_species(self, term):
+        return self.files[0].resolve_one_species(term)
+
+    def get_metadata(self):
+        return self.files[0].get_metadata()
+
+    def get_taxon_name(self, tax_id, kind):
+        return self.files[0].get_taxon_name(tax_id, kind)
+
+    def get_families_for_taxon(self, tax_id, partition):
+        if partition in self.files:
+            return self.files[partition].get_families_for_taxon(tax_id)
+        else:
+            return None
+
+    def get_family_by_accession(self, accession):
+        for file in self.files:
+            fam = self.files[file].get_family_by_accession(accession)
+            if fam:
+                return fam
+        return None
+
+    def get_family_by_name(self, accession):
+        for file in self.files:
+            fam = self.files[file].get_family_by_name(accession)
+            if fam:
+                return fam
+        return None
+
+    def find_taxon(self, tax_id):
+        return self.files[0].find_taxon(tax_id)
+
+    def finalize(self):
+        for file in self.files:
+            self.files[file].finalize()
+
+    def set_db_info(self, name, version, date, desc, copyright_text):
+        for file in self.files:
+            self.files[file].set_db_info(name, version, date, desc, copyright_text)
 
     def add_family(self, entry):
         # track files added to in case family has multiple clades in same file
@@ -1008,6 +1019,12 @@ class FamDB:
                     added += [partition]
         if not added:
             LOGGER.error(f"Family {entry.accession} not added to local files")
+
+    def filter_stages(self, accession, stages):
+        for file in self.files:
+            fam = self.files[file].get_family_by_accession(accession)
+            if fam:
+                return self.files[file].filter_stages(accession, stages)
 
     # File Utils
     def close(self):

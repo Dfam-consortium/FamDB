@@ -63,16 +63,6 @@ def filter_name(family, name):
     return False
 
 
-# def filter_stages(self, accession, stages): # TODO confirm this
-#     """Returns True if the family belongs to a search or buffer stage in 'stages'."""
-#     for stage in stages:
-#         grp = self.file[GROUP_LOOKUP_BYSTAGE].get(stage)
-#         if grp and accession in grp:
-#             return True
-
-#     return False
-
-
 def filter_search_stages(family, stages):
     """Returns True if the family belongs to a search stage in 'stages'."""
     if family.attrs.get("search_stages"):
