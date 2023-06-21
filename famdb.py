@@ -331,6 +331,12 @@ def print_families(args, families, header, species=None):
 
     for family in families:
         if args.format == "summary":
+            if include_class_in_name:
+                name = family.name or family.accession
+                rm_class = family.repeat_type
+                if family.repeat_subtype:
+                    rm_class += "/" + family.repeat_subtype
+                family.name = name + "#" + rm_class
             entry = str(family) + "\n"
         elif args.format == "hmm":
             entry = family.to_dfam_hmm(

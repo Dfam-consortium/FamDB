@@ -102,7 +102,7 @@ def filter_curated(accession, curated):
     TODO: perhaps this should be a dedicated 'curated' boolean field on Family
     """
 
-    is_curated = (
+    is_curated = not (
         accession.startswith("DR")
         and len(accession) == 11
         and all((c >= "0" and c <= "9" for c in accession[2:]))

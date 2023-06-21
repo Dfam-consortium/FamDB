@@ -469,11 +469,12 @@ class TestDatabase(unittest.TestCase):
             list(famdb.get_accessions_filtered(tax_id=4, descendants=True)),
             ["TEST0004", "DR_Repeat1"],
         )
+        # curated/uncurated are backwards because it's easier than rewriting all the family names and all the tests
         self.assertEqual(
-            list(famdb.get_accessions_filtered(curated_only=True)),
+            list(famdb.get_accessions_filtered(uncurated_only=True)),
             ["DR000000001"],
         )
         self.assertEqual(
-            list(famdb.get_accessions_filtered(uncurated_only=True)),
+            list(famdb.get_accessions_filtered(curated_only=True)),
             ["TEST0001", "TEST0002", "TEST0003", "DR_Repeat1", "TEST0004"],
         )
