@@ -56,10 +56,8 @@ from famdb_globals import (
     REPBASE_FILE,
     MISSING_FILE,
     HELP_URL,
-    LEAF_LINK,
 )
 from famdb_helper_classes import Family
-from famdb_helper_methods import sanitize_name
 from famdb_classes import FamDB
 
 
@@ -281,7 +279,7 @@ def command_lineage(args):
         print_lineage_semicolons(args.db_dir, tree, partition, "", target_id)
     elif args.format == "totals":
         totals, present = get_lineage_totals(args.db_dir, tree, target_id, partition)
-        present = ", ".join([str(val) for val in present])
+        present = ", ".join([str(val) for val in present]) + ';' if present else partition
         missing = (
             " absent related partitions: "
             + ", ".join([str(val) for val in set(tree.missing.values())])
@@ -289,7 +287,7 @@ def command_lineage(args):
             else ""
         )
         print(
-            f"{totals[0]} entries in ancestors; {totals[1]} lineage-specific entries; found in partitions: {present};{missing}"
+            f"{totals[0]} entries in ancestors; {totals[1]} lineage-specific entries; found in partitions: {present}{missing}"
         )
     else:
         raise ValueError("Unimplemented lineage format: %s" % args.format)

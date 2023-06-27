@@ -2,7 +2,6 @@ import re
 import h5py
 from famdb_globals import (
     SOUNDEX_LOOKUP,
-    GROUP_LOOKUP_BYSTAGE,
     GROUP_FAMILIES,
     dfam_acc_pat,
 )

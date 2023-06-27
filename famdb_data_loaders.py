@@ -9,6 +9,7 @@ from sqlalchemy.ext import baked
 
 import dfam_35 as dfam
 from famdb_helper_classes import TaxNode, ClassificationNode
+from famdb_helper_methods import sanitize_name
 from famdb_globals import LOGGER
 import famdb
 
@@ -58,7 +59,7 @@ def load_taxonomy_from_db(session):
         name = entry.unique_name or entry.name_txt
         nodes[entry.tax_id].names += [[entry.name_class, name]]
         if entry.name_class == "scientific name":
-            sanitized_name = famdb.sanitize_name(name).lower()
+            sanitized_name = sanitize_name(name).lower()
             lookup[sanitized_name] = entry.tax_id
 
     delta = time.perf_counter() - start
@@ -114,7 +115,7 @@ def load_taxonomy_from_dump(dump_dir):
             name = unique_name or name_txt
             nodes[tax_id].names += [[name_class, name]]
             if name_class == "snientific name":
-                sanitized_name = famdb.sanitize_name(name).lower()
+                sanitized_name = sanitize_name(name).lower()
                 lookup[sanitized_name] = tax_id
 
     delta = time.perf_counter() - start
