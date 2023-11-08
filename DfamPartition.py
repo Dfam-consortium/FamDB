@@ -69,7 +69,7 @@ import json
 import uuid
 
 # SQL Alchemy
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 # TODO rm
@@ -89,7 +89,7 @@ rb_taxa_file = f"{PREPPED_DIR}/RMRB_spec_to_tax.json"
 # RMRB_sizes.json contains species, taxon, and the total size of each taxon. Used for partitioning
 RB_file = f"{PREPPED_DIR}/RMRB_sizes.json"
 T_file = f"{PREPPED_DIR}/T.pkl"
-
+Node_file = f"{PREPPED_DIR}/nodes.pkl"
 
 def _usage():
     """Print out docstring as program usage"""
@@ -121,7 +121,7 @@ def parse_RMRB(args, session):
                 tax_id = looked_up[species]
             else:
                 query = f"SELECT tax_id FROM `ncbi_taxdb_names` WHERE sanitized_name='{species}'"
-                res = tuple(conn.execute(query))
+                res = tuple(conn.execute(text(query)))
                 tax_id = res[0][0] if res else None
                 looked_up[species] = tax_id
                 if not tax_id:
@@ -150,7 +150,7 @@ def generate_T(args, session, db_version, db_date):
         node_query += f" UNION SELECT tax_id, parent_id from ncbi_taxdb_nodes WHERE tax_id IN ({','.join(str(node) for node in spec_to_taxa.values())})"
 
     with session.bind.begin() as conn:
-        tax_ids, parent_ids = zip(*conn.execute(node_query))
+        tax_ids, parent_ids = zip(*conn.execute(text(node_query)))
         tax_ids = list(tax_ids)
         parent_ids = list(parent_ids)
 
@@ -163,16 +163,29 @@ def generate_T(args, session, db_version, db_date):
             if not missing_parents:
                 break
             update_query = f"SELECT tax_id, parent_id FROM `ncbi_taxdb_nodes` WHERE tax_id IN ({','.join(str(node) for node in missing_parents)})"
-            new_taxs, new_parents = zip(*conn.execute(update_query))
+            new_taxs, new_parents = zip(*conn.execute(text(update_query)))
             new_taxs = list(new_taxs)
             new_parents = list(new_parents)
             tax_ids.extend(new_taxs)
             parent_ids.extend(new_parents)
 
     # query file sizes for each node
-    node_query = "SELECT family_clade.dfam_taxdb_tax_id, OCTET_LENGTH(hmm_model_data.hmm) + OCTET_LENGTH(family.consensus) FROM hmm_model_data JOIN family_clade ON hmm_model_data.family_id = family_clade.family_id JOIN family ON family_clade.family_id = family.id"
-    with session.bind.begin() as conn:
-        filesizes = conn.execute(node_query)
+    #  node_query = "SELECT family_clade.dfam_taxdb_tax_id, OCTET_LENGTH(hmm_model_data.hmm) + OCTET_LENGTH(family.consensus) FROM hmm_model_data JOIN family_clade ON hmm_model_data.family_id = family_clade.family_id JOIN family ON family_clade.family_id = family.id"
+    node_query = "SELECT family_clade.dfam_taxdb_tax_id, SUM((602+(OCTET_LENGTH(hmm_model_data.hmm)*177)) + OCTET_LENGTH(family.consensus)) FROM hmm_model_data JOIN family_clade ON hmm_model_data.family_id = family_clade.family_id JOIN family ON family_clade.family_id = family.id WHERE family_clade.dfam_taxdb_tax_id GROUP BY family_clade.dfam_taxdb_tax_id"
+
+    if os.path.exists(Node_file):
+        LOGGER.info("Found Stashed Node Sizes")
+        with open(Node_file, "rb") as phandle:
+            filesizes = pickle.load(phandle)
+    else:
+        LOGGER.info("Querying Node Sizes")
+        with session.bind.begin() as conn:
+            filesizes = [(size[0], int(size[1])) for size in conn.execute(text(node_query))]
+      
+        with open(Node_file, "wb") as phandle:
+            # pickle with protocol 4 since we require python 3.6.8 or later
+            pickle.dump(filesizes, phandle, protocol=4)
+    
 
     LOGGER.info("Building Tree")
     # assemble tree from node info
@@ -266,7 +279,8 @@ def main(*args):
     parser.add_argument("-l", "--log-level", default="INFO")
     parser.add_argument("-c", "--dfam_config", dest="dfam_config")
     parser.add_argument("-v", "--version", dest="get_version", action="store_true")
-    parser.add_argument("-S", "--chunk_size", dest="chunk_size", default=10000000000)
+    # parser.add_argument("-S", "--chunk_size", dest="chunk_size", default=20000000000)
+    parser.add_argument("-S", "--chunk_size", dest="chunk_size", default=100000000000)
     parser.add_argument("-r", "--rep_base", dest="rep_base")
     args = parser.parse_args()
 

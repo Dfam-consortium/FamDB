@@ -141,7 +141,8 @@ def export_families(
             )
             .filter(dfam.t_family_clade.c.dfam_taxdb_tax_id.in_(partition["nodes"]))
         ).limit(limit)
-
+        # query = session.query(dfam.Family).filter(dfam.Family.accession=="DR002015555")
+     
         # TODO: assuming that partitioned chunk files will include uncurated data
         if not args.include_uncurated and not args.db_partition:
             query = query.filter(dfam.Family.accession.like("DF%"))
