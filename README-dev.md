@@ -2,14 +2,25 @@
 
 ## Creating famdb files
 
+Before exporting to FamDB be sure that there is a valid partition file by running `DfamPartition.py`.
+
 `export_dfam.py` is used to build famdb files for Dfam releases. It
 can be used in a few ways:
 
 * Taxonomy can be sourced from the database, or from a local dump of the NCBI taxonomy.
 * Families can be sourced from the database, from HMM, and/or from EMBL files.
 
-Example: build a famdb file from a frozen Dfam release.
+Example: Export all of Dfam.X.Y
+```
+$ /usr/bin/time ./export_dfam.py --db_partition ./partitions/F.json --from-db mysql://user:pass@host/database Dfam.X.Y 
+```
 
+Example: Export only partition N from Dfam.X.Y
+```
+$ /usr/bin/time ./export_dfam.py --db_partition ./partitions/F.json -p N --from-db mysql://user:pass@host/database Dfam.X.Y 
+```
+
+Example: build a famdb file from a frozen Dfam release.
 ```
 $ /usr/bin/time ./export_dfam.py --from-db mysql://user:pass@host/database --from-embl Supplemental.embl --count-taxa-in extra_taxa.txt Dfam_curatedonly.h5
 $ /usr/bin/time ./export_dfam.py --from-db mysql://user:pass@host/database -r --from-embl Supplemental.embl --count-taxa-in extra_taxa.txt Dfam.h5

@@ -170,8 +170,7 @@ def generate_T(args, session, db_version, db_date):
             parent_ids.extend(new_parents)
 
     # query file sizes for each node
-    #  node_query = "SELECT family_clade.dfam_taxdb_tax_id, OCTET_LENGTH(hmm_model_data.hmm) + OCTET_LENGTH(family.consensus) FROM hmm_model_data JOIN family_clade ON hmm_model_data.family_id = family_clade.family_id JOIN family ON family_clade.family_id = family.id"
-    node_query = "SELECT family_clade.dfam_taxdb_tax_id, SUM((602+(OCTET_LENGTH(hmm_model_data.hmm)*177)) + OCTET_LENGTH(family.consensus)) FROM hmm_model_data JOIN family_clade ON hmm_model_data.family_id = family_clade.family_id JOIN family ON family_clade.family_id = family.id WHERE family_clade.dfam_taxdb_tax_id GROUP BY family_clade.dfam_taxdb_tax_id"
+    node_query = "SELECT family_clade.dfam_taxdb_tax_id, SUM((family.length + (family.length * 177) + 1160 + OCTET_LENGTH(family.description))) AS byte_est FROM family_clade JOIN family ON family_clade.family_id = family.id GROUP BY family_clade.dfam_taxdb_tax_id"
 
     if os.path.exists(Node_file):
         LOGGER.info("Found Stashed Node Sizes")
@@ -180,7 +179,10 @@ def generate_T(args, session, db_version, db_date):
     else:
         LOGGER.info("Querying Node Sizes")
         with session.bind.begin() as conn:
-            filesizes = [(size[0], int(size[1])) for size in conn.execute(text(node_query))]
+            sizes = conn.execute(text(node_query))
+            filesizes = {}
+            for size in list(sizes):
+                filesizes[size[0]] = int(size[1]) if size[1] else 0
       
         with open(Node_file, "wb") as phandle:
             # pickle with protocol 4 since we require python 3.6.8 or later
@@ -202,7 +204,7 @@ def generate_T(args, session, db_version, db_date):
 
     # assign filesizes
     for size in filesizes:
-        T[size[0]]["filesize"] += size[1]
+        T[size]["filesize"] += filesizes[size]
 
     # add sizes from RepBase
     if args.rep_base:
@@ -279,8 +281,7 @@ def main(*args):
     parser.add_argument("-l", "--log-level", default="INFO")
     parser.add_argument("-c", "--dfam_config", dest="dfam_config")
     parser.add_argument("-v", "--version", dest="get_version", action="store_true")
-    # parser.add_argument("-S", "--chunk_size", dest="chunk_size", default=20000000000)
-    parser.add_argument("-S", "--chunk_size", dest="chunk_size", default=100000000000)
+    parser.add_argument("-S", "--chunk_size", dest="chunk_size", default=10000000000)
     parser.add_argument("-r", "--rep_base", dest="rep_base")
     args = parser.parse_args()
 

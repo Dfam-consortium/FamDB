@@ -48,8 +48,9 @@ needed. The latest development version is located here:
 
 General usage is as follows:
 
-`famdb.py -i dfam.h5 <command>`
+`famdb.py -i <directory> <command>`
 
+where `<directory>` is the folder holding the .h5 export files
 where `<command>` is one of `info`, `names`, `lineage`, `families`, or `family`.
 
 ### info
@@ -64,14 +65,14 @@ any matches. The output is human-readable ("pretty") by default but can also be
 in JSON format. The JSON format is intended for parsing by scripts; the pretty
 format is too unstructured to parse reliably.
 
-`famdb.py -i dfam.h5 names [-f json] <term>`
+`famdb.py -i ./dfam names [-f json] <term>`
 
 `term` can be a taxonomy identifier number or part of a species/clade name.
 
 Exact matches are distinguished from non-exact matches. For example:
 
 ```
-$ famdb.py -i dfam.h5 names rattus
+$ famdb.py -i ./dfam names rattus
 
 Exact Matches
 =============
@@ -110,14 +111,14 @@ tree includes the number of families assigned to each clade. The options `-a`
 (ancestors) and/or `-d` (descendants) can be added to include ancestors,
 descendants, or both, as desired.
 
-`famdb.py -i dfam.h5 lineage [-a] [-d] [-f semicolon|totals] <term>`
+`famdb.py -i ./dfam lineage [-a] [-d] [-f semicolon|totals] <term>`
 
 The semicolon-delimited format does not include the tree drawing and is more
 suitable for parsing. The `totals` format prints the number of ancestral
 and of lineage-specific repeats known for the given species.
 
 ```
-$ famdb.py -i dfam.h5 lineage -ad humans
+$ famdb.py -i ./dfam lineage -ad humans
 
 1 root [9]
 └─131567 cellular organisms [0]
@@ -162,7 +163,7 @@ $ famdb.py -i dfam.h5 lineage -ad humans
 
 Prints a single family given by the family accession.
 
-`famdb.py -i dfam.h5 family [-f <format>] <acc>`
+`famdb.py -i ./dfam family [-f <format>] <acc>`
 
 There are many formats to choose from:
 
@@ -183,7 +184,7 @@ There are many formats to choose from:
   * `embl_seq`: Same as `embl`, but with only the sequences included.
 
 ```
-$ famdb.py -i dfam.h5 family -f fasta_name DF0000001
+$ famdb.py -i ./dfam family -f fasta_name DF0000001
 
 >MIR @Mammalia [S:40,60,65]
 ACAGTATAGCATAGTGGTTAAGAGCACGGGCTCTGGAGCCAGACTGCCTGGGTTCGAATC
@@ -199,7 +200,7 @@ The `families` command takes a taxonomy `term` and prints all families assigned
 to that clade (optionally including ancestors and/or descendants) with optional
 additional filters.
 
-`famdb.py -i dfam.h5 families [-a] [-d]
+`famdb.py -i ./dfam families [-a] [-d]
   [--stage <st>] [--class <cl>] [--name <name>] [--curated]
   [-f <format>] [--add-reverse-complement] [--include-class-in-name]
   <term>`
@@ -224,5 +225,5 @@ Output options:
     RepeatMasker type/subtype in the family name, e.g. `HERV16#LTR/ERVL`.
 
 ```
-$ famdb.py -i dfam.h5 families -f embl_seq -a human
+$ famdb.py -i ./dfam families -f embl_seq -a human
 ```
