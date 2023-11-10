@@ -323,11 +323,11 @@ def iterate_db_families(session, families_query):
         for (tax_id, spec_ga, spec_tc, spec_nc, spec_fdr) in (
             assembly_data_query(session).params(id=record.id).all()
         ):
-            if None in (spec_ga, spec_tc, spec_nc, spec_fdr):
+            if record.accession.startswith('DF') and None in (spec_ga, spec_tc, spec_nc, spec_fdr):
                 raise Exception(
                     "Found value of None for a threshold value for "
                     + record.accession
-                    + " in tax_id"
+                    + " in tax_id "
                     + str(tax_id)
                 )
             th_values += [
