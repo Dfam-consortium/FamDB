@@ -728,7 +728,7 @@ class FamDB:
 
         # strip out leftover links
         def remove_links(lineage):
-            for thing in lineage:
+            for thing in list(lineage):
                 if not thing or type(thing) == str:
                     lineage.remove(thing)
                 if type(thing) == list:
@@ -846,6 +846,7 @@ class FamDB:
             descendants = kwargs.get("descendants") or False
 
         filters, stages, repeat_type, name_filter = self.assemble_filters(**kwargs)
+
 
         # Recursive iterator flattener
         def walk_tree(tree):
