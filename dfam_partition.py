@@ -168,7 +168,7 @@ def generate_T(args, session, db_version, db_date):
             new_parents = list(new_parents)
             tax_ids.extend(new_taxs)
             parent_ids.extend(new_parents)
-
+   
     # query file sizes for each node
     node_query = "SELECT family_clade.dfam_taxdb_tax_id, SUM((family.length + (family.length * 177) + 1160 + OCTET_LENGTH(family.description))) AS byte_est FROM family_clade JOIN family ON family_clade.family_id = family.id GROUP BY family_clade.dfam_taxdb_tax_id"
 
@@ -203,8 +203,8 @@ def generate_T(args, session, db_version, db_date):
     }
 
     # assign filesizes
-    for size in filesizes:
-        T[size]["filesize"] += filesizes[size]
+    for taxon in filesizes:
+        T[taxon]["filesize"] += filesizes[taxon]
 
     # add sizes from RepBase
     if args.rep_base:
@@ -281,7 +281,7 @@ def main(*args):
     parser.add_argument("-l", "--log-level", default="INFO")
     parser.add_argument("-c", "--dfam_config", dest="dfam_config")
     parser.add_argument("-v", "--version", dest="get_version", action="store_true")
-    parser.add_argument("-S", "--chunk_size", dest="chunk_size", default=10000000000)
+    parser.add_argument("-S", "--chunk_size", dest="chunk_size", default=130000000000)
     parser.add_argument("-r", "--rep_base", dest="rep_base")
     args = parser.parse_args()
 

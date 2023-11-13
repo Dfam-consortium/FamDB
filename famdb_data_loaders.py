@@ -14,7 +14,7 @@ from famdb_globals import LOGGER
 import famdb
 
 
-def load_taxonomy_from_db(session):
+def load_taxonomy_from_db(session, relevant_nodes):
     """
     Loads all taxonomy nodes and names from the database.
 
@@ -31,7 +31,7 @@ def load_taxonomy_from_db(session):
 
     for tax_node in session.query(
         dfam.NcbiTaxdbNode.tax_id, dfam.NcbiTaxdbNode.parent_id
-    ).all():
+    ).filter(dfam.NcbiTaxdbNode.tax_id.in_(relevant_nodes)).all():
         nodes[tax_node.tax_id] = TaxNode(tax_node.tax_id, tax_node.parent_id)
 
     for node in nodes.values():
@@ -55,7 +55,7 @@ def load_taxonomy_from_db(session):
         dfam.NcbiTaxdbName.name_txt,
         dfam.NcbiTaxdbName.unique_name,
         dfam.NcbiTaxdbName.name_class,
-    ):
+    ).filter(dfam.NcbiTaxdbName.tax_id.in_(relevant_nodes)):
         name = entry.unique_name or entry.name_txt
         nodes[entry.tax_id].names += [[entry.name_class, name]]
         if entry.name_class == "scientific name":
@@ -68,7 +68,7 @@ def load_taxonomy_from_db(session):
     return nodes, lookup
 
 
-def load_taxonomy_from_dump(dump_dir):
+def load_taxonomy_from_dump(dump_dir, relevant_nodes):
     """
     Loads all taxonomy nodes and names from a dump of the NCBI
     taxonomy database (specifically, node.dmp and names.dmp).
@@ -88,8 +88,9 @@ def load_taxonomy_from_dump(dump_dir):
         for line in nodes_file:
             fields = line.split("|")
             tax_id = int(fields[0])
-            parent_id = int(fields[1])
-            nodes[tax_id] = TaxNode(tax_id, parent_id)
+            if tax_id in relevant_nodes:
+                parent_id = int(fields[1])
+                nodes[tax_id] = TaxNode(tax_id, parent_id)
 
     for node in nodes.values():
         if node.tax_id != 1:
@@ -108,15 +109,16 @@ def load_taxonomy_from_dump(dump_dir):
         for line in names_file:
             fields = line.split("|")
             tax_id = int(fields[0])
-            name_txt = fields[1].strip()
-            unique_name = fields[2].strip()
-            name_class = fields[3].strip()
+            if tax_id in relevant_nodes:
+                name_txt = fields[1].strip()
+                unique_name = fields[2].strip()
+                name_class = fields[3].strip()
 
-            name = unique_name or name_txt
-            nodes[tax_id].names += [[name_class, name]]
-            if name_class == "snientific name":
-                sanitized_name = sanitize_name(name).lower()
-                lookup[sanitized_name] = tax_id
+                name = unique_name or name_txt
+                nodes[tax_id].names += [[name_class, name]]
+                if name_class == "snientific name":
+                    sanitized_name = sanitize_name(name).lower()
+                    lookup[sanitized_name] = tax_id
 
     delta = time.perf_counter() - start
     LOGGER.info("Loaded taxonomy names in %f", delta)

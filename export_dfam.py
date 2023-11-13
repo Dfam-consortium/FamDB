@@ -289,13 +289,16 @@ def main():
         LOGGER.error(
             "The partition information does not match the current database. Re-partition before export."
         )
-        exit()
 
     # load taxonomy data
+    relevant_nodes = []
+    for partition in F:
+        relevant_nodes.extend(F[partition]['nodes'])
+  
     if not args.from_tax_dump:
-        tax_db, tax_lookup = load_taxonomy_from_db(session)
+        tax_db, tax_lookup = load_taxonomy_from_db(session, relevant_nodes)
     else:
-        tax_db, tax_lookup = load_taxonomy_from_dump(args.from_tax_dump)
+        tax_db, tax_lookup = load_taxonomy_from_dump(args.from_tax_dump, relevant_nodes)
 
     file_map = build_file_map(F, out_str, tax_db)
     file_info = {"meta": F_meta, "file_map": file_map}
