@@ -748,7 +748,7 @@ with a given clade, optionally filtered by additional criteria",
         # originally-invoked script.
         if sys.path[0]:
             default_db_dir = os.path.join(
-                sys.path[0], "Libraries/dfam"
+                sys.path[0], "Libraries/famdb"
             )
             if os.path.exists(default_db_dir):
                 args.db_dir = default_db_dir
