@@ -14,7 +14,7 @@ GROUP_TAXANAMES = "Partitions"
 dfam_acc_pat = re.compile("^(D[FR])([0-9]{2})([0-9]{2})([0-9]{2})[0-9]{3,6}$")
 
 # The current version of the file format
-FILE_VERSION = "0.5"
+FILE_VERSION = "1.0"
 
 LEAF_LINK = "leaf_link:"
 ROOT_LINK = "root_link:"
@@ -44,7 +44,6 @@ and neighboring rights, to the extent allowed by law.
 You can copy, modify, distribute and perform the work, even for
 commercial purposes, all without asking permission.
 See Other Information below.
-
 
 Other Information
 
