@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
     Usage: ./DfamPartition.py [--help] [--log_level] [--dfam_config] [--version]
-                              [--chunk_size #] [--repbase]
+                              [--chunk_size #] [--rep_base]
 
     TODO:
         - Move this script to Dfam-umbrella/Server, obtain location of FamDB software from the
@@ -45,7 +45,7 @@
         --dfam_config, -c : Dfam Config file
         --version, -v     : Get Dfam Version
         --chunk_size, -S  : Maximum file size of the partitions in bytes (default 10,000,000,000)
-        --repbase, -r    : Save space for Repbase Data in the partitions
+        --rep_base, -r    : Save space for Repbase Data in the partitions
 
 SEE ALSO: related_script.py
           Dfam: http://www.dfam.org
@@ -114,7 +114,7 @@ def _usage():
 
 def parse_RMRB(args, session):
     data = []
-    with open(args.repbase, "r") as input:
+    with open(args.rep_base, "r") as input:
         lines = input.readlines()
         fam = {"species": None, "seq_size": 0}
         for line in lines:
@@ -158,7 +158,7 @@ def generate_T(args, session, db_version, db_date):
     node_query = "SELECT dfam_taxdb.tax_id, parent_id FROM `ncbi_taxdb_nodes` JOIN dfam_taxdb ON dfam_taxdb.tax_id = ncbi_taxdb_nodes.tax_id"  # ORDER BY dfam_taxdb.tax_id ASC"
 
     # if RepBase is included, add the taxa to the list
-    if args.repbase:
+    if args.rep_base:
         with open(rb_taxa_file, "rb") as spec_file:
             spec_to_taxa = json.load(spec_file)
         node_query += f" UNION SELECT tax_id, parent_id from ncbi_taxdb_nodes WHERE tax_id IN ({','.join(str(node) for node in spec_to_taxa.values())})"
@@ -221,7 +221,7 @@ def generate_T(args, session, db_version, db_date):
         T[taxon]["filesize"] += filesizes[taxon]
 
     # add sizes from RepBase
-    if args.repbase:
+    if args.rep_base:
         with open(RB_file, "rb") as size_file:
             RB = json.load(size_file)
         for fam in RB:
@@ -323,7 +323,7 @@ def main(*args):
     db_date = version_info.dfam_release_date.strftime("%Y-%m-%d")
 
     # ~ PARSE RMRB.emble ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    if args.repbase:
+    if args.rep_base:
         if os.path.exists(rb_taxa_file) and os.path.exists(RB_file):
             LOGGER.info("Found RepBase Files")
         else:
@@ -356,7 +356,7 @@ def main(*args):
     # ~ CHUNK ASSIGNMENT ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     def label_chunk(n):
         # assign chunk label if unassigned
-        if not T[n]["chunk"]:
+        if T[n]["chunk"] is None:
             T[n]["chunk"] = chunk_ctr
         # unweight node
         T[n]["tot_weight"] = 0
@@ -373,14 +373,28 @@ def main(*args):
             T[parent]["tot_weight"] -= sub_weight
             subtract_chunk(parent, sub_weight)
 
-    LOGGER.info(f"Orig Tree Weight: {T[1]['tot_weight']}")
+    # include taxa as default members of root partition
+    chunk_ctr = 0
+    # defaults: Mammalia
+    default_root_ids = [40674]
+    root_id_weights = []
+    for id in default_root_ids:
+        weight = T[id]['tot_weight']
+        root_id_weights.append(weight)
+        subtract_chunk(id, weight)
+        label_chunk(id)
+    
+    root_offset = sum(root_id_weights)
+
     S = args.chunk_size
     F = {}
+    F[0] = {"T_root": 1, "bytes": root_offset, "nodes": [], "F_roots": []}
+
     # ~ MAIN ASSIGNMENT LOOP ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     chunk_ctr = 1
     chunk_root, chunk_weight = 1, 0
     # split chunks off of T as long as remaining weight is greater than S
-    while T[1]["tot_weight"] > S:
+    while T[1]["tot_weight"] + root_offset > S:
         # find largest node less than S
         for n in T:
             size = T[n]["tot_weight"]
@@ -408,8 +422,8 @@ def main(*args):
     # ~ CHUNK 0 ASSIGNMENT / CLEANUP ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # assign remaining T to chunk 0
     chunk_ctr = 0
-    LOGGER.info(f"Chunk 0 Root:1, Weight {T[1]['tot_weight']}")
-    F[0] = {"T_root": 1, "bytes": T[1]["tot_weight"], "nodes": [], "F_roots": []}
+    LOGGER.info(f"Chunk 0 Root:1, Weight {T[1]['tot_weight'] + sum}")
+    F[0]["bytes"] += T[1]['tot_weight']
     label_chunk(1)
     subtract_chunk(1, T[1]["tot_weight"])
 
@@ -423,12 +437,9 @@ def main(*args):
     for n in F:
         trace_root_path(F[n]["T_root"])
 
-    # Assign model organisms to chunk 0
-    # Homo sapiens, drosphila melanogaster, danio rerio, arabidopsis thaliana 
-    # default_root_taxa = [9606, 7227, 7955, 3702]
-    # for n in default_root_taxa:
-    #     T[n]["chunk"] = 0
-    #     trace_root_path(n)
+    for n in default_root_ids:
+        T[n]["chunk"] = 0
+        trace_root_path(n)
 
     # determine f_roots for root partition
     root_leaves = []
