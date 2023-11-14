@@ -1,21 +1,34 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 """
-    Usage: ./python-script.py [--help] --myarg1=foo --myarg2=bar
+    Usage: ./DfamPartition.py [--help] [--log_level] [--dfam_config] [--version]
+                              [--chunk_size #] [--repbase]
 
-    This script partitions the Dfam database into taxonomy groups of equal file size. 
+    TODO:
+        - Move this script to Dfam-umbrella/Server, obtain location of FamDB software from the
+          Dfam.conf file (for library imports) and passwords for the database.  This script is
+          not a concern of the FamDB format as much as the database itself and more importantly
+          this utilizes the password security features of the config file rather than specifying
+          db passwords on the command line.
+
+        - Also rename to match the case of our other utilities e.g generateFamDBPartitions.py
+          Finally...move export_dfam.py and rename for the same reason.
+
+        - Note: command line parameters should use "_" rather than "-".
+
+    This script partitions the Dfam database into taxonomy groups of equal file size.
     It starts by assembling the subtree T of NCBI taxonomy (or retrieving a cached assembly).
-    Tax ids and parent ids are queried from dfam_taxdb, then the parent ids and their 
+    Tax ids and parent ids are queried from dfam_taxdb, then the parent ids and their
     parent ids are queried from ncbi_taxdb_nodes until all parent ids are also present
     in the tax id list. The filesizes for each family related to each node are also retrieved.
-    The tree is assembled and labeled with the total file size of all hmm blobs associated 
+    The tree is assembled and labeled with the total file size of all hmm blobs associated
     with each node. Then each node is also labeled with the total file size of itself and all
-    of it's children. The tree T is then pickled. 
+    of it's children. The tree T is then pickled.
     The node with the greatest total filesize less than S is identified, and it and all of it's
     children are labeled with a chunk id and their total weights are set to zero. Then all of
     thier parents have the weight of the chunk root subtracted from thier weights. This process
-    is repeated until the total weight of T is less than S, and all remaining nodes are assigned 
-    to chunk 0. 
+    is repeated until the total weight of T is less than S, and all remaining nodes are assigned
+    to chunk 0.
     The chunks are then assembled into a tree F, where nodes have the attributes:
         T_root: The T node that is the root of the chunk subtree
         T_parent: The T node that is the parent of T_root
@@ -28,11 +41,11 @@
 
     Args:
         --help, -h        : Show this help message and exit
-        --log-level, -l   : Control the logger level of the script
+        --log_level, -l   : Control the logger level of the script
         --dfam_config, -c : Dfam Config file
         --version, -v     : Get Dfam Version
         --chunk_size, -S  : Maximum file size of the partitions in bytes (default 10,000,000,000)
-        --rep_base, -r    : Save space for Repbase Data in the partitions
+        --repbase, -r    : Save space for Repbase Data in the partitions
 
 SEE ALSO: related_script.py
           Dfam: http://www.dfam.org
@@ -79,6 +92,7 @@ import dfam_35 as dfam
 
 # Import our Libs
 sys.path.append(os.path.join(os.path.dirname(__file__), f"..{tempwork}/Lib"))
+sys.path.append(os.path.join(os.path.dirname(__file__), f"../../Lib"))
 import DfamConfig as dc
 import DfamVersion as dfVersion
 
@@ -100,7 +114,7 @@ def _usage():
 
 def parse_RMRB(args, session):
     data = []
-    with open(args.rep_base, "r") as input:
+    with open(args.repbase, "r") as input:
         lines = input.readlines()
         fam = {"species": None, "seq_size": 0}
         for line in lines:
@@ -144,7 +158,7 @@ def generate_T(args, session, db_version, db_date):
     node_query = "SELECT dfam_taxdb.tax_id, parent_id FROM `ncbi_taxdb_nodes` JOIN dfam_taxdb ON dfam_taxdb.tax_id = ncbi_taxdb_nodes.tax_id"  # ORDER BY dfam_taxdb.tax_id ASC"
 
     # if RepBase is included, add the taxa to the list
-    if args.rep_base:
+    if args.repbase:
         with open(rb_taxa_file, "rb") as spec_file:
             spec_to_taxa = json.load(spec_file)
         node_query += f" UNION SELECT tax_id, parent_id from ncbi_taxdb_nodes WHERE tax_id IN ({','.join(str(node) for node in spec_to_taxa.values())})"
@@ -207,7 +221,7 @@ def generate_T(args, session, db_version, db_date):
         T[taxon]["filesize"] += filesizes[taxon]
 
     # add sizes from RepBase
-    if args.rep_base:
+    if args.repbase:
         with open(RB_file, "rb") as size_file:
             RB = json.load(size_file)
         for fam in RB:
@@ -278,7 +292,7 @@ def main(*args):
 
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("-h", "--help", action=_CustomUsageAction)
-    parser.add_argument("-l", "--log-level", default="INFO")
+    parser.add_argument("-l", "--log_level", default="INFO")
     parser.add_argument("-c", "--dfam_config", dest="dfam_config")
     parser.add_argument("-v", "--version", dest="get_version", action="store_true")
     parser.add_argument("-S", "--chunk_size", dest="chunk_size", default=130000000000)
@@ -309,7 +323,7 @@ def main(*args):
     db_date = version_info.dfam_release_date.strftime("%Y-%m-%d")
 
     # ~ PARSE RMRB.emble ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    if args.rep_base:
+    if args.repbase:
         if os.path.exists(rb_taxa_file) and os.path.exists(RB_file):
             LOGGER.info("Found RepBase Files")
         else:
