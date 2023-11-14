@@ -294,7 +294,7 @@ class FamDBLeaf:
         """Returns True if 'self' has a taxonomy entry for 'tax_id'"""
         return str(tax_id) in self.file[GROUP_NODES]
 
-    def get_families_for_taxon(self, tax_id):
+    def get_families_for_taxon(self, tax_id, curated_only=False, uncurated_only=False):
         """Returns a list of the accessions for each family directly associated with 'tax_id'."""
         group = (
             self.file[GROUP_NODES][str(tax_id)].get("Families")
@@ -302,7 +302,14 @@ class FamDBLeaf:
             else {}
         )
 
-        return list(group.keys())
+        # Filter out DF/DR or not at all depending on flags
+        if curated_only:
+           return list(filter(lambda x: (x[1] == 'F'), group.keys()))
+        elif uncurated_only:
+            return list(filter(lambda x: (x[1] == 'R'), group.keys()))
+        else:
+            return list(group.keys())
+
 
     def get_lineage(self, tax_id, **kwargs):
         """
@@ -631,30 +638,51 @@ up with the 'names' command.""",
 
 class FamDB:
     def __init__(self, db_dir, mode):
+        """
+        Initialize from a directory containing a *partitioned* famdb dataset
+        """
+        self.files = {}
+
+        ## First, identify if there are any root partitions of a partitioned
+        ## famdb in this directory:
+        # A partioned famdb file is named *.#.h5 where
+        # the number represents the partition number and
+        # at a minimum partitition 0 must be present.
+        db_prefixes = {}
         h5_files = []
         for file in os.listdir(db_dir):
             if file.endswith(".h5"):
                 h5_files += [file]
-        exports = set()
-        for file in h5_files:
-            splits = file.split(".")
-            exports.add(splits[0])
-        if len(exports) != 1:
-            LOGGER.error(
-                "Multiple Exports Found. Keep Each Export In A Separate Folder"
-            )
-            exit()
-        self.files = {}
-        for file in h5_files:
-            num = int(file.split(".")[-2])
-            if num == 0:
-                self.files[num] = FamDBRoot(f"{db_dir}/{file}", mode)
-            else:
-                self.files[num] = FamDBLeaf(f"{db_dir}/{file}", mode)
+            if file.endswith(".0.h5"):
+                db_prefixes[file[:-5]] = 1
 
-        if not self.files.get(0):
-            LOGGER.error("Missing Root Partition File")
-            exit()
+        # Make sure we only have at least one database present
+        if len(db_prefixes) == 0:
+            if h5_files:
+                LOGGER.error("A partitioned famdb datbase is not present in " + db_dir + "\n" + \
+                             "There were several *.h5 files present however, they do not appear\n" + \
+                             "to be in the correct format: " + "\n".join(h5_files) + "\n")
+            else:
+                LOGGER.error("A partitioned famdb datbase is not present in " + db_dir )
+            exit(1)
+
+        # Make sure we have *only* one database present
+        if len(db_prefixes) > 1:
+            LOGGER.error("Multiple famdb root partitions were found in this export directory: " + \
+                          ", ".join(db_prefixes.keys()) + "\nEach famdb database " + \
+                          "should be in separate folders.")
+            exit(1)
+
+        # Tabulate all partitions for db_prefix
+        db_prefix = list(db_prefixes.keys())[0]
+        for file in h5_files:
+            if db_prefix in file:
+                fields = file.split(".")
+                idx = int( fields[-2] )
+                if idx == 0:
+                    self.files[idx] = FamDBRoot(f"{db_dir}/{file}", mode)
+                else:
+                    self.files[idx] = FamDBLeaf(f"{db_dir}/{file}", mode)
 
         file_info = self.files[0].get_file_info()
 
@@ -741,37 +769,20 @@ class FamDB:
 
     def show_files(self):
         # repbase_file = "./partitions/RMRB_spec_to_tax.json" TODO
-        files = {}
-        for file in self.file_map:
-            partition_name = self.file_map[file]["T_root_name"]
-            partition_detail = self.file_map[file]["F_roots_names"]
-            filename = self.file_map[file]["filename"]
-            counts = {"consensus": "Missing", "hmm": "Missing"}
-            status = "Missing"
-            if int(file) in self.files:
-                counts = self.files[int(file)].get_counts()
-                status = "Present"
-            files[file] = {
-                "partition_name": partition_name,
-                "partition_detail": partition_detail,
-                "filename": filename,
-                "counts": counts,
-                "status": status,
-            }
-        # move root partition to front to print it first
-        keys = list(files.keys())
-        keys.remove("0")
-        keys.insert(0, "0")
+        print(f"\nPartition Details\n-----------------")
+        for part in sorted([int(x) for x in self.file_map]):
+            part_str = str(part)
+            partition_name = self.file_map[part_str]["T_root_name"]
+            partition_detail = ', '.join(self.file_map[part_str]["F_roots_names"])
+            filename = self.file_map[part_str]["filename"]
+            if part in self.files:
+                print(f" Partition {part} [{filename}]: {partition_name} {f'- {partition_detail}' if partition_detail else ''}")
+                counts = self.files[part].get_counts()
+                print(f"     Consensi: {counts['consensus']}, HMMs: {counts['hmm']}")
+            else:
+                print(f" Partition {part} [ Absent ]: {partition_name} {f'- {partition_detail}' if partition_detail else ''}")
+            print()
 
-        print(f"\nFile Info: {self.db_dir}\n---------------------------------------")
-        for partition in keys:
-            file = files[partition]
-            details = f"{', '.join(file['partition_detail'])}"
-            status = file["status"]
-            outstr = f" Partition {partition} {status}: {file['partition_name']} {f'- {details}' if details else ''} \n"
-            if status != "Missing":
-                outstr += f"   {file['filename']} -> Consensi: {file['counts']['consensus']}, HMMs: {file['counts']['hmm']}\n"
-            print(outstr)
 
     def assemble_filters(self, **kwargs):
         """Define family filters (logically ANDed together)"""
@@ -977,9 +988,10 @@ class FamDB:
     def get_taxon_name(self, tax_id, kind):
         return self.files[0].get_taxon_name(tax_id, kind)
 
-    def get_families_for_taxon(self, tax_id, partition):
+    def get_families_for_taxon(self, tax_id, partition, curated_only=False,
+                               uncurated_only=False):
         if partition in self.files:
-            return self.files[partition].get_families_for_taxon(tax_id)
+            return self.files[partition].get_families_for_taxon(tax_id, curated_only, uncurated_only)
         else:
             return None
 

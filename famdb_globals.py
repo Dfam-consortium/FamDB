@@ -45,7 +45,6 @@ You can copy, modify, distribute and perform the work, even for
 commercial purposes, all without asking permission.
 See Other Information below.
 
-
 Other Information
 
 o In no way are the patent or trademark rights of any person affected by

@@ -3,6 +3,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 1.0 - 2023-11-18
+### Changed
+- Breaking change to HDF5 schema (now v1.0).  FamDB is now a database
+  capable of being partitioned.  A single root partition is required,
+  however many additional leaf partitions may also be present.
+
+  ...TODO MORE DETAILS...
+
 ## 0.4.3 - 2023-01-09
 ### Added
 - Most subcommands will now accept multiple arguments for a species name and
