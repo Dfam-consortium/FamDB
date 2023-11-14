@@ -68,23 +68,23 @@ def command_info(args):
     db_info = args.db_dir.get_db_info()
     counts = args.db_dir.get_counts()
     f_info = args.db_dir.get_metadata()
-
+    print()
     print(
         f"""\
-File: {os.path.realpath(args.db_dir.db_dir)}
-FamDB Generator: {f_info["generator"]}
+FamDB Directory     : {os.path.realpath(args.db_dir.db_dir)}
+FamDB Generator     : {f_info["generator"]}
 FamDB Format Version: {f_info["version"]}
-FamDB Creation Date: {f_info["created"]}
+FamDB Creation Date : {f_info["created"]}
 
 Database: {db_info["name"]}
-Version: {db_info["version"]}
-Date: {db_info["date"]}
+Version : {db_info["version"]}
+Date    : {db_info["date"]}
 
 {db_info["description"]}
 
-{counts['file']} Files Present
+{counts['file']} Partitions Present
 Total consensus sequences present: {counts["consensus"]}
-Total HMMs present: {counts["hmm"]}
+Total HMMs present               : {counts["hmm"]}
 """
     )
     args.db_dir.show_files()
@@ -527,7 +527,7 @@ def main():  # =================================================================
         description=FILE_DESCRIPTION,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("-l", "--log-level", default="INFO")
+    parser.add_argument("-l", "--log_level", default="INFO")
 
     parser.add_argument("-i", "--db_dir", help="specifies the directory to query")
 
@@ -727,8 +727,8 @@ with a given clade, optionally filtered by additional criteria",
         # originally-invoked script.
         if sys.path[0]:
             default_db_dir = os.path.join(
-                sys.path[0], "./dfam"
-            )  # TODO: update file name
+                sys.path[0], "Libraries/dfam"
+            )
             if os.path.exists(default_db_dir):
                 args.db_dir = default_db_dir
 
@@ -760,7 +760,6 @@ with a given clade, optionally filtered by additional criteria",
             print("Double-Check Command")
     else:
         parser.print_help()
-        args.db_dir.show_files()
 
 
 if __name__ == "__main__":
