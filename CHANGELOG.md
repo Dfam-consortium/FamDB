@@ -9,7 +9,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   capable of being partitioned.  A single root partition is required,
   however many additional leaf partitions may also be present.
 
-  ...TODO MORE DETAILS...
+  The commands available to the user have not changed, but instead of passing 
+  the name of the `.h5` file to `famdb.py` with `-i`, the files must be in a 
+  separate directory. The name of that directory is passed to `famdb.py` with 
+  `-i` instead of the file names. More installation and use details are found 
+  in `README.md`.
+
+  The structure of the files have also changed. More technical details can be
+  found in `README-dev.md`.
 
 ## 0.4.3 - 2023-01-09
 ### Added

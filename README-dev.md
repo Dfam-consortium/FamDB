@@ -1,5 +1,29 @@
 # FamDB README for Developers
 
+## Software Structure
+
+### FamDBLeaf
+The basic file for storing Dfam data. Provides methods for writing and retrieving data to `.h5` files.
+
+Data Groups:
+* Families - Contains the TE family data elements
+* Lookup - Contains subdirectories `ByName` and `ByStage` with links to the relevant family elements
+* Taxonomy - Contains taxonomy structure data, as well as links to related family elements
+
+### FamDBRoot
+An extension (subclass) of FamDBLeaf that contains additional taxonomy and partition information.
+
+Data Groups:
+* Contains all FamDBLeaf data fields and functions.
+* Partitions - Contains a subgroup for each partition. Each subgroup contains a mapping of taxonomy ids within that partition to their scientific and common names
+
+### FamDB
+A class for accessing unified data across a FamDBRoot file and any number of FamDBLeaf files. It verifies that all files in a directory are able to be used together (from the same partition, the same export, contains exactly 1 root file, ect.) and provides functions that collect and collate requested data from multiple files. 
+
+### `famdb.py`
+The python script invoked by the user. Mediates between the user provided arguments and the functions on an instance of FamDB.
+
+
 ## Creating famdb files
 
 Before exporting to FamDB be sure that there is a valid partition file by running `DfamPartition.py`.
