@@ -409,6 +409,13 @@ def main(*args):
     for n in F:
         trace_root_path(F[n]["T_root"])
 
+    # Assign model organisms to chunk 0
+    # Homo sapiens, drosphila melanogaster, danio rerio, arabidopsis thaliana 
+    # default_root_taxa = [9606, 7227, 7955, 3702]
+    # for n in default_root_taxa:
+    #     T[n]["chunk"] = 0
+    #     trace_root_path(n)
+
     # determine f_roots for root partition
     root_leaves = []
     for n in T:
