@@ -184,7 +184,7 @@ def generate_T(args, session, db_version, db_date):
             parent_ids.extend(new_parents)
    
     # query file sizes for each node
-    node_query = "SELECT family_clade.dfam_taxdb_tax_id, SUM((family.length + (family.length * 177) + 1160 + OCTET_LENGTH(family.description))) AS byte_est FROM family_clade JOIN family ON family_clade.family_id = family.id GROUP BY family_clade.dfam_taxdb_tax_id"
+    node_query = "SELECT family_clade.dfam_taxdb_tax_id, SUM((family.length + (family.length * 177) + 1160 + OCTET_LENGTH(COALESCE(family.description, '')))) AS byte_est FROM family_clade JOIN family ON family_clade.family_id = family.id GROUP BY family_clade.dfam_taxdb_tax_id"
 
     if os.path.exists(Node_file):
         LOGGER.info("Found Stashed Node Sizes")
