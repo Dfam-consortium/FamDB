@@ -14,7 +14,8 @@ GROUP_TAXANAMES = "Partitions"
 dfam_acc_pat = re.compile("^(D[FR])([0-9]{2})([0-9]{2})([0-9]{2})[0-9]{3,6}$")
 
 # The current version of the file format
-FILE_VERSION = "1.0"
+# TODO: Change this to 1.0
+FILE_VERSION = "0.5"
 
 LEAF_LINK = "leaf_link:"
 ROOT_LINK = "root_link:"

@@ -122,7 +122,8 @@ def command_names(args):
         raise ValueError("Unimplemented names format: %s" % args.format)
 
 
-def print_lineage_tree(file, tree, partition, gutter_self, gutter_children):
+def print_lineage_tree(file, tree, partition, gutter_self, gutter_children,
+                       uncurated_only=False, curated_only=False ):
     """Pretty-prints a lineage tree with box drawing characters."""
     if not tree:
         return
@@ -137,7 +138,11 @@ def print_lineage_tree(file, tree, partition, gutter_self, gutter_children):
         tax_id = str(tax_id).split(":")[1]
     name, tax_partition = file.get_taxon_name(tax_id, "scientific name")
     if name != "Not Found":
-        fams = file.get_families_for_taxon(tax_id, tax_partition)
+        fams = file.get_families_for_taxon(tax_id,
+                   tax_partition,
+                   curated_only=curated_only,
+                   uncurated_only=uncurated_only,
+                )
         missing_message = MISSING_FILE % (tax_partition, file.db_dir, HELP_URL)
         missing_message = (
             missing_message.replace("\t", f"{gutter_self[:-2]}│ * \t")
@@ -156,6 +161,8 @@ def print_lineage_tree(file, tree, partition, gutter_self, gutter_children):
                 tax_partition,
                 gutter_children + "├─",
                 gutter_children + "│ ",
+                curated_only,
+                uncurated_only,
             )
 
     if children:
@@ -165,10 +172,12 @@ def print_lineage_tree(file, tree, partition, gutter_self, gutter_children):
             tax_partition,
             gutter_children + "└─",
             gutter_children + "  ",
+            curated_only,
+            uncurated_only,
         )
 
 
-def print_lineage_semicolons(file, tree, partition, parent_name, starting_at):
+def print_lineage_semicolons(file, tree, partition, parent_name, starting_at, curated_only=False, uncurated_only=False):
     """
     Prints a lineage tree as a flat list of semicolon-delimited names.
 
@@ -192,7 +201,7 @@ def print_lineage_semicolons(file, tree, partition, parent_name, starting_at):
             starting_at = None
 
         if not starting_at:
-            fams = file.get_families_for_taxon(tax_id, tax_partition)
+            fams = file.get_families_for_taxon(tax_id, tax_partition, curated_only, uncurated_only)
             count = (
                 f"[{len(fams)}]"
                 if fams is not None
@@ -201,10 +210,10 @@ def print_lineage_semicolons(file, tree, partition, parent_name, starting_at):
             print(f"{tax_id}({tax_partition}): {name} {count}")
 
         for child in children:
-            print_lineage_semicolons(file, child, tax_partition, name, starting_at)
+            print_lineage_semicolons(file, child, tax_partition, name, starting_at, curated_only, uncurated_only)
 
 
-def get_lineage_totals(file, tree, target_id, partition, seen=None, present=None):
+def get_lineage_totals(file, tree, target_id, partition, curated_only=False, uncurated_only=False, seen=None, present=None):
     """
     Recursively calculates the total number of families
     on ancestors and descendants of 'target_id' in the given 'tree'.
@@ -220,7 +229,7 @@ def get_lineage_totals(file, tree, target_id, partition, seen=None, present=None
 
     tax_id = tree[0]
     children = tree[1:]
-    accessions = file.get_families_for_taxon(tax_id, partition)
+    accessions = file.get_families_for_taxon(tax_id, partition, curated_only, uncurated_only)
 
     count_here = 0
     for acc in accessions:
@@ -236,7 +245,7 @@ def get_lineage_totals(file, tree, target_id, partition, seen=None, present=None
         partition = file.find_taxon(tax_id)
         if partition is not None:
             new_counts, new_present = get_lineage_totals(
-                file, child, target_id, partition, seen, present
+                file, child, target_id, partition, curated_only, uncurated_only, seen, present
             )
             counts[0] += new_counts[0]
             counts[1] += new_counts[1]
@@ -274,11 +283,11 @@ def command_lineage(args):
 
     # TODO: prune branches with 0 total
     if args.format == "pretty":
-        print_lineage_tree(args.db_dir, tree, partition, "", "")
+        print_lineage_tree(args.db_dir, tree, partition, "", "", args.curated, args.uncurated)
     elif args.format == "semicolon":
-        print_lineage_semicolons(args.db_dir, tree, partition, "", target_id)
+        print_lineage_semicolons(args.db_dir, tree, partition, "", target_id, args.curated, args.uncurated)
     elif args.format == "totals":
-        totals, present = get_lineage_totals(args.db_dir, tree, target_id, partition)
+        totals, present = get_lineage_totals(args.db_dir, tree, target_id, partition, args.curated, args.uncurated)
         present = ", ".join([str(val) for val in present]) + ';' if present else partition
         missing = (
             " absent related partitions: "
@@ -580,6 +589,18 @@ famdb.py families --help
         help="include all descendants of the given clade",
     )
     p_lineage.add_argument(
+        "-c",
+        "--curated",
+        action="store_true",
+        help="only tabulate curated families ('DF' records)",
+    )
+    p_lineage.add_argument(
+        "-u",
+        "--uncurated",
+        action="store_true",
+        help="only tabulate uncurated families ('DR' records)",
+    )
+    p_lineage.add_argument(
         "-f",
         "--format",
         default="pretty",
@@ -754,10 +775,10 @@ with a given clade, optionally filtered by additional criteria",
         return
 
     if "func" in args:
-        try:
-            args.func(args)
-        except:
-            print("Double-Check Command")
+        #try:
+        args.func(args)
+        #except:
+        #    print("Double-Check Command")
     else:
         parser.print_help()
 

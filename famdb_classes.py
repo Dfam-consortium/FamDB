@@ -294,7 +294,7 @@ class FamDBLeaf:
         """Returns True if 'self' has a taxonomy entry for 'tax_id'"""
         return str(tax_id) in self.file[GROUP_NODES]
 
-    def get_families_for_taxon(self, tax_id):
+    def get_families_for_taxon(self, tax_id, curated_only=False, uncurated_only=False):
         """Returns a list of the accessions for each family directly associated with 'tax_id'."""
         group = (
             self.file[GROUP_NODES][str(tax_id)].get("Families")
@@ -302,7 +302,14 @@ class FamDBLeaf:
             else {}
         )
 
-        return list(group.keys())
+        # Filter out DF/DR or not at all depending on flags
+        if curated_only:
+           return list(filter(lambda x: (x[1] == 'F'), group.keys()))
+        elif uncurated_only:
+            return list(filter(lambda x: (x[1] == 'R'), group.keys()))
+        else:
+            return list(group.keys())
+
 
     def get_lineage(self, tax_id, **kwargs):
         """
@@ -981,9 +988,10 @@ class FamDB:
     def get_taxon_name(self, tax_id, kind):
         return self.files[0].get_taxon_name(tax_id, kind)
 
-    def get_families_for_taxon(self, tax_id, partition):
+    def get_families_for_taxon(self, tax_id, partition, curated_only=False,
+                               uncurated_only=False):
         if partition in self.files:
-            return self.files[partition].get_families_for_taxon(tax_id)
+            return self.files[partition].get_families_for_taxon(tax_id, curated_only, uncurated_only)
         else:
             return None
 
