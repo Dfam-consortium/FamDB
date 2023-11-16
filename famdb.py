@@ -775,10 +775,10 @@ with a given clade, optionally filtered by additional criteria",
         return
 
     if "func" in args:
-        #try:
-        args.func(args)
-        #except:
-        #    print("Double-Check Command")
+        try:
+            args.func(args)
+        except:
+            print("Double-Check Command")
     else:
         parser.print_help()
 
