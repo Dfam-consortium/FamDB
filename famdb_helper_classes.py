@@ -577,7 +577,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
         return out
 
     @staticmethod
-    def read_embl_families(filename, lookup, nodes, header_cb=None):
+    def read_embl_families(filename, lookup, header_cb=None):
         """
         Iterates over Family objects from the .embl file 'filename'. The format
         should match the output format of to_embl(), but this is not thoroughly
@@ -620,7 +620,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
                 matches = re.search(r"Species:\s*(.+)", value)
                 if matches:
                     for spec in matches.group(1).split(","):
-                        name = spec.strip().lower()
+                        name = spec.strip()
                         if name:
                             tax_id = lookup.get(name)
                             if tax_id is not None:
@@ -643,6 +643,8 @@ class Family:  # pylint: disable=too-many-instance-attributes
         family = None
         in_header = True
         in_metadata = False
+
+        nodes = lookup.values()
 
         with open(filename) as file:
             for line in file:
@@ -683,9 +685,9 @@ class Family:  # pylint: disable=too-many-instance-attributes
                         family.length = len(family.consensus)
                         for clade in family.clades:
                             if clade in nodes:
-                                LOGGER.info(
-                                    f"Including {family.accession} in taxa {clade} from {filename}"
-                                )
+                                # LOGGER.info(
+                                #     f"Including {family.accession} in taxa {clade} from {filename}"
+                                # )
                                 yield family
                         family = None
 

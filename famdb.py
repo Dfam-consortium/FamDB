@@ -474,6 +474,7 @@ def command_append(args):
     existing famdb file.
     """
 
+    # TODO rework this
     lookup = {}
     with open(REPBASE_FILE) as file:
         lookup = json.load(file)
@@ -486,25 +487,27 @@ def command_append(args):
 
     embl_iter = Family.read_embl_families(args.infile, lookup, set_header)
 
-    seen = args.db_dir.get_existing()
-    seen_accs = seen["accession"]
-    seen_names = seen["name"]
-
+    added = 0
+    dups = set()
     for entry in embl_iter:
         acc = entry.accession
-        # TODO: This is awkward. The EMBL files being appended may only have an
-        # "accession", but that accession may match the *name* of a family
-        # already in Dfam. The accession may also match a family already in
-        # Dfam, but with a "v" added.
-        if (
-            acc in seen_accs
-            or acc in seen_names
-            or acc + "v" in seen_accs
-            or acc + "v" in seen_names
-        ):
-            LOGGER.debug("Ignoring duplicate entry %s", entry.accession)
-        else:
-            args.db_dir.add_family(entry)
+        found = False
+        for clade in entry.clades:
+            for file in args.db_dir.files:  
+                if args.db_dir.files[file].has_taxon(clade):
+                    found = True
+                    try:
+                        args.db_dir.files[file].add_family(entry)
+                        LOGGER.info(f"Added {acc} to file {file}")
+                        added += 1
+                    except Exception as e:
+                        LOGGER.error(f" Ignoring duplicate entry {entry.accession}: {e}")
+                        dups.add(entry.accession)
+        if not found:
+            LOGGER.warning(f" {acc} not added to local files, local file not found")
+    
+    LOGGER.info(f"Added {added} families")
+    LOGGER.warning(f" {len(dups)} Duplicate Accesisons: {dups}")
 
     db_info = args.db_dir.get_db_info()
 

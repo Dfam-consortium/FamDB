@@ -80,17 +80,6 @@ class FamDBLeaf:
             self.added = {"consensus": 0, "hmm": 0}
             self.__write_metadata()
         elif self.mode == "r+":
-            self.seen = {}
-            self.seen["name"] = (
-                set(self.file[GROUP_LOOKUP_BYNAME].keys())
-                if self.file.get(GROUP_LOOKUP_BYNAME)
-                else set()
-            )
-            self.seen["accession"] = set(
-                families_iterator(self.file[GROUP_FAMILIES], "Families")
-                if self.file.get(GROUP_FAMILIES)
-                else set()
-            )
             self.added = self.get_counts()
 
     # Export Setters ----------------------------------------------------------------------------------------------------
@@ -189,28 +178,42 @@ class FamDBLeaf:
 
     # Data Writing Methods ---------------------------------------------------------------------------------------------
     # Family Methods
-    def __check_unique(self, family, key):
+    def __check_unique(self, family):
         """Verifies that 'family' is uniquely identified by its value of 'key'."""
 
-        seen = self.seen
-        value = getattr(family, key)
-        if key not in seen:
-            seen[key] = set()
+        # TODO: This is awkward. The EMBL files being appended may only have an
+        # "accession", but that accession may match the *name* of a family
+        # already in Dfam. The accession may also match a family already in
+        # Dfam, but with a "v" added.
 
-        if value in seen[key]:
-            raise Exception(
-                "Family is not unique! Already seen {}: {}".format(key, value)
-            )
+        unqiue = True
+        # check by accession first
+        accession = family.accession
+        binned_acc = accession_bin(accession)
+        binned_v = accession_bin(accession + 'v')
 
-        seen[key].add(value)
+        if self.file.get(f"{binned_acc}/{accession}") or self.file.get(f"{binned_v}/{accession}v"):   
+            unqiue = False
+
+        # check for unique name
+        if family.name:
+            name_lookup = f"{GROUP_LOOKUP_BYNAME}/{family.name}"
+            if self.file.get(name_lookup) or self.file.get(name_lookup + 'v'):
+                unqiue = False
+
+        if unqiue == False:
+            LOGGER.debug(f'{family.accession} {family.name} acc: {self.file.get(f"{binned_acc}/{accession}")} accv: {self.file.get(f"{binned_v}/{accession}v")} name: {self.file.get(name_lookup)} namev: {self.file.get(name_lookup + "v")}')
+        return unqiue
+
 
     def add_family(self, family):
         """Adds the family described by 'family' to the database."""
         # Verify uniqueness of name and accession.
         # This is important because of the links created to them later.
-        if family.name:
-            self.__check_unique(family, "name")
-        self.__check_unique(family, "accession")
+        if not self.__check_unique(family):
+            raise Exception(
+                f"Family is not unique! Already seen {family.accession} {f'({family.name})' if family.name else ''}"
+            )
 
         # Increment counts
         if family.consensus:
@@ -944,13 +947,6 @@ class FamDB:
             entries += [[tax_id, is_exact, partition, names]]
         return entries
 
-    def get_existing(self):
-        seen = {"accession": [], "name": []}
-        for file in self.files:
-            seen["accession"] += self.files[file].seen["accession"]
-            seen["name"] += self.files[file].seen["name"]
-        return seen
-
     # Wrapper methods ---------------------------------------------------------------------------------------
     def get_counts(self):
         counts = {"consensus": 0, "hmm": 0, "file": 0}
@@ -1019,18 +1015,6 @@ class FamDB:
     def set_db_info(self, name, version, date, desc, copyright_text):
         for file in self.files:
             self.files[file].set_db_info(name, version, date, desc, copyright_text)
-
-    def add_family(self, entry):
-        # track files added to in case family has multiple clades in same file
-        added = []
-        for taxon in entry.clades:
-            for partition in self.files:
-                file = self.files[partition]
-                if file.has_taxon(taxon) and partition not in added:
-                    file.add_family(entry)
-                    added += [partition]
-        if not added:
-            LOGGER.error(f"Family {entry.accession} not added to local files")
 
     def filter_stages(self, accession, stages):
         for file in self.files:

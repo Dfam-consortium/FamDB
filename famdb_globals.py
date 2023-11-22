@@ -19,8 +19,8 @@ FILE_VERSION = "1.0"
 LEAF_LINK = "leaf_link:"
 ROOT_LINK = "root_link:"
 
-# TODO replace with RMRB_spec_to_tax.json
-REPBASE_FILE = "stot_test.json"
+# TODO
+REPBASE_FILE = "RMRB_spec_to_tax.json"
 
 # TODO: make command-line options to customize these
 DESCRIPTION = (
