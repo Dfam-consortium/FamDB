@@ -119,7 +119,7 @@ def parse_RMRB(args, session):
         fam = {"species": None, "seq_size": 0}
         for line in lines:
             if line.startswith("CC        Species:"):
-                fam["species"] = line.split(" ")[-1].strip()
+                fam["species"] = [spec.strip() for spec in line.split(":")[1].split(",")]
             elif line.startswith("SQ   Sequence"):
                 fam["seq_size"] = int(line.split(" ")[4]) * 8
 
@@ -130,17 +130,18 @@ def parse_RMRB(args, session):
     looked_up = {}
     with session.bind.begin() as conn:
         for fam in data:
-            species = fam["species"]
-            if species in looked_up:
-                tax_id = looked_up[species]
-            else:
-                query = f"SELECT tax_id FROM `ncbi_taxdb_names` WHERE sanitized_name='{species}'"
-                res = tuple(conn.execute(text(query)))
-                tax_id = res[0][0] if res else None
-                looked_up[species] = tax_id
-                if not tax_id:
-                    print(species)
-            fam["tax_id"] = tax_id
+            fam["tax_id"] = []
+            for species in fam["species"]:
+                if species in looked_up:
+                    tax_id = looked_up[species]
+                else:
+                    query = f"SELECT tax_id FROM `ncbi_taxdb_names` WHERE sanitized_name='{species}'"
+                    res = tuple(conn.execute(text(query)))
+                    tax_id = res[0][0] if res else None
+                    looked_up[species] = tax_id
+                    if not tax_id:
+                        print(species)
+                fam["tax_id"] += [tax_id]
 
     with open(RB_file, "w+") as output:
         output.write(json.dumps(data))
@@ -148,8 +149,9 @@ def parse_RMRB(args, session):
     with open(rb_taxa_file, "w+") as output:
         sec_to_tax = {}
         for fam in data:
-            if fam["species"] not in sec_to_tax:
-                sec_to_tax[fam["species"].lower()] = fam["tax_id"]
+            for spec in fam["species"]:
+                if spec not in sec_to_tax:
+                    sec_to_tax[spec] = fam["tax_id"]
         output.write(json.dumps(sec_to_tax))
 
 
