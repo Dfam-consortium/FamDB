@@ -186,22 +186,21 @@ class FamDBLeaf:
         # already in Dfam. The accession may also match a family already in
         # Dfam, but with a "v" added.
 
-        unqiue = True
         # check by accession first
         accession = family.accession
         binned_acc = accession_bin(accession)
         binned_v = accession_bin(accession + 'v')
 
         if self.file.get(f"{binned_acc}/{accession}") or self.file.get(f"{binned_v}/{accession}v"):   
-            unqiue = False
+            return False
 
         # check for unique name
         if family.name:
             name_lookup = f"{GROUP_LOOKUP_BYNAME}/{family.name}"
             if self.file.get(name_lookup) or self.file.get(name_lookup + 'v'):
-                unqiue = False
+                return False
 
-        return unqiue
+        return True
 
 
     def add_family(self, family):

@@ -487,9 +487,11 @@ def command_append(args):
 
     embl_iter = Family.read_embl_families(args.infile, lookup, set_header)
 
+    total_ctr = 0
     added_ctr = 0
     dups = set()
     for entry in embl_iter:
+        total_ctr += 1
         acc = entry.accession
 
         # prepare set of local files to add family to
@@ -501,9 +503,8 @@ def command_append(args):
 
         if not add_files:
             LOGGER.warning(f" {acc} not added to local files, local file not found")
-        LOGGER.info(add_files)
+        
         for file in add_files:  
-            # if args.db_dir.files[file]:
             try:
                 args.db_dir.files[file].add_family(entry)
                 LOGGER.info(f"Added {acc} to file {file}")
@@ -512,7 +513,7 @@ def command_append(args):
                 LOGGER.error(f" Ignoring duplicate entry {entry.accession}: {e}")
                 dups.add(entry.accession)
             
-    LOGGER.info(f"Added {added_ctr} families")
+    LOGGER.info(f"Added {added_ctr}/{total_ctr} families")
     LOGGER.warning(f" {len(dups)} Duplicate Accesisons: {dups}")
 
     db_info = args.db_dir.get_db_info()

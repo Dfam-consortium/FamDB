@@ -692,12 +692,15 @@ class Family:  # pylint: disable=too-many-instance-attributes
                     # '//' line indicates end of the sequence area
                     elif line.startswith("//"):
                         family.length = len(family.consensus)
+                        keep = False
                         for clade in family.clades:
                             if clade in nodes:
                                 LOGGER.info(
                                     f"Including {family.accession} in taxa {clade} from {filename}"
                                 )
-                                yield family
+                                keep = True
+                        if keep:
+                            yield family
                         family = None
 
                     # Part of the sequence area
