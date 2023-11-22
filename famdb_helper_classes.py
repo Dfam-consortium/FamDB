@@ -694,9 +694,9 @@ class Family:  # pylint: disable=too-many-instance-attributes
                         family.length = len(family.consensus)
                         for clade in family.clades:
                             if clade in nodes:
-                                # LOGGER.info(
-                                #     f"Including {family.accession} in taxa {clade} from {filename}"
-                                # )
+                                LOGGER.info(
+                                    f"Including {family.accession} in taxa {clade} from {filename}"
+                                )
                                 yield family
                         family = None
 

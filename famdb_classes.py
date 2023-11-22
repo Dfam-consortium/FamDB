@@ -201,8 +201,6 @@ class FamDBLeaf:
             if self.file.get(name_lookup) or self.file.get(name_lookup + 'v'):
                 unqiue = False
 
-        if unqiue == False:
-            LOGGER.debug(f'{family.accession} {family.name} acc: {self.file.get(f"{binned_acc}/{accession}")} accv: {self.file.get(f"{binned_v}/{accession}v")} name: {self.file.get(name_lookup)} namev: {self.file.get(name_lookup + "v")}')
         return unqiue
 
 

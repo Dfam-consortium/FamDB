@@ -487,26 +487,32 @@ def command_append(args):
 
     embl_iter = Family.read_embl_families(args.infile, lookup, set_header)
 
-    added = 0
+    added_ctr = 0
     dups = set()
     for entry in embl_iter:
         acc = entry.accession
-        found = False
+
+        # prepare set of local files to add family to
+        add_files = set()
         for clade in entry.clades:
-            for file in args.db_dir.files:  
+            for file in args.db_dir.files:
                 if args.db_dir.files[file].has_taxon(clade):
-                    found = True
-                    try:
-                        args.db_dir.files[file].add_family(entry)
-                        LOGGER.info(f"Added {acc} to file {file}")
-                        added += 1
-                    except Exception as e:
-                        LOGGER.error(f" Ignoring duplicate entry {entry.accession}: {e}")
-                        dups.add(entry.accession)
-        if not found:
+                    add_files.add(file)
+
+        if not add_files:
             LOGGER.warning(f" {acc} not added to local files, local file not found")
-    
-    LOGGER.info(f"Added {added} families")
+        LOGGER.info(add_files)
+        for file in add_files:  
+            # if args.db_dir.files[file]:
+            try:
+                args.db_dir.files[file].add_family(entry)
+                LOGGER.info(f"Added {acc} to file {file}")
+                added_ctr += 1
+            except Exception as e:
+                LOGGER.error(f" Ignoring duplicate entry {entry.accession}: {e}")
+                dups.add(entry.accession)
+            
+    LOGGER.info(f"Added {added_ctr} families")
     LOGGER.warning(f" {len(dups)} Duplicate Accesisons: {dups}")
 
     db_info = args.db_dir.get_db_info()
@@ -780,8 +786,8 @@ with a given clade, optionally filtered by additional criteria",
     if "func" in args:
         try:
             args.func(args)
-        except:
-            print("Double-Check Command")
+        except Exception as e:
+            print(f"Double-Check Command {e}")
     else:
         parser.print_help()
 
