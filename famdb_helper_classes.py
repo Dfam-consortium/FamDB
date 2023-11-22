@@ -695,7 +695,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
                         keep = False
                         for clade in family.clades:
                             if clade in nodes:
-                                LOGGER.info(
+                                LOGGER.debug(
                                     f"Including {family.accession} in taxa {clade} from {filename}"
                                 )
                                 keep = True

@@ -502,19 +502,20 @@ def command_append(args):
                     add_files.add(file)
 
         if not add_files:
-            LOGGER.warning(f" {acc} not added to local files, local file not found")
+            LOGGER.debug(f" {acc} not added to local files, local file not found")
         
         for file in add_files:  
             try:
                 args.db_dir.files[file].add_family(entry)
-                LOGGER.info(f"Added {acc} to file {file}")
+                LOGGER.debug(f"Added {acc} to file {file}")
                 added_ctr += 1
             except Exception as e:
-                LOGGER.error(f" Ignoring duplicate entry {entry.accession}: {e}")
+                LOGGER.debug(f" Ignoring duplicate entry {entry.accession}: {e}")
                 dups.add(entry.accession)
             
     LOGGER.info(f"Added {added_ctr}/{total_ctr} families")
-    LOGGER.warning(f" {len(dups)} Duplicate Accesisons: {dups}")
+    if dups:
+        LOGGER.debug(f" {len(dups)} Duplicate Accesisons: {dups}")
 
     db_info = args.db_dir.get_db_info()
 
