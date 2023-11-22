@@ -901,7 +901,11 @@ class FamDB:
                         files[file].file[GROUP_FAMILIES], "Families"
                     )
                     for name in names:
-                        yield name
+                        if kwargs['curated_only']:
+                            if name.startswith("DF"):
+                                yield name
+                        else:
+                            yield name
             else:
                 lineage = self.get_lineage_combined(
                     tax_id, ancestors=ancestors, descendants=descendants
