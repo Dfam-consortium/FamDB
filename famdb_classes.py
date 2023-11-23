@@ -945,10 +945,13 @@ class FamDB:
         return entries
 
     def fasta_all(self, group):
+        seen = set()
         for file in self.files:
             if GROUP_FAMILIES+group in self.files[file].file:
                 for name in families_iterator(self.files[file].file[GROUP_FAMILIES+group], "Families" + group):
-                    yield self.get_family_by_accession(name)
+                    if name not in seen:
+                        seen.add(name)
+                        yield self.get_family_by_accession(name)
 
     # Wrapper methods ---------------------------------------------------------------------------------------
     def get_counts(self):

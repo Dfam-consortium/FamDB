@@ -471,6 +471,8 @@ def command_families(args):
 def command_fasta_all(args):
     """
     command prints out all curated families in FASTA format
+    This command is not documented in the help. It is used to export all of the curated families 
+    to FASTA format for use by RepeatMasker
     """
     args.format = "fasta_name"
     print_families(args, args.db_dir.fasta_all("/DF"), True, 1)
