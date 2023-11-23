@@ -901,11 +901,7 @@ class FamDB:
                         files[file].file[GROUP_FAMILIES], "Families"
                     )
                     for name in names:
-                        if kwargs['curated_only']:
-                            if name.startswith("DF"):
-                                yield name
-                        else:
-                            yield name
+                        yield name
             else:
                 lineage = self.get_lineage_combined(
                     tax_id, ancestors=ancestors, descendants=descendants
@@ -947,6 +943,12 @@ class FamDB:
             names = self.files[0].get_taxon_names(tax_id)
             entries += [[tax_id, is_exact, partition, names]]
         return entries
+
+    def fasta_all(self, group):
+        for file in self.files:
+            if GROUP_FAMILIES+group in self.files[file].file:
+                for name in families_iterator(self.files[file].file[GROUP_FAMILIES+group], "Families" + group):
+                    yield self.get_family_by_accession(name)
 
     # Wrapper methods ---------------------------------------------------------------------------------------
     def get_counts(self):

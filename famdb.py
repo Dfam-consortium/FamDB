@@ -467,6 +467,16 @@ def command_families(args):
     header = True if accessions else False
     print_families(args, families, header, target_id)
 
+# RepeatMasker Commands -----------------------------------------------------------------------
+def command_fasta_all(args):
+    """
+    command prints out all curated families in FASTA format
+    """
+    args.format = "fasta_name"
+    print_families(args, args.db_dir.fasta_all("/DF"), True, 1)
+    print_families(args, args.db_dir.fasta_all("/Aux"), True, 1)
+
+
 
 def command_append(args):
     """
@@ -745,6 +755,10 @@ with a given clade, optionally filtered by additional criteria",
         help="additional database description (added to the existing description)",
     )
     p_append.set_defaults(func=command_append)
+    
+    # FASTA ALL --------------------------------------------------------------------------------------------------------------------------------
+    p_fasta = subparsers.add_parser("fasta_all")
+    p_fasta.set_defaults(func=command_fasta_all)
 
     args = parser.parse_args()
     logging.getLogger().setLevel(getattr(logging, args.log_level.upper()))
