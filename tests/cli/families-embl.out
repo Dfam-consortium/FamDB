@@ -1,4 +1,48 @@
 CC   <copyright header>
+ID   DR000000001; SV 1; linear; DNA; STD; UNC; 8 BP.
+NM   Test family DR000000001
+XX
+AC   DR000000001;
+XX
+XX
+KW   /.
+XX
+OS   Other Genus
+OC   .
+XX
+CC
+CC   RepeatMasker Annotations:
+CC        Type: 
+CC        SubType: 
+CC        Species: Other_Genus
+CC        SearchStages: 
+CC        BufferStages: 
+XX
+SQ   Sequence 8 BP; 2 A; 2 C; 2 G; 2 T; 0 other;
+     gcatatcg                                                           8
+//
+ID   DR_Repeat1; SV 1; linear; DNA; STD; UNC; 7 BP.
+NM   Test family DR_Repeat1
+XX
+AC   DR_Repeat1;
+XX
+XX
+KW   /.
+XX
+OS   Species
+OC   .
+XX
+CC
+CC   RepeatMasker Annotations:
+CC        Type: 
+CC        SubType: 
+CC        Species: Species
+CC        SearchStages: 
+CC        BufferStages: 
+XX
+SQ   Sequence 7 BP; 2 A; 2 C; 1 G; 2 T; 0 other;
+     cgactat                                                            7
+//
 ID   TEST0004; SV 1; linear; DNA; STD; UNC; 8 BP.
 NM   Test family TEST0004
 XX
@@ -7,14 +51,14 @@ XX
 XX
 KW   SINE/.
 XX
-OS   Clade 2
+OS   Genus
 OC   .
 XX
 CC
 CC   RepeatMasker Annotations:
 CC        Type: SINE
 CC        SubType: 
-CC        Species: Clade_2
+CC        Species: Genus
 CC        SearchStages: 35
 CC        BufferStages: 10[1-2],10[5-8],20
 XX

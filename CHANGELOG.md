@@ -3,6 +3,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 1.0 - 2023-11-18
+### Added
+- The lineage function now accepts --curated, and --uncurated flags to
+  filter lineage annotated counts based on the family curation status.
+### Changed
+- Breaking change to HDF5 schema (now v1.0).  FamDB is now a database
+  capable of being partitioned.  A single root partition is required,
+  however many additional leaf partitions may also be present.
+- The commands available to the user have not changed, but instead of passing 
+  the name of the `.h5` file to `famdb.py` with `-i`, the files must be in a 
+  separate directory. The name of that directory is passed to `famdb.py` with 
+  `-i` instead of the file names. More installation and use details are found 
+  in `README.md`.
+- The structure of the files have also changed. More technical details can be
+  found in `README-dev.md`.
+
 ## 0.4.3 - 2023-01-09
 ### Added
 - Most subcommands will now accept multiple arguments for a species name and
