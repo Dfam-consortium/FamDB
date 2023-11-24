@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-    famdb.py, version 0.5
     Usage: famdb.py [-h] [-l LOG_LEVEL] [-i DB_DIR] command ...
 
     Queries or modifies the contents of a famdb file. For more detailed help
@@ -515,8 +514,8 @@ def command_append(args):
 
         if not add_files:
             LOGGER.debug(f" {acc} not added to local files, local file not found")
-        
-        for file in add_files:  
+
+        for file in add_files:
             try:
                 args.db_dir.files[file].add_family(entry)
                 LOGGER.debug(f"Added {acc} to file {file}")
@@ -524,7 +523,7 @@ def command_append(args):
             except Exception as e:
                 LOGGER.debug(f" Ignoring duplicate entry {entry.accession}: {e}")
                 dups.add(entry.accession)
-            
+
     LOGGER.info(f"Added {added_ctr}/{total_ctr} families")
     if dups:
         LOGGER.debug(f" {len(dups)} Duplicate Accesisons: {dups}")
@@ -567,7 +566,12 @@ def main():  # =================================================================
         description="""Specifies the kind of query to perform.
 For more information on all the possible options for a command, add the --help option after it:
 famdb.py families --help
-"""
+""",
+        #  metavar, if specified overrides what shows up on the help line as valid
+        #  subcommands.  All subcommands will however be printed in the error message
+        #  if a bad subcommand is entered as a possibility, so it doesn't hide it
+        #  completely.  This is added to hide the new fasta_all command.
+        metavar='{info,names,lineage,families,family,append}'
     )
     # INFO --------------------------------------------------------------------------------------------------------------------------------
     p_info = subparsers.add_parser(

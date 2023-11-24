@@ -11,6 +11,7 @@ from famdb_helper_classes import Family, Lineage
 from famdb_globals import (
     LOGGER,
     FILE_VERSION,
+    GENERATOR_VERSION,
     LEAF_LINK,
     ROOT_LINK,
     GROUP_FAMILIES,
@@ -102,7 +103,7 @@ class FamDBLeaf:
 
     def __write_metadata(self):
         """Sets file data during writing"""
-        self.file.attrs["generator"] = f"famdb.py v{FILE_VERSION}"
+        self.file.attrs["generator"] = f"famdb.py v{GENERATOR_VERSION}"
         self.file.attrs["version"] = FILE_VERSION
         self.file.attrs["created"] = str(datetime.datetime.now())
 
@@ -191,14 +192,17 @@ class FamDBLeaf:
         binned_acc = accession_bin(accession)
         binned_v = accession_bin(accession + 'v')
 
-        if self.file.get(f"{binned_acc}/{accession}") or self.file.get(f"{binned_v}/{accession}v"):   
+        if self.file.get(f"{binned_acc}/{accession}") or self.file.get(f"{binned_v}/{accession}v"):
             return False
 
         # check for unique name
-        if family.name:
-            name_lookup = f"{GROUP_LOOKUP_BYNAME}/{family.name}"
-            if self.file.get(name_lookup) or self.file.get(name_lookup + 'v'):
-                return False
+        #if family.name:
+        #    name_lookup = f"{GROUP_LOOKUP_BYNAME}/{family.name}"
+        #    if self.file.get(name_lookup) or self.file.get(name_lookup + 'v'):
+        #        return False
+
+        if self.file.get(f"{GROUP_LOOKUP_BYNAME}/{accession}"):
+            return False
 
         return True
 
