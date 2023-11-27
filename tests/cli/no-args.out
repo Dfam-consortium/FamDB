@@ -39,15 +39,3 @@ subcommands:
   famdb.py families --help
 
   {info,names,lineage,families,family,append}
-
-File Info: /tmp/cli
----------------------------------------
- Partition 0 Present: Root Node  
-   unittest.0.h5 -> Consensi: 2, HMMs: 3
-
- Partition 1 Present: Search Node  
-   unittest.1.h5 -> Consensi: 2, HMMs: 0
-
- Partition 2 Present: Other Node - Other Node 
-   unittest.2.h5 -> Consensi: 1, HMMs: 0
-

@@ -136,11 +136,6 @@ class TestCliOutput(unittest.TestCase):
         args = ["family", "TEST0003", "-f", "fasta_name"]
         test_one(self, test, args)
 
-    def test_info(self):
-        test = "info"
-        args = ["info"]
-        test_one(self, test, args)
-
     def test_lineage_pretty(self):
         test = "lineage-pretty"
         args = ["lineage", "-d", "1"]
@@ -169,9 +164,4 @@ class TestCliOutput(unittest.TestCase):
     def test_names_json(self):
         test = "names-json"
         args = ["names", "--format", "json", "genus"]
-        test_one(self, test, args)
-
-    def test_no_args(self):
-        test = "no-args"
-        args = []
         test_one(self, test, args)

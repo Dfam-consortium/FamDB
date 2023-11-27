@@ -81,8 +81,8 @@ class TestDatabase(unittest.TestCase):
             self.assertEqual(
                 db.get_metadata(),
                 {
-                    "generator": "famdb.py v0.4.3",
-                    "version": "0.5",
+                    "generator": "famdb.py v1.0.1",
+                    "version": "1.0",
                     "created": "2023-01-09 09:57:56.026443",
                     "partition_name": "Root Node",
                     "partition_detail": "",
@@ -92,8 +92,8 @@ class TestDatabase(unittest.TestCase):
             self.assertEqual(
                 db.get_metadata(),
                 {
-                    "generator": "famdb.py v0.4.3",
-                    "version": "0.5",
+                    "generator": "famdb.py v1.0.1",
+                    "version": "1.0",
                     "created": "2023-01-09 09:57:56.026443",
                     "partition_name": "Search Node",
                     "partition_detail": "",
@@ -337,16 +337,16 @@ class TestDatabase(unittest.TestCase):
     def test_show_files(self, mock_print):
         famdb = TestDatabase.famdb
         famdb.show_files()
-        out = f"""\nFile Info: {TestDatabase.file_dir}
----------------------------------------
- Partition 0 Present: Root Node  
-   unittest.0.h5 -> Consensi: 2, HMMs: 3
+        out = f"""\nPartition Details
+-----------------
+ Partition 0 [unittest.0.h5]: Root Node 
+     Consensi: 2, HMMs: 3
 
- Partition 1 Present: Search Node  
-   unittest.1.h5 -> Consensi: 2, HMMs: 0
+ Partition 1 [unittest.1.h5]: Search Node 
+     Consensi: 2, HMMs: 0
 
- Partition 2 Present: Other Node - Other Node 
-   unittest.2.h5 -> Consensi: 1, HMMs: 0\n
+ Partition 2 [unittest.2.h5]: Other Node - Other Node
+     Consensi: 1, HMMs: 0\n
 """
         self.assertEqual(mock_print.getvalue(), out)
 

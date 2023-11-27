@@ -1,27 +1,28 @@
-File: /tmp/cli
-FamDB Generator: famdb.py v0.4.3
-FamDB Format Version: 0.5
-FamDB Creation Date: 2023-01-09 09:57:56.026443
+
+FamDB Directory     : /tmp/db
+FamDB Generator     : famdb.py v1.0.1
+FamDB Format Version: 1.0
+FamDB Creation Date : 2023-01-09 09:57:56.026443
 
 Database: Test
-Version: V1
-Date: 2020-07-15
+Version : V1
+Date    : 2020-07-15
 
 Test Database
 
-3 Files Present
+3 Partitions Present
 Total consensus sequences present: 5
-Total HMMs present: 3
+Total HMMs present               : 3
 
 
-File Info: /tmp/cli
----------------------------------------
- Partition 0 Present: Root Node  
-   unittest.0.h5 -> Consensi: 2, HMMs: 3
+Partition Details
+-----------------
+ Partition 0 [unittest.0.h5]: Root Node
+     Consensi: 2, HMMs: 3
 
- Partition 1 Present: Search Node  
-   unittest.1.h5 -> Consensi: 2, HMMs: 0
+ Partition 1 [unittest.1.h5]: Search Node
+     Consensi: 2, HMMs: 0
 
- Partition 2 Present: Other Node - Other Node 
-   unittest.2.h5 -> Consensi: 1, HMMs: 0
+ Partition 2 [unittest.2.h5]: Other Node - Other Node
+     Consensi: 1, HMMs: 0
 
