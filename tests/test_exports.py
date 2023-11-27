@@ -37,7 +37,7 @@ class TestExports(unittest.TestCase):
         init_single_file(0, self.db_dir)
         famdb = FamDB(self.file_dir, "r+")
         fam = make_family("TEST0001", [1], "ACGT", "<model1>")
-        famdb.add_family(fam)
+        famdb.files[0].add_family(fam)
         get_fam = famdb.get_family_by_name("Test family TEST0001")
         self.assertEqual(get_fam.accession, "TEST0001")
 
@@ -57,3 +57,6 @@ class TestExports(unittest.TestCase):
         init_single_file(1, self.db_dir, change_id=True)
         with self.assertRaises(SystemExit):
             famdb = FamDB(self.file_dir, "r")
+
+    # def test_fasta_all(self):
+    #     pass TODO

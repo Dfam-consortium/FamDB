@@ -4,6 +4,7 @@ Fakes, stubs, etc. for use in testing FamDB
 from copy import deepcopy
 from famdb_classes import FamDBLeaf, FamDBRoot
 from famdb_helper_classes import TaxNode, Family
+from famdb_globals import FILE_VERSION
 
 """
         1
@@ -119,7 +120,7 @@ def init_db_file(filename):
     def write_test_metadata(db):
         # Override setting of format metadata for testing
         db.file.attrs["generator"] = "famdb.py v0.4.3"
-        db.file.attrs["version"] = "0.5"
+        db.file.attrs["version"] = FILE_VERSION
         db.file.attrs["created"] = "2023-01-09 09:57:56.026443"
 
     with FamDBRoot(f"{filename}.0.h5", "w") as db:
