@@ -201,7 +201,7 @@ class FamDBLeaf:
         #    if self.file.get(name_lookup) or self.file.get(name_lookup + 'v'):
         #        return False
 
-        if self.file.get(f"{GROUP_LOOKUP_BYNAME}/{accession}"):
+        if self.file.get(f"{GROUP_LOOKUP_BYNAME}/{accession}") or self.file.get(f"{GROUP_LOOKUP_BYNAME}/{accession}v"):
             return False
 
         return True
