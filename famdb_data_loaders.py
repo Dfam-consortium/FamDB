@@ -29,9 +29,11 @@ def load_taxonomy_from_db(session, relevant_nodes):
     LOGGER.info("Reading taxonomy nodes from database")
     start = time.perf_counter()
 
-    for tax_node in session.query(
-        dfam.NcbiTaxdbNode.tax_id, dfam.NcbiTaxdbNode.parent_id
-    ).filter(dfam.NcbiTaxdbNode.tax_id.in_(relevant_nodes)).all():
+    for tax_node in (
+        session.query(dfam.NcbiTaxdbNode.tax_id, dfam.NcbiTaxdbNode.parent_id)
+        .filter(dfam.NcbiTaxdbNode.tax_id.in_(relevant_nodes))
+        .all()
+    ):
         nodes[tax_node.tax_id] = TaxNode(tax_node.tax_id, tax_node.parent_id)
 
     for node in nodes.values():
@@ -325,7 +327,12 @@ def iterate_db_families(session, families_query):
         for (tax_id, spec_ga, spec_tc, spec_nc, spec_fdr) in (
             assembly_data_query(session).params(id=record.id).all()
         ):
-            if record.accession.startswith('DF') and None in (spec_ga, spec_tc, spec_nc, spec_fdr):
+            if record.accession.startswith("DF") and None in (
+                spec_ga,
+                spec_tc,
+                spec_nc,
+                spec_fdr,
+            ):
                 raise Exception(
                     "Found value of None for a threshold value for "
                     + record.accession

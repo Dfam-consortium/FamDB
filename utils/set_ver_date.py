@@ -78,41 +78,51 @@ def main():
     for filename in os.listdir(args.db_dir):
         matches = re.match(r"\S+\.(\d+)\.h5", filename)
         if matches:
-            with h5py.File(os.path.join(args.db_dir,filename), mode=open_mode) as h5f:
+            with h5py.File(os.path.join(args.db_dir, filename), mode=open_mode) as h5f:
                 print(filename + ":")
-                db_version = h5f.attrs['db_version']
-                db_date = h5f.attrs['db_date']
-                db_copyright = h5f.attrs['db_copyright']
-                meta_created = h5f.attrs['created']
+                db_version = h5f.attrs["db_version"]
+                db_date = h5f.attrs["db_date"]
+                db_copyright = h5f.attrs["db_copyright"]
+                meta_created = h5f.attrs["created"]
 
                 print("  current: dfam version: {}".format(db_version))
 
                 if args.db_version:
                     db_version = args.db_version
-                    h5f.attrs['db_version'] = db_version
+                    h5f.attrs["db_version"] = db_version
                     print("    ** new: db_info - dfam version: {}".format(db_version))
 
-                print("  current: db_meta - famdb creation date: {}".format(meta_created))
+                print(
+                    "  current: db_meta - famdb creation date: {}".format(meta_created)
+                )
                 print("  current: db_info - dfam creation date: {}".format(db_date))
                 print("  current: copyright: {}".format(db_copyright))
                 if args.db_date:
                     db_date = args.db_date
-                    year_match = re.match(r'^(\d{4})-\d{2}-\d{2}$', db_date)
+                    year_match = re.match(r"^(\d{4})-\d{2}-\d{2}$", db_date)
                     if year_match:
                         db_year = year_match.group(1)
                     else:
-                        raise Exception("Date should be in YYYY-MM-DD format, got: " + db_date)
+                        raise Exception(
+                            "Date should be in YYYY-MM-DD format, got: " + db_date
+                        )
 
                     copyright_text = COPYRIGHT_TEXT % (
                         db_year,
                         db_version,
                         db_date,
-                      )
-                    h5f.attrs['db_copyright'] = copyright_text
-                    h5f.attrs['db_date'] = db_date
-                    h5f.attrs['created'] = new_creation_time
-                    print("    ** new: db_meta - famdb creation date: {}".format(new_creation_time))
-                    print("    ** new: db_info - dfam creation date: {}".format(db_date))
+                    )
+                    h5f.attrs["db_copyright"] = copyright_text
+                    h5f.attrs["db_date"] = db_date
+                    h5f.attrs["created"] = new_creation_time
+                    print(
+                        "    ** new: db_meta - famdb creation date: {}".format(
+                            new_creation_time
+                        )
+                    )
+                    print(
+                        "    ** new: db_info - dfam creation date: {}".format(db_date)
+                    )
                     print("    ** new: copyright: {}".format(copyright_text))
 
 
