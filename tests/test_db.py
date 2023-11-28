@@ -5,6 +5,7 @@ from famdb_helper_classes import Lineage, Family
 from .doubles import init_db_file, FILE_INFO
 from unittest.mock import patch
 import io
+from famdb_globals import FILE_VERSION
 
 
 class TestDatabase(unittest.TestCase):
@@ -81,8 +82,8 @@ class TestDatabase(unittest.TestCase):
             self.assertEqual(
                 db.get_metadata(),
                 {
+                    "version": FILE_VERSION,
                     "generator": "famdb.py v1.0.1",
-                    "version": "1.0",
                     "created": "2023-01-09 09:57:56.026443",
                     "partition_name": "Root Node",
                     "partition_detail": "",
@@ -92,8 +93,8 @@ class TestDatabase(unittest.TestCase):
             self.assertEqual(
                 db.get_metadata(),
                 {
+                    "version": FILE_VERSION,
                     "generator": "famdb.py v1.0.1",
-                    "version": "1.0",
                     "created": "2023-01-09 09:57:56.026443",
                     "partition_name": "Search Node",
                     "partition_detail": "",
