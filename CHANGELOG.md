@@ -3,13 +3,35 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## 0.4.3 - Unreleased
+## 1.0 - 2023-11-18
+### Added
+- The lineage function now accepts --curated, and --uncurated flags to
+  filter lineage annotated counts based on the family curation status.
+### Changed
+- Breaking change to HDF5 schema (now v1.0).  FamDB is now a database
+  capable of being partitioned.  A single root partition is required,
+  however many additional leaf partitions may also be present.
+- The commands available to the user have not changed, but instead of passing 
+  the name of the `.h5` file to `famdb.py` with `-i`, the files must be in a 
+  separate directory. The name of that directory is passed to `famdb.py` with 
+  `-i` instead of the file names. More installation and use details are found 
+  in `README.md`.
+- The structure of the files have also changed. More technical details can be
+  found in `README-dev.md`.
+
+## 0.4.3 - 2023-01-09
 ### Added
 - Most subcommands will now accept multiple arguments for a species name and
   treat it as a single space-separated string instead of raising an error. For
   instance, `famdb.py names homo sapiens` now works exactly the same as
   `famdb.py names 'homo sapiens'`
 ### Changed
+- Major change to HDF5 schema (now v0.5) fixes performance issues with scaling
+  to >>500k families.  HDF5 exhibits an increasing insertion time-cost for entries
+  (datasets or links) within a group.  In our original schema families were stored
+  in a single group.  In v0.5 we now bin families by two character prefix bins for
+  Dfam and Auxiliary families.  Currently 0.4.3 is not backwards compatible and
+  cannot read v0.4 formated files.
 - `export_dfam.py` has been refactored and extended . It subsumes the previous
   functionality of `convert_hmm.py`, which has been removed.
 ### Fixed

@@ -1,4 +1,6 @@
+>Test family DR_Repeat1 @Species
+CGACTAT
 >Test family TEST0001 @root
 ACGT
->Test family TEST0003 @Third_Clade [S:30,40]
-GGTC
+>Test family TEST0004 @Genus [S:35]
+CCCCTTTT

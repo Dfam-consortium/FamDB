@@ -1,2 +1,7 @@
 __pycache__/
 /venv/
+test_dfam/
+medium_dfam/
+*.h5
+*copy*
+/partitions/

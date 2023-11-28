@@ -1,10 +1,27 @@
-File: /tmp/famdbtestfile.h5
+FamDB Directory     : /tmp/db
+FamDB Generator     : famdb.py v1.0.1
+FamDB Format Version: 1.0
+FamDB Creation Date : 2023-01-09 09:57:56.026443
+
 Database: Test
-Version: V1
-Date: 2020-07-15
+Version : V1
+Date    : 2020-07-15
 
 Test Database
 
-Total consensus sequences: 5
-Total HMMs: 3
+3 Partitions Present
+Total consensus sequences present: 5
+Total HMMs present               : 3
+
+
+Partition Details
+-----------------
+ Partition 0 [unittest.0.h5]: Root Node
+     Consensi: 2, HMMs: 3
+
+ Partition 1 [unittest.1.h5]: Search Node
+     Consensi: 2, HMMs: 0
+
+ Partition 2 [unittest.2.h5]: Other Node - Other Node
+     Consensi: 1, HMMs: 0
 

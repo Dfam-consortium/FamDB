@@ -1,25 +1,45 @@
 import json
 import unittest
+import os
 
-from famdb import Family
-from .doubles import fakedb
+from famdb_classes import FamDB
+from famdb_helper_classes import Family
+from .doubles import init_db_file
+
 
 class TestEMBL(unittest.TestCase):
-    def setUp(self):
-        self.maxDiff = None
+    @classmethod
+    def setUpClass(cls):
+        file_dir = "/tmp/embl"
+        os.makedirs(file_dir)
+        db_dir = f"{file_dir}/unittest"
+        init_db_file(db_dir)
+        filenames = [f"{db_dir}.0.h5", f"{db_dir}.1.h5", f"{db_dir}.2.h5"]
+        TestEMBL.filenames = filenames
+        TestEMBL.file_dir = file_dir
+
+    @classmethod
+    def tearDownClass(cls):
+        filenames = TestEMBL.filenames
+        TestEMBL.filenames = None
+
+        for name in filenames:
+            os.remove(name)
+        os.rmdir(TestEMBL.file_dir)
 
     def test_simple(self):
         fam = Family()
         fam.name = "Test1"
         fam.accession = "TEST0001"
         fam.version = 1
-        fam.clades = [5]
+        fam.clades = [4]
         fam.consensus = "ACGTAAAA"
         fam.repeat_type = "Type"
         fam.repeat_subtype = "SubType"
 
+        famdb = FamDB(TestEMBL.file_dir, "r")
         self.assertEqual(
-            fam.to_embl(fakedb()),
+            fam.to_embl(famdb),
             """\
 ID   TEST0001; SV 1; linear; DNA; STD; UNC; 8 BP.
 NM   Test1
@@ -29,21 +49,21 @@ XX
 XX
 KW   Type/SubType.
 XX
-OS   Species 1
-OC   Parent Clade; A Clade.
+OS   Genus
+OC   .
 XX
 CC
 CC   RepeatMasker Annotations:
 CC        Type: Type
 CC        SubType: SubType
-CC        Species: Species_1
+CC        Species: Genus
 CC        SearchStages: 
 CC        BufferStages: 
 XX
 SQ   Sequence 8 BP; 5 A; 1 C; 1 G; 1 T; 0 other;
      acgtaaaa                                                           8
 //
-"""
+""",
         )
 
     def test_multiline(self):
@@ -52,12 +72,13 @@ SQ   Sequence 8 BP; 5 A; 1 C; 1 G; 1 T; 0 other;
         fam.accession = "TEST0002"
         fam.version = 2
         fam.clades = [5]
-        fam.consensus = "ACGTTGCA" * 20 # 160 bp total
+        fam.consensus = "ACGTTGCA" * 20  # 160 bp total
         fam.repeat_type = "Test"
         fam.repeat_subtype = "Multiline"
 
+        famdb = FamDB(TestEMBL.file_dir, "r")
         self.assertEqual(
-            fam.to_embl(fakedb()),
+            fam.to_embl(famdb),
             """\
 ID   TEST0002; SV 2; linear; DNA; STD; UNC; 160 BP.
 NM   Test2
@@ -67,14 +88,14 @@ XX
 XX
 KW   Test/Multiline.
 XX
-OS   Species 1
-OC   Parent Clade; A Clade.
+OS   Other Genus
+OC   .
 XX
 CC
 CC   RepeatMasker Annotations:
 CC        Type: Test
 CC        SubType: Multiline
-CC        Species: Species_1
+CC        Species: Other_Genus
 CC        SearchStages: 
 CC        BufferStages: 
 XX
@@ -83,7 +104,7 @@ SQ   Sequence 160 BP; 40 A; 40 C; 40 G; 40 T; 0 other;
      tgcaacgttg caacgttgca acgttgcaac gttgcaacgt tgcaacgttg caacgttgca  120
      acgttgcaac gttgcaacgt tgcaacgttg caacgttgca                        160
 //
-"""
+""",
         )
 
     def test_metaonly(self):
@@ -96,8 +117,9 @@ SQ   Sequence 160 BP; 40 A; 40 C; 40 G; 40 T; 0 other;
         fam.repeat_type = "Test"
         fam.repeat_subtype = "Metadata"
 
+        famdb = FamDB(TestEMBL.file_dir, "r")
         self.assertEqual(
-            fam.to_embl(fakedb(), include_seq=False),
+            fam.to_embl(famdb, include_seq=False),
             """\
 ID   TEST0003; SV 3; linear; DNA; STD; UNC; 8 BP.
 NM   Test3
@@ -107,19 +129,19 @@ XX
 XX
 KW   Test/Metadata.
 XX
-OS   Species 1
-OC   Parent Clade; A Clade.
+OS   Other Genus
+OC   .
 XX
 CC
 CC   RepeatMasker Annotations:
 CC        Type: Test
 CC        SubType: Metadata
-CC        Species: Species_1
+CC        Species: Other_Genus
 CC        SearchStages: 
 CC        BufferStages: 
 XX
 //
-"""
+""",
         )
 
     def test_seqonly(self):
@@ -132,8 +154,9 @@ XX
         fam.repeat_type = "Test"
         fam.repeat_subtype = "SequenceOnly"
 
+        famdb = FamDB(TestEMBL.file_dir, "r")
         self.assertEqual(
-            fam.to_embl(fakedb(), include_meta=False),
+            fam.to_embl(famdb, include_meta=False),
             """\
 ID   TEST0004; SV 4; linear; DNA; STD; UNC; 8 BP.
 NM   Test4
@@ -144,7 +167,7 @@ XX
 SQ   Sequence 8 BP; 2 A; 2 C; 2 G; 2 T; 0 other;
      acgttgca                                                           8
 //
-"""
+""",
         )
 
     def test_special_metadata(self):
@@ -159,8 +182,9 @@ SQ   Sequence 8 BP; 2 A; 2 C; 2 G; 2 T; 0 other;
         fam.aliases = "Repbase:MyLTR1\nOtherDB:MyLTR\n"
         fam.refineable = True
 
+        famdb = FamDB(TestEMBL.file_dir, "r")
         self.assertEqual(
-            fam.to_embl(fakedb()),
+            fam.to_embl(famdb),
             """\
 ID   TEST0005; SV 5; linear; DNA; STD; UNC; 18 BP.
 NM   Test5
@@ -172,16 +196,16 @@ DR   Repbase; MyLTR1.
 XX
 KW   Long terminal repeat of retrovirus-like element; Test5.
 XX
-OS   Species 1
-OC   Parent Clade; A Clade.
-OS   Another Clade (3.)
+OS   Other Genus
+OC   .
+OS   Other Order
 OC   .
 XX
 CC
 CC   RepeatMasker Annotations:
 CC        Type: LTR
 CC        SubType: BigTest
-CC        Species: Species_1, Another_Clade_3.
+CC        Species: Other_Genus, Other_Order
 CC        SearchStages: 
 CC        BufferStages: 
 CC        Refineable
@@ -189,7 +213,7 @@ XX
 SQ   Sequence 18 BP; 4 A; 4 C; 4 G; 4 T; 2 other;
      acgttgcaga gakwctct                                                18
 //
-"""
+""",
         )
 
     def test_attached_to_root(self):
@@ -202,8 +226,9 @@ SQ   Sequence 18 BP; 4 A; 4 C; 4 G; 4 T; 2 other;
         fam.repeat_type = "Test"
         fam.repeat_subtype = "RootTaxa"
 
+        famdb = FamDB(TestEMBL.file_dir, "r")
         self.assertEqual(
-            fam.to_embl(fakedb(), include_seq=False),
+            fam.to_embl(famdb, include_seq=False),
             """\
 ID   TEST0006; SV 6; linear; DNA; STD; UNC; 16 BP.
 NM   Test6
@@ -213,6 +238,8 @@ XX
 XX
 KW   Test/RootTaxa.
 XX
+OS   root
+OC   .
 XX
 CC
 CC   RepeatMasker Annotations:
@@ -223,7 +250,7 @@ CC        SearchStages:
 CC        BufferStages: 
 XX
 //
-"""
+""",
         )
 
     def test_citations(self):
@@ -236,23 +263,26 @@ XX
         fam.length = 16
         fam.repeat_type = "Test"
         fam.repeat_subtype = "HasCitations"
-        fam.citations = json.dumps([
-            {
-                "order_added": 1,
-                "authors": "John Doe",
-                "title": "Testing Citation Export Formatting",
-                "journal": "Unit Tests 7(2), 2020.",
-            },
-            {
-                "order_added": 2,
-                "authors": "Jane Doe",
-                "title": "Testing Citation Export Formatting",
-                "journal": "Unit Tests 7(2), 2020.",
-            },
-        ])
+        fam.citations = json.dumps(
+            [
+                {
+                    "order_added": 1,
+                    "authors": "John Doe",
+                    "title": "Testing Citation Export Formatting",
+                    "journal": "Unit Tests 7(2), 2020.",
+                },
+                {
+                    "order_added": 2,
+                    "authors": "Jane Doe",
+                    "title": "Testing Citation Export Formatting",
+                    "journal": "Unit Tests 7(2), 2020.",
+                },
+            ]
+        )
 
+        famdb = FamDB(TestEMBL.file_dir, "r")
         self.assertEqual(
-            fam.to_embl(fakedb(), include_seq=False),
+            fam.to_embl(famdb, include_seq=False),
             """\
 ID   TEST0007; SV 7; linear; DNA; STD; UNC; 16 BP.
 NM   Test7
@@ -262,8 +292,8 @@ XX
 XX
 KW   Test/HasCitations.
 XX
-OS   A Clade
-OC   Parent Clade.
+OS   Order
+OC   .
 XX
 RN   [1] (bases 1 to 16)
 RA   John Doe
@@ -279,12 +309,12 @@ CC
 CC   RepeatMasker Annotations:
 CC        Type: Test
 CC        SubType: HasCitations
-CC        Species: A_Clade
+CC        Species: Order
 CC        SearchStages: 
 CC        BufferStages: 
 XX
 //
-"""
+""",
         )
 
     def test_cds(self):
@@ -296,27 +326,29 @@ XX
         fam.consensus = "ACGTTGCAGAGACTCT"
         fam.repeat_type = "Test"
         fam.repeat_subtype = "CodingSequence"
-        fam.coding_sequences = json.dumps([
-            {
-                "cds_start": 1,
-                "cds_end": 6,
-                "product": "FAKE",
-                "exon_count": 1,
-                "description": "Example coding sequence",
-                "translation": "TL",
-            },
-            {
-                "cds_start": 5,
-                "cds_end": 16,
-                "product": "FAKE2",
-                "exon_count": 1,
-                "description": "Another example coding sequence",
-                "translation": "CRDS",
-            },
-        ])
-
+        fam.coding_sequences = json.dumps(
+            [
+                {
+                    "cds_start": 1,
+                    "cds_end": 6,
+                    "product": "FAKE",
+                    "exon_count": 1,
+                    "description": "Example coding sequence",
+                    "translation": "TL",
+                },
+                {
+                    "cds_start": 5,
+                    "cds_end": 16,
+                    "product": "FAKE2",
+                    "exon_count": 1,
+                    "description": "Another example coding sequence",
+                    "translation": "CRDS",
+                },
+            ]
+        )
+        famdb = FamDB(TestEMBL.file_dir, "r")
         self.assertEqual(
-            fam.to_embl(fakedb(), include_seq=False),
+            fam.to_embl(famdb, include_seq=False),
             """\
 ID   TEST0008; SV 8; linear; DNA; STD; UNC; 16 BP.
 NM   Test8
@@ -326,14 +358,14 @@ XX
 XX
 KW   Test/CodingSequence.
 XX
-OS   A Clade
-OC   Parent Clade.
+OS   Order
+OC   .
 XX
 CC
 CC   RepeatMasker Annotations:
 CC        Type: Test
 CC        SubType: CodingSequence
-CC        Species: A_Clade
+CC        Species: Order
 CC        SearchStages: 
 CC        BufferStages: 
 XX
@@ -351,14 +383,15 @@ FT                   /note="Another example coding sequence"
 FT                   /translation="CRDS"
 XX
 //
-"""
+""",
         )
 
-    def test_no_consensus(self):
-        fam = Family()
-        fam.name = "Test9"
-        fam.accession = "TEST0009"
-        fam.version = 9
-        fam.clades = [2]
 
-        self.assertEqual(fam.to_embl(None), None)
+def test_no_consensus(self):
+    fam = Family()
+    fam.name = "Test9"
+    fam.accession = "TEST0009"
+    fam.version = 9
+    fam.clades = [2]
+
+    self.assertEqual(fam.to_embl(None), None)

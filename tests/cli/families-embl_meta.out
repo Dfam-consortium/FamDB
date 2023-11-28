@@ -1,20 +1,20 @@
 CC   <copyright header>
-ID   DR0000001; SV 1; linear; DNA; STD; UNC; 8 BP.
-NM   Test family DR0000001
+ID   DR000000001; SV 1; linear; DNA; STD; UNC; 8 BP.
+NM   Test family DR000000001
 XX
-AC   DR0000001;
+AC   DR000000001;
 XX
 XX
 KW   /.
 XX
-OS   Drosophila <fungus>
-OC   Third Clade.
+OS   Other Genus
+OC   .
 XX
 CC
 CC   RepeatMasker Annotations:
 CC        Type: 
 CC        SubType: 
-CC        Species: Drosophila_fungus
+CC        Species: Other_Genus
 CC        SearchStages: 
 CC        BufferStages: 
 XX
@@ -27,14 +27,14 @@ XX
 XX
 KW   /.
 XX
-OS   Drosophila <flies>
-OC   Third Clade.
+OS   Species
+OC   .
 XX
 CC
 CC   RepeatMasker Annotations:
 CC        Type: 
 CC        SubType: 
-CC        Species: Drosophila_flies
+CC        Species: Species
 CC        SearchStages: 
 CC        BufferStages: 
 XX
@@ -46,37 +46,37 @@ XX
 XX
 KW   /.
 XX
-OS   Clade 2
+OS   Order
 OC   .
-OS   Third Clade
+OS   Other Order
 OC   .
 XX
 CC
 CC   RepeatMasker Annotations:
 CC        Type: 
 CC        SubType: 
-CC        Species: Clade_2, Third_Clade
+CC        Species: Order, Other_Order
 CC        SearchStages: 
 CC        BufferStages: 
 XX
 //
-ID   TEST0003; SV 1; linear; DNA; STD; UNC; 4 BP.
-NM   Test family TEST0003
+ID   TEST0004; SV 1; linear; DNA; STD; UNC; 8 BP.
+NM   Test family TEST0004
 XX
-AC   TEST0003;
+AC   TEST0004;
 XX
 XX
-KW   /.
+KW   SINE/.
 XX
-OS   Third Clade
+OS   Genus
 OC   .
 XX
 CC
 CC   RepeatMasker Annotations:
-CC        Type: 
+CC        Type: SINE
 CC        SubType: 
-CC        Species: Third_Clade
-CC        SearchStages: 30,40
-CC        BufferStages: 
+CC        Species: Genus
+CC        SearchStages: 35
+CC        BufferStages: 10[1-2],10[5-8],20
 XX
 //
