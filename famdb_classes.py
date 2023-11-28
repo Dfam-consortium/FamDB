@@ -652,16 +652,27 @@ class FamDB:
         # A partioned famdb file is named *.#.h5 where
         # the number represents the partition number and
         # at a minimum partitition 0 must be present.
-        db_prefixes = {}
+        db_roots = {}
+        export_names = {}
         h5_files = []
         for file in os.listdir(db_dir):
             if file.endswith(".h5"):
                 h5_files += [file]
+                export_name = file[:-5]
+                if export_name in export_names:
+                    export_names[export_name] += 1
+                else:
+                    export_names[export_name] = 1
             if file.endswith(".0.h5"):
-                db_prefixes[file[:-5]] = 1
+                db_roots[file[:-5]] = 1
+
+        # Make sure all files in directory have same name
+        if len(export_names) != 1:
+            LOGGER.error("A directory should include exactly one FamDB export")
+            exit(1)
 
         # Make sure we only have at least one database present
-        if len(db_prefixes) == 0:
+        if len(db_roots) == 0:
             if h5_files:
                 LOGGER.error("A partitioned famdb datbase is not present in " + db_dir + "\n" + \
                              "There were several *.h5 files present however, they do not appear\n" + \
@@ -671,14 +682,14 @@ class FamDB:
             exit(1)
 
         # Make sure we have *only* one database present
-        if len(db_prefixes) > 1:
+        if len(db_roots) > 1:
             LOGGER.error("Multiple famdb root partitions were found in this export directory: " + \
-                          ", ".join(db_prefixes.keys()) + "\nEach famdb database " + \
+                          ", ".join(db_roots.keys()) + "\nEach famdb database " + \
                           "should be in separate folders.")
             exit(1)
 
         # Tabulate all partitions for db_prefix
-        db_prefix = list(db_prefixes.keys())[0]
+        db_prefix = list(db_roots.keys())[0]
         for file in h5_files:
             if db_prefix in file:
                 fields = file.split(".")
