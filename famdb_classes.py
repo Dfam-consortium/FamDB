@@ -677,7 +677,7 @@ class FamDB:
         if len(db_roots) == 0:
             if h5_files:
                 LOGGER.error(
-                    "A partitioned famdb datbase is not present in "
+                    "A partitioned famdb database is not present in "
                     + db_dir
                     + "\n"
                     + "There were several *.h5 files present however, they do not appear\n"
@@ -686,7 +686,7 @@ class FamDB:
                     + "\n"
                 )
             else:
-                LOGGER.error("A partitioned famdb datbase is not present in " + db_dir)
+                LOGGER.error("A partitioned famdb database is not present in " + db_dir )
             exit(1)
 
         # Make sure we have *only* one database present
