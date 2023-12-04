@@ -845,8 +845,8 @@ with a given clade, optionally filtered by additional criteria",
         except:
             args.db_dir = None
             exc_value = sys.exc_info()[1]
-            #LOGGER.error("Error reading file: %s", exc_value)
-            #if LOGGER.getEffectiveLevel() <= logging.DEBUG:
+            # LOGGER.error("Error reading file: %s", exc_value)
+            # if LOGGER.getEffectiveLevel() <= logging.DEBUG:
             #    raise
             raise
     else:
