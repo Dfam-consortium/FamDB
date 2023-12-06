@@ -87,6 +87,9 @@ format is too unstructured to parse reliably.
 `famdb.py -i ./dfam names [-f json] <term>`
 
 `term` can be a taxonomy identifier number or part of a species/clade name.
+In this example the FamDB files are stored in a directory called 'dfam' in 
+the current working directory.  RepeatMasker looks for them in its "Library/famdb"
+directory by default.
 
 Exact matches are distinguished from non-exact matches. For example:
 
@@ -134,48 +137,46 @@ descendants, or both, as desired.
 
 The semicolon-delimited format does not include the tree drawing and is more
 suitable for parsing. The `totals` format prints the number of ancestral
-and of lineage-specific repeats known for the given species.
+and of lineage-specific repeats known for the given species.  In the example
+below the count of families specifically assigned to each taxon is shown in
+brackets.  The number in parentheses indicates which partition of FamDB contains
+the data for that taxon and its descendants.
 
 ```
 $ famdb.py -i ./dfam lineage -ad humans
 
-1 root [9]
-└─131567 cellular organisms [0]
-  └─2759 Eukaryota [0]
-    └─33154 Opisthokonta [0]
-      └─33208 Metazoa [5]
-        └─6072 Eumetazoa [0]
-          └─33213 Bilateria [0]
-            └─33511 Deuterostomia [0]
-              └─7711 Chordata [0]
-                └─89593 Craniata <chordates> [0]
-                  └─7742 Vertebrata <vertebrates> [79]
-                    └─7776 Gnathostomata <vertebrates> [0]
-                      └─117570 Teleostomi [0]
-                        └─117571 Euteleostomi [1]
-                          └─8287 Sarcopterygii [0]
-                            └─1338369 Dipnotetrapodomorpha [0]
-                              └─32523 Tetrapoda [19]
-                                └─32524 Amniota [101]
-                                  └─40674 Mammalia [66]
-                                    └─32525 Theria <mammals> [53]
-                                      └─9347 Eutheria [462]
-                                        └─1437010 Boreoeutheria [2]
-                                          └─314146 Euarchontoglires [33]
-                                            └─9443 Primates [264]
-                                              └─376913 Haplorrhini [3]
-                                                └─314293 Simiiformes [121]
-                                                  └─9526 Catarrhini [71]
-                                                    └─314295 Hominoidea [29]
-                                                      └─9604 Hominidae [21]
-                                                        └─207598 Homininae [3]
-                                                          └─9605 Homo [1]
-                                                            ├─9606 Homo sapiens [8]
-                                                            │ ├─63221 Homo sapiens neanderthalensis [0]
-                                                            │ ├─741158 Homo sapiens subsp. 'Denisova' [0]
-                                                            │ └─2665952 environmental samples <primates> [0]
-                                                            │   └─2665953 Homo sapiens environmental sample [0]
-                                                            └─1425170 Homo heidelbergensis [0]
+1 root(0) [0]
+└─131567 cellular organisms(0) [0]
+  └─2759 Eukaryota(0) [0]
+    └─33154 Opisthokonta(0) [0]
+      └─33208 Metazoa(0) [5]
+        └─6072 Eumetazoa(0) [0]
+          └─33213 Bilateria(0) [0]
+            └─33511 Deuterostomia(0) [0]
+              └─7711 Chordata(0) [0]
+                └─89593 Craniata <chordates>(0) [0]
+                  └─7742 Vertebrata <vertebrates>(0) [67]
+                    └─7776 Gnathostomata <vertebrates>(0) [0]
+                      └─117570 Teleostomi(0) [0]
+                        └─117571 Euteleostomi(0) [1]
+                          └─8287 Sarcopterygii(0) [0]
+                            └─1338369 Dipnotetrapodomorpha(0) [0]
+                              └─32523 Tetrapoda(0) [19]
+                                └─32524 Amniota(0) [100]
+                                  └─40674 Mammalia(0) [68]
+                                    └─32525 Theria <mammals>(0) [69]
+                                      └─9347 Eutheria(0) [387]
+                                        └─1437010 Boreoeutheria(0) [40]
+                                          └─314146 Euarchontoglires(0) [44]
+                                            └─9443 Primates(0) [140]
+                                              └─376913 Haplorrhini(0) [199]
+                                                └─314293 Simiiformes(0) [56]
+                                                  └─9526 Catarrhini(0) [104]
+                                                    └─314295 Hominoidea(0) [23]
+                                                      └─9604 Hominidae(0) [6]
+                                                        └─207598 Homininae(0) [14]
+                                                          └─9605 Homo(0) [0]
+                                                            └─9606 Homo sapiens(0) [52]
 ```
 
 ### family
