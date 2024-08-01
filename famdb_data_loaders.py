@@ -3,11 +3,12 @@ import os
 import gzip
 import json
 import re
+import sys
 
 from sqlalchemy import bindparam
 from sqlalchemy.ext import baked
-
-import dfam_35 as dfam
+sys.path.append(os.path.join(os.path.dirname(__file__), "../Schemata/ORMs/python"))
+import dfamorm as dfam
 from famdb_helper_classes import TaxNode, ClassificationNode
 from famdb_helper_methods import sanitize_name
 from famdb_globals import LOGGER
