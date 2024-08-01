@@ -830,28 +830,32 @@ with a given clade, optionally filtered by additional criteria",
 
     # For RepeatMasker: Try Libraries/RepeatMaskerLib.h5, if no file was specified
     # in the arguments and that file exists.
-    # if not args.db_dir:
-    #     # sys.path[0], if non-empty, is initially set to the directory of the
-    #     # originally-invoked script.
-    #     if sys.path[0]:
-    #         default_db_dir = os.path.join(sys.path[0], "Libraries/famdb")
-    #         if os.path.exists(default_db_dir):
-    #             args.db_dir = default_db_dir
+    if not args.db_dir:
+        # sys.path[0], if non-empty, is initially set to the directory of the
+        # originally-invoked script.
+        if sys.path[0]:
+            default_db_dir = os.path.join(sys.path[0], "Libraries/famdb")
+            if os.path.exists(default_db_dir):
+                args.db_dir = default_db_dir
 
     if args.db_dir and os.path.isdir(args.db_dir):
         try:
             args.db_dir = FamDB(args.db_dir, mode)
         except:
             args.db_dir = None
-            exc_value = sys.exc_info()[1]
+            # exc_value = sys.exc_info()[1]
             # LOGGER.error("Error reading file: %s", exc_value)
             # if LOGGER.getEffectiveLevel() <= logging.DEBUG:
             #    raise
             raise
     else:
-        LOGGER.info(" No file directory specified, minimal initialization used")
-        args.db_dir = FamDB(args.db_dir, mode, min=True)
+        # LOGGER.info(" No file directory specified, minimal initialization used")
+        # args.db_dir = FamDB(args.db_dir, mode, min=True)
+        LOGGER.error("Please specify a file to operate on with the -i/--file option.")
 
+    if not args.db_dir:
+        return
+    
     if "func" in args:
         try:
             args.func(args)
