@@ -26,7 +26,7 @@ The python script invoked by the user. Mediates between the user provided argume
 
 ## Creating famdb files
 
-Before exporting to FamDB be sure that there is a valid partition file by running `DfamPartition.py`.
+Before exporting to FamDB be sure that there is a valid partition file by running `Server/dfam_partition.py`.
 
 `export_dfam.py` is used to build famdb files for Dfam releases. It
 can be used in a few ways:
