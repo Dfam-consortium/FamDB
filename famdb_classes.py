@@ -21,6 +21,7 @@ from famdb_globals import (
     GROUP_TAXANAMES,
     MISSING_FILE,
     HELP_URL,
+    COPYRIGHT_TEXT,
 )
 from famdb_helper_methods import (
     sanitize_name,
@@ -32,6 +33,8 @@ from famdb_helper_methods import (
     filter_name,
     get_family,
     accession_bin,
+    gen_min_data,
+    gen_min_map,
 )
 
 
@@ -60,7 +63,14 @@ class FamDBLeaf:
             )
 
         self.filename = filename
-        self.file = h5py.File(filename, mode)
+        if filename == "min_init":
+            # Create an in-memory HDF5 file
+            self.file = h5py.File(filename, "w", driver="core", backing_store=False)
+            self.added = {"consensus": 0, "hmm": 0}
+            self.__write_metadata()
+
+        else:
+            self.file = h5py.File(filename, mode)
         self.mode = mode
 
         try:
@@ -241,9 +251,9 @@ class FamDBLeaf:
         # Create links
         fam_link = f"/{group_path}/{family.accession}"
         if family.name:
-            self.file.require_group(GROUP_LOOKUP_BYNAME)[
-                str(family.name)
-            ] = h5py.SoftLink(fam_link)
+            self.file.require_group(GROUP_LOOKUP_BYNAME)[str(family.name)] = (
+                h5py.SoftLink(fam_link)
+            )
         # In FamDB format version 0.5 we removed the /Families/ByAccession group as it's redundant
         # (all the data is in Families/<datasets> *and* HDF5 suffers from poor performance when
         # the number of entries in a group exceeds 200-500k.
@@ -396,6 +406,23 @@ class FamDBLeaf:
 class FamDBRoot(FamDBLeaf):
     def __init__(self, filename, mode="r"):
         super(FamDBRoot, self).__init__(filename, mode)
+
+        if filename == "min_init":
+            tax_db, partition_nodes, min_map, dum_fams = gen_min_data()
+            self.write_taxa_names(tax_db, partition_nodes)
+            self.set_partition_info(0)
+            self.set_file_info(min_map)
+            self.set_db_info(
+                "Minimal Dfam",
+                "min_init",
+                self.file.attrs["created"],
+                "A minimal instantiation of Dfam, comprising only the root taxon node and contaminate sequences",
+                COPYRIGHT_TEXT,
+            )
+            self.write_taxonomy(tax_db, [1])
+            for fam in dum_fams:
+                self.add_family(fam)
+            self.finalize()
 
         if mode == "r" or mode == "r+":
             self.names_dump = {
@@ -643,7 +670,26 @@ up with the 'names' command.""",
 
 
 class FamDB:
-    def __init__(self, db_dir, mode):
+
+    def __init__(self, db_dir, mode, min=False):
+        if min:
+            FamDB.min_init(self)
+        else:
+            FamDB.full_init(self, db_dir, mode)
+
+    def min_init(self):
+        """
+        Initialize a single taxon (root) with a fixed set of sequences
+        """
+        self.files = {}
+        self.files[0] = FamDBRoot("min_init", "r")
+        self.db_dir = "min_init"
+        self.file_map = gen_min_map()["file_map"]
+        self.uuid = "min_init"
+        self.db_version = "min_init"
+        self.db_date = time.ctime(time.time())
+
+    def full_init(self, db_dir, mode):
         """
         Initialize from a directory containing a *partitioned* famdb dataset
         """

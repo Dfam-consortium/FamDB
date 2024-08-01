@@ -63,7 +63,6 @@ from famdb_classes import FamDB
 # Command-line utilities
 def command_info(args):
     """The 'info' command displays some of the stored metadata."""
-
     db_info = args.db_dir.get_db_info()
     counts = args.db_dir.get_counts()
     f_info = args.db_dir.get_metadata()
@@ -113,7 +112,7 @@ def command_names(args):
 
     elif args.format == "json":
         obj = []
-        for (tax_id, is_exact, partition, names) in entries:
+        for tax_id, is_exact, partition, names in entries:
             names_obj = [{"kind": name[0], "value": name[1]} for name in names]
             obj += [{"id": tax_id, "partition": partition, "names": names_obj}]
         print(json.dumps(obj))
@@ -821,26 +820,26 @@ with a given clade, optionally filtered by additional criteria",
     args = parser.parse_args()
     logging.getLogger().setLevel(getattr(logging, args.log_level.upper()))
 
+    if "func" in args and args.func is command_append:
+        mode = "r+"
+    else:
+        mode = "r"
+
     if "term" in args:
         args.term = " ".join(args.term)
 
     # For RepeatMasker: Try Libraries/RepeatMaskerLib.h5, if no file was specified
     # in the arguments and that file exists.
-    if not args.db_dir:
-        # sys.path[0], if non-empty, is initially set to the directory of the
-        # originally-invoked script.
-        if sys.path[0]:
-            default_db_dir = os.path.join(sys.path[0], "Libraries/famdb")
-            if os.path.exists(default_db_dir):
-                args.db_dir = default_db_dir
+    # if not args.db_dir:
+    #     # sys.path[0], if non-empty, is initially set to the directory of the
+    #     # originally-invoked script.
+    #     if sys.path[0]:
+    #         default_db_dir = os.path.join(sys.path[0], "Libraries/famdb")
+    #         if os.path.exists(default_db_dir):
+    #             args.db_dir = default_db_dir
 
     if args.db_dir and os.path.isdir(args.db_dir):
         try:
-            if "func" in args and args.func is command_append:
-                mode = "r+"
-            else:
-                mode = "r"
-
             args.db_dir = FamDB(args.db_dir, mode)
         except:
             args.db_dir = None
@@ -850,16 +849,14 @@ with a given clade, optionally filtered by additional criteria",
             #    raise
             raise
     else:
-        LOGGER.error(
-            "Please specify a directory to operate on with the -i/--db_dir option."
-        )
-        return
+        LOGGER.info(" No file directory specified, minimal initialization used")
+        args.db_dir = FamDB(args.db_dir, mode, min=True)
 
     if "func" in args:
         try:
             args.func(args)
         except Exception as e:
-            print(f"Double-Check Command {e}")
+            print(f"Double-Check Command: {e}")
     else:
         parser.print_help()
 
