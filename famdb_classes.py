@@ -336,6 +336,13 @@ class FamDBLeaf:
         IDs are returned as a nested list, for example
         [ 1, [ 2, [3, [4]], [5], [6, [7]] ] ]
         where '2' may have been the passed-in 'tax_id'.
+
+        Where a lineage crosses between files, a string indicator is used instead of
+        the int tax_id. The indicator takes the form "FLAG:tax_id", and the FamDB
+        class uses the FLAG to determine what type of link is indicated, and the tax_id
+        to continue building the lineage in a different file. The Lineage class uses
+        the indicators to stitch serialized lineage trees together to form the final
+        lineage.
         """
 
         group_nodes = self.file[GROUP_NODES]
@@ -345,7 +352,9 @@ class FamDBLeaf:
         if descendants:
 
             def descendants_of(tax_id):
-                descendants = [int(tax_id)]
+                descendants = [
+                    int(tax_id)
+                ]  # h5py is based on numpy, need to cast numpy base64 to python int for serialization in Lineage class
                 for child in group_nodes[str(tax_id)]["Children"]:
                     # only list the decendants of the target node if it's not being combined with another decendant lineage
                     if not kwargs.get("for_combine") and str(child) in group_nodes:
@@ -362,9 +371,13 @@ class FamDBLeaf:
             while tax_id:
                 node = group_nodes[str(tax_id)]
                 if "Parent" in node:
+                    # test if parent is in this file
                     if str(node["Parent"][0]) in group_nodes:
                         tax_id = node["Parent"][0]
-                        tree = [tax_id, tree]
+                        tree = [
+                            int(tax_id),
+                            tree,
+                        ]  # h5py is based on numpy, need to cast numpy base64 to python int for serialization in Lineage class
                     else:
                         tree = [f"{ROOT_LINK}{tax_id}", tree]
                         tax_id = None
@@ -674,24 +687,24 @@ up with the 'names' command.""",
 class FamDB:
 
     def __init__(self, db_dir, mode, min=False):
-    #     if min:
-    #         FamDB.min_init(self)
-    #     else:
-    #         FamDB.full_init(self, db_dir, mode)
+        #     if min:
+        #         FamDB.min_init(self)
+        #     else:
+        #         FamDB.full_init(self, db_dir, mode)
 
-    # def min_init(self):
-    #     """
-    #     Initialize a single taxon (root) with a fixed set of sequences
-    #     """
-    #     self.files = {}
-    #     self.files[0] = FamDBRoot("min_init", "r")
-    #     self.db_dir = "min_init"
-    #     self.file_map = gen_min_map()["file_map"]
-    #     self.uuid = "min_init"
-    #     self.db_version = "min_init"
-    #     self.db_date = time.ctime(time.time())
+        # def min_init(self):
+        #     """
+        #     Initialize a single taxon (root) with a fixed set of sequences
+        #     """
+        #     self.files = {}
+        #     self.files[0] = FamDBRoot("min_init", "r")
+        #     self.db_dir = "min_init"
+        #     self.file_map = gen_min_map()["file_map"]
+        #     self.uuid = "min_init"
+        #     self.db_version = "min_init"
+        #     self.db_date = time.ctime(time.time())
 
-    # def full_init(self, db_dir, mode):
+        # def full_init(self, db_dir, mode):
         """
         Initialize from a directory containing a *partitioned* famdb dataset
         """
