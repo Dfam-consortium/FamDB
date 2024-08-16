@@ -526,6 +526,7 @@ def command_fasta_all(args):
     to FASTA format for use by RepeatMasker
     """
     args.format = "fasta_name"
+    args.include_class_in_name = True
     print_families(args, args.db_dir.fasta_all("/DF"), True, 1)
     print_families(args, args.db_dir.fasta_all("/Aux"), True, 1)
 
