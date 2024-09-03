@@ -7,6 +7,7 @@ import sys
 
 from sqlalchemy import bindparam
 from sqlalchemy.ext import baked
+
 sys.path.append(os.path.join(os.path.dirname(__file__), "../Schemata/ORMs/python"))
 import dfamorm as dfam
 from famdb_helper_classes import TaxNode, ClassificationNode
@@ -52,18 +53,23 @@ def load_taxonomy_from_db(session, relevant_nodes):
 
     # Load *all* names. As the number of included names grows large this
     # is actually faster than loading only the needed ones from the
-    # database, at the cost of memory usage
+    # database, at the cost of memory usage TODO fix this with the filter/partition loop
     for entry in session.query(
         dfam.NcbiTaxdbName.tax_id,
         dfam.NcbiTaxdbName.name_txt,
         dfam.NcbiTaxdbName.unique_name,
         dfam.NcbiTaxdbName.name_class,
+        dfam.NcbiTaxdbName.sanitized_name,
     ).filter(dfam.NcbiTaxdbName.tax_id.in_(relevant_nodes)):
         name = entry.unique_name or entry.name_txt
-        nodes[entry.tax_id].names += [[entry.name_class, name]]
-        if entry.name_class == "scientific name":
-            sanitized_name = sanitize_name(name).lower()
-            lookup[sanitized_name] = entry.tax_id
+        name_class = entry.name_class
+        nodes[entry.tax_id].names += [
+            [name_class, name],
+            [f"sanitized {name_class}", entry.sanitized_name],
+        ]
+        if name_class == "scientific name":
+            # sanitized_name = sanitize_name(name).lower()
+            lookup[entry.sanitized_name] = entry.tax_id
 
     delta = time.perf_counter() - start
     LOGGER.info("Loaded taxonomy names in %f", delta)
@@ -136,7 +142,7 @@ def load_classification(session):
     LOGGER.info("Reading classification nodes")
     start = time.perf_counter()
 
-    for (class_node, type_name, subtype_name) in (
+    for class_node, type_name, subtype_name in (
         session.query(
             dfam.Classification,
             dfam.RepeatmaskerType.name,
@@ -311,7 +317,7 @@ def iterate_db_families(session, families_query):
 
         # "BufferStages:A,B,C[D-E],..."
         bs_values = []
-        for (stage_id, start_pos, end_pos) in (
+        for stage_id, start_pos, end_pos in (
             buffer_stage_query(session).params(id=record.id).all()
         ):
             if start_pos == 0 and end_pos == 0:
@@ -325,7 +331,7 @@ def iterate_db_families(session, families_query):
         # Taxa-specific thresholds. "ID, GA, TC, NC, fdr"
         th_values = []
 
-        for (tax_id, spec_ga, spec_tc, spec_nc, spec_fdr) in (
+        for tax_id, spec_ga, spec_tc, spec_nc, spec_fdr in (
             assembly_data_query(session).params(id=record.id).all()
         ):
             if record.accession.startswith("DF") and None in (
