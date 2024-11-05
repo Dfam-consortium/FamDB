@@ -9,7 +9,7 @@ import sys
 from famdb_globals import LOGGER, LEAF_LINK, ROOT_LINK
 
 
-class Lineage(list):  # TODO replace exits  with real exception
+class Lineage(list):
     """A class to mediate lineages across multiple FamDB files. Contains methods to combine lineages at cross-file break points"""
 
     def __init__(self, lineage, root, partition_num):

@@ -318,9 +318,9 @@ class FamDBLeaf:
 
         # Filter out DF/DR or not at all depending on flags
         if curated_only:
-            return list(filter(lambda x: (x[1] == "F"), group.keys()))
+            return list(filter(lambda a: filter_curated(a, True)), group.keys())
         elif uncurated_only:
-            return list(filter(lambda x: (x[1] == "R"), group.keys()))
+            return list(filter(lambda a: filter_curated(a, False)), group.keys())
         else:
             return list(group.keys())
 
@@ -392,7 +392,8 @@ class FamDBLeaf:
         return False
 
     # Family Getters --------------------------------------------------------------------------
-    def get_family_names(self):  # TODO unused
+    # currently unused:
+    def get_family_names(self):
         """Returns a list of names of families in the database."""
         return sorted(self.file[GROUP_LOOKUP_BYNAME].keys(), key=str.lower)
 
@@ -854,7 +855,6 @@ class FamDB:
         return base_lineage
 
     def show_files(self):
-        # repbase_file = "./partitions/RMRB_spec_to_tax.json" TODO
         print(f"\nPartition Details\n-----------------")
         for part in sorted([int(x) for x in self.file_map]):
             part_str = str(part)
@@ -983,7 +983,6 @@ class FamDB:
             # special case: Searching the whole database, going directly via
             # Families/ is faster than repeatedly traversing the tree
             elif tax_id == 1 and descendants:
-                # yield from self.file[FamDBLeaf.GROUP_LOOKUP_BYACC].keys() # TODO unused
                 for file in files:
                     names = families_iterator(
                         files[file].file[GROUP_FAMILIES], "Families"

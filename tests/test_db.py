@@ -232,7 +232,7 @@ class TestDatabase(unittest.TestCase):
             self.assertEqual(db.resolve_one_species("Species"), [6, 1])
             self.assertEqual(db.resolve_one_species("Mus musculus"), (None, None))
 
-    def test_get_sanitized_name(self):  # TODO add more test cases
+    def test_get_sanitized_name(self):
         with FamDBRoot(TestDatabase.filenames[0], "r") as db:
             self.assertEqual(db.get_sanitized_name(5), "Other_Genus")
 

@@ -52,7 +52,6 @@ from famdb_globals import (
     LOGGER,
     FILE_DESCRIPTION,
     FAMILY_FORMATS_EPILOG,
-    REPBASE_FILE,
     MISSING_FILE,
     HELP_URL,
 )
@@ -129,6 +128,8 @@ def print_lineage_tree(
     curated_only=False,
 ):
     """Pretty-prints a lineage tree with box drawing characters."""
+    # TODO: prune branches with 0 total
+
     if not tree:
         return
     if type(tree) == str:
@@ -185,7 +186,6 @@ def print_lineage_tree(
 def print_lineage_semicolons(
     file,
     tree,
-    partition,
     parent_name,
     starting_at,
     curated_only=False,
@@ -228,7 +228,6 @@ def print_lineage_semicolons(
             print_lineage_semicolons(
                 file,
                 child,
-                tax_partition,
                 name,
                 starting_at,
                 curated_only,
@@ -322,14 +321,13 @@ def command_lineage(args):
     if not tree:
         return
 
-    # TODO: prune branches with 0 total
     if args.format == "pretty":
         print_lineage_tree(
             args.db_dir, tree, partition, "", "", args.curated, args.uncurated
         )
     elif args.format == "semicolon":
         print_lineage_semicolons(
-            args.db_dir, tree, partition, "", target_id, args.curated, args.uncurated
+            args.db_dir, tree, "", target_id, args.curated, args.uncurated
         )
     elif args.format == "totals":
         totals, present = get_lineage_totals(
