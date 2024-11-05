@@ -5,7 +5,7 @@ from famdb_helper_classes import Lineage, Family
 from .doubles import init_db_file, FILE_INFO
 from unittest.mock import patch
 import io
-from famdb_globals import FILE_VERSION
+from famdb_globals import FILE_VERSION, GENERATOR_VERSION
 
 
 class TestDatabase(unittest.TestCase):
@@ -29,20 +29,27 @@ class TestDatabase(unittest.TestCase):
             os.remove(name)
         os.rmdir(TestDatabase.file_dir)
 
-    def test_get_db_info(self):
+    def test_get_metadata(self):
         test_info = {
+            "generator": GENERATOR_VERSION,
+            "famdb_version": FILE_VERSION,
+            "created": "2023-01-09 09:57:56.026443",
+            "partition_name": "Search Node",
+            "partition_detail": "",
             "name": "Test",
-            "version": "V1",
+            "db_version": "V1",
             "date": "2020-07-15",
             "description": "Test Database",
             "copyright": "<copyright header>",
         }
-        with FamDBLeaf(TestDatabase.filenames[1], "r") as db:
-            self.assertEqual(db.get_db_info(), test_info)
 
+        with FamDBLeaf(TestDatabase.filenames[1], "r") as db:
+            self.assertEqual(db.get_metadata(), test_info)
+
+        test_info["partition_name"] = "Root Node"
         with FamDBRoot(TestDatabase.filenames[0], "r") as db:
             self.assertEqual(
-                db.get_db_info(),
+                db.get_metadata(),
                 test_info,
             )
 
@@ -76,30 +83,6 @@ class TestDatabase(unittest.TestCase):
 
         with FamDBLeaf(TestDatabase.filenames[1], "r") as db:
             self.assertEqual(db.is_root(), False)
-
-    def test_get_metadata(self):
-        with FamDBRoot(TestDatabase.filenames[0], "r") as db:
-            self.assertEqual(
-                db.get_metadata(),
-                {
-                    "version": FILE_VERSION,
-                    "generator": "famdb.py v1.0.1",
-                    "created": "2023-01-09 09:57:56.026443",
-                    "partition_name": "Root Node",
-                    "partition_detail": "",
-                },
-            )
-        with FamDBLeaf(TestDatabase.filenames[1], "r") as db:
-            self.assertEqual(
-                db.get_metadata(),
-                {
-                    "version": FILE_VERSION,
-                    "generator": "famdb.py v1.0.1",
-                    "created": "2023-01-09 09:57:56.026443",
-                    "partition_name": "Search Node",
-                    "partition_detail": "",
-                },
-            )
 
     def test_get_family_by_accession(self):
         with FamDBRoot(TestDatabase.filenames[0], "r") as db:

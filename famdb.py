@@ -63,16 +63,15 @@ from famdb_classes import FamDB
 # Command-line utilities
 def command_info(args):
     """The 'info' command displays some of the stored metadata."""
-    db_info = args.db_dir.get_db_info()
+    db_info = args.db_dir.get_metadata()
     counts = args.db_dir.get_counts()
-    f_info = args.db_dir.get_metadata()
     print()
     print(
         f"""\
 FamDB Directory     : {os.path.realpath(args.db_dir.db_dir)}
-FamDB Generator     : {f_info["generator"]}
-FamDB Format Version: {f_info["version"]}
-FamDB Creation Date : {f_info["created"]}
+FamDB Generator     : {db_info["generator"]}
+FamDB Format Version: {db_info["version"]}
+FamDB Creation Date : {db_info["created"]}
 
 Database: {db_info["name"]}
 Version : {db_info["version"]}
@@ -373,7 +372,7 @@ def print_families(args, families, header, species=None):
     stage = getattr(args, "stage", None)
 
     if header:
-        db_info = args.db_dir.get_db_info()
+        db_info = args.db_dir.get_metadata()
         if db_info:
             copyright_text = db_info["copyright"]
             # Add appropriate comment character to the copyright header lines
@@ -577,7 +576,7 @@ def command_append(args):
     if dups:
         LOGGER.debug(f" {len(dups)} Duplicate Accesisons: {dups}")
 
-    db_info = args.db_dir.get_db_info()
+    db_info = args.db_dir.get_metadata()
 
     if args.name:
         db_info["name"] = args.name

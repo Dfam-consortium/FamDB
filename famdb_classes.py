@@ -76,10 +76,10 @@ class FamDBLeaf:
         self.mode = mode
 
         try:
-            if reading and self.file.attrs["version"] != FILE_VERSION:
+            if reading and self.file.attrs["famdb_version"] != FILE_VERSION:
                 raise Exception(
                     "File version is {}, but this is version {}".format(
-                        self.file.attrs["version"],
+                        self.file.attrs["famdb_version"],
                         FILE_VERSION,
                     )
                 )
@@ -96,16 +96,15 @@ class FamDBLeaf:
             self.added = self.get_counts()
 
     # Export Setters ----------------------------------------------------------------------------------------------------
-    def set_partition_info(self, partition_num):
-        """Sets partition number (key to file info) and bool if is root file or not"""
-        self.file.attrs["partition_num"] = partition_num
-        self.file.attrs["root"] = partition_num == "0" or partition_num == 0
+    def __write_metadata(self):
+        """Sets file data during writing"""
+        self.file.attrs["generator"] = f"famdb.py v{GENERATOR_VERSION}"
+        self.file.attrs["famdb_version"] = FILE_VERSION
+        self.file.attrs["created"] = str(datetime.datetime.now())
 
-    def set_file_info(self, map_str):
-        """Stores information about other files as json string"""
-        self.file.attrs["file_info"] = json.dumps(map_str)
-
-    def set_db_info(self, name, version, date, desc, copyright_text):
+    def set_metadata(
+        self, partition_num, map_str, name, version, date, desc, copyright_text
+    ):
         """Sets database metadata for the current file"""
         self.file.attrs["db_name"] = name
         self.file.attrs["db_version"] = version
@@ -113,11 +112,12 @@ class FamDBLeaf:
         self.file.attrs["db_description"] = desc
         self.file.attrs["db_copyright"] = copyright_text
 
-    def __write_metadata(self):
-        """Sets file data during writing"""
-        self.file.attrs["generator"] = f"famdb.py v{GENERATOR_VERSION}"
-        self.file.attrs["version"] = FILE_VERSION
-        self.file.attrs["created"] = str(datetime.datetime.now())
+        """Stores information about other files as json string"""
+        self.file.attrs["file_info"] = json.dumps(map_str)
+
+        """Sets partition number (key to file info) and bool if is root file or not"""
+        self.file.attrs["partition_num"] = partition_num
+        self.file.attrs["root"] = partition_num == "0" or partition_num == 0
 
     def finalize(self):
         """Writes some collected metadata, such as counts, to the database"""
@@ -137,35 +137,30 @@ class FamDBLeaf:
         """Tests if file is root file"""
         return self.file.attrs["root"]
 
-    def get_db_info(self):
+    def get_metadata(self):
+        """
+        Gets file metadata for the current file as a dict with keys
+        'generator', 'version', 'created', 'partition_name', 'partition_detail'
+        """
         """
         Gets database database metadata for the current file as a dict with keys
         'name', 'version', 'date', 'description', 'copyright'
         """
         if "db_name" not in self.file.attrs:
             return None
-
-        return {
-            "name": self.file.attrs["db_name"],
-            "version": self.file.attrs["db_version"],
-            "date": self.file.attrs["db_date"],
-            "description": self.file.attrs["db_description"],
-            "copyright": self.file.attrs["db_copyright"],
-        }
-
-    def get_metadata(self):
-        """
-        Gets file metadata for the current file as a dict with keys
-        'generator', 'version', 'created', 'partition_name', 'partition_detail'
-        """
         num = self.file.attrs["partition_num"]
         partition = self.get_file_info()["file_map"][str(num)]
         return {
             "generator": self.file.attrs["generator"],
-            "version": self.file.attrs["version"],
+            "famdb_version": self.file.attrs["famdb_version"],
             "created": self.file.attrs["created"],
             "partition_name": partition["T_root_name"],
             "partition_detail": ", ".join(partition["F_roots_names"]),
+            "name": self.file.attrs["db_name"],
+            "db_version": self.file.attrs["db_version"],
+            "date": self.file.attrs["db_date"],
+            "description": self.file.attrs["db_description"],
+            "copyright": self.file.attrs["db_copyright"],
         }
 
     def get_counts(self):
@@ -1072,9 +1067,6 @@ class FamDB:
     def get_sanitized_name(self, tax_id):
         """method used in EMBL exports"""
         return self.files[0].get_sanitized_name(tax_id)
-
-    def get_db_info(self):
-        return self.files[0].get_db_info()
 
     def resolve_one_species(self, term):
         return self.files[0].resolve_one_species(term)
