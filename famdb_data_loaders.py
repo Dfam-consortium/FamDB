@@ -10,10 +10,9 @@ from sqlalchemy.ext import baked
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../Schemata/ORMs/python"))
 import dfamorm as dfam
-from famdb_helper_classes import TaxNode, ClassificationNode
+from famdb_helper_classes import TaxNode, ClassificationNode, Family
 from famdb_helper_methods import sanitize_name
 from famdb_globals import LOGGER
-import famdb
 
 
 def load_taxonomy_from_db(session, relevant_nodes):
@@ -69,7 +68,7 @@ def load_taxonomy_from_db(session, relevant_nodes):
         ]
         if name_class == "scientific name":
             # sanitized_name = sanitize_name(name).lower()
-            lookup[entry.sanitized_name] = entry.tax_id
+            lookup[entry.sanitized_name.lower()] = entry.tax_id
 
     delta = time.perf_counter() - start
     LOGGER.info("Loaded taxonomy names in %f", delta)
@@ -277,7 +276,7 @@ def iterate_db_families(session, families_query):
     )
 
     for record in families_query:
-        family = famdb.Family()
+        family = Family()
 
         # REQUIRED FIELDS
         family.name = record.name
@@ -542,7 +541,7 @@ def read_hmm_families(filename, tax_lookup, nodes):
             if family is None:
                 # HMMER3/f indicates start of metadata
                 if line.startswith("HMMER3/f"):
-                    family = famdb.Family()
+                    family = Family()
                     family.clades = []
                     in_metadata = True
                     model = line
@@ -576,3 +575,130 @@ def read_hmm_families(filename, tax_lookup, nodes):
                             )
                             yield family
                     family = None
+
+
+def read_embl_families(filename, lookup, header_cb=None):
+    """
+    Iterates over Family objects from the .embl file 'filename'. The format
+    should match the output format of to_embl(), but this is not thoroughly
+    tested.
+
+    'lookup' should be a dictionary of Species names (in the EMBL file) to
+    taxonomy IDs.
+
+    If specified, 'header_cb' will be invoked with the contents of the
+    header text at the top of the file before the iteration is complete.
+
+    TODO: This mechanism is a bit awkward and should perhaps be reworked.
+    """
+
+    def set_family_code(family, code, value):
+        """
+        Sets an attribute on 'family' based on the EMBL line starting with 'code'.
+        For codes corresponding to list attributes, values are appended.
+        """
+        if code == "ID":
+            match = re.match(r"(\S*)", value)
+            acc = match.group(1)
+            acc = acc.rstrip(";")
+            family.accession = acc
+        elif code == "NM":
+            family.name = value
+        elif code == "DE":
+            family.description = value
+        elif code == "CC":
+            # TODO: Consider only recognizing these after seeing "RepeatMasker Annotations"
+
+            matches = re.match(r"\s*Type:\s*(\S+)", value)
+            if matches:
+                family.repeat_type = matches.group(1).strip()
+
+            matches = re.match(r"\s*SubType:\s*(\S+)", value)
+            if matches:
+                family.repeat_subtype = matches.group(1).strip()
+
+            matches = re.search(r"Species:\s*(.+)", value)
+            if matches:
+                for spec in matches.group(1).split(","):
+                    name = spec.strip()
+                    if name:
+                        name = name.replace("[", "")
+                        name = name.replace("]", "")
+                        tax_id = lookup.get(name.lower())
+                        if tax_id is not None:
+                            family.clades += [tax_id]
+                        else:
+                            LOGGER.warning("Could not find taxon for '%s'", name)
+            matches = re.search(r"SearchStages:\s*(\S+)", value)
+            if matches:
+                family.search_stages = matches.group(1).strip()
+
+            matches = re.search(r"BufferStages:\s*(\S+)", value)
+            if matches:
+                family.buffer_stages = matches.group(1).strip()
+
+            matches = re.search(r"Refineable", value)
+            if matches:
+                family.refineable = True
+
+    header = ""
+    family = None
+    in_header = True
+    in_metadata = False
+
+    nodes = lookup.values()
+
+    with open(filename) as file:
+        for line in file:
+            if family is None:
+                # ID indicates start of metadata
+                if line.startswith("ID"):
+                    family = Family()
+                    family.clades = []
+                    in_header = False
+                    in_metadata = True
+                elif in_header:
+                    matches = re.match(r"(CC)?\s*(.*)", line)
+                    if line.startswith("XX"):
+                        in_header = False
+                    elif matches:
+                        header_line = matches.group(2).rstrip("*").strip()
+                        header += header_line + "\n"
+                    else:
+                        header += line
+
+            if family is not None:
+                if in_metadata:
+                    # SQ line indicates start of sequence
+                    if line.startswith("SQ"):
+                        in_metadata = False
+                        family.consensus = ""
+
+                    # Continuing metadata
+                    else:
+                        split = line.rstrip("\n").split(None, maxsplit=1)
+                        if len(split) > 1:
+                            code = split[0].strip()
+                            value = split[1].strip()
+                            set_family_code(family, code, value)
+
+                # '//' line indicates end of the sequence area
+                elif line.startswith("//"):
+                    family.length = len(family.consensus)
+                    keep = False
+                    for clade in family.clades:
+                        if clade in nodes:
+                            LOGGER.debug(
+                                f"Including {family.accession} in taxa {clade} from {filename}"
+                            )
+                            keep = True
+                    if keep:
+                        yield family
+                    family = None
+
+                # Part of the sequence area
+                else:
+                    family.consensus += re.sub(r"[^A-Za-z]", "", line)
+
+    # if header_cb:
+    #     header_cb(header)

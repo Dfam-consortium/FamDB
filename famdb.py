@@ -56,8 +56,8 @@ from famdb_globals import (
     MISSING_FILE,
     HELP_URL,
 )
-from famdb_helper_classes import Family
 from famdb_classes import FamDB
+from famdb_data_loaders import read_embl_families
 
 
 # Command-line utilities
@@ -544,7 +544,7 @@ def command_append(args):
         nonlocal header
         header = val
 
-    embl_iter = Family.read_embl_families(args.infile, lookup, set_header)
+    embl_iter = read_embl_families(args.infile, lookup, header_cb=set_header)
 
     total_ctr = 0
     added_ctr = 0
