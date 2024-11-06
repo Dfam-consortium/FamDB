@@ -623,13 +623,17 @@ def read_embl_families(filename, lookup, header_cb=None):
                 for spec in matches.group(1).split(","):
                     name = spec.strip()
                     if name:
-                        name = name.replace("[", "")
-                        name = name.replace("]", "")
-                        tax_id = lookup.get(name.lower())
+                        tax_id = lookup.get(name)
                         if tax_id is not None:
                             family.clades += [tax_id]
                         else:
-                            LOGGER.warning("Could not find taxon for '%s'", name)
+                            name = name.replace("[", "")
+                            name = name.replace("]", "")
+                            tax_id = lookup.get(name.lower())
+                            if tax_id is not None:
+                                family.clades += [tax_id]
+                            else:
+                                LOGGER.warning("Could not find taxon for '%s' upper or lower: line=%s, and ID=%s", name, value, family.accession)
             matches = re.search(r"SearchStages:\s*(\S+)", value)
             if matches:
                 family.search_stages = matches.group(1).strip()
