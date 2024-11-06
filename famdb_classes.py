@@ -189,10 +189,11 @@ class FamDBLeaf:
     def __check_unique(self, family):
         """Verifies that 'family' is uniquely identified by its value of 'key'."""
 
-        # TODO: This is awkward. The EMBL files being appended may only have an
+        # This is awkward. The EMBL files being appended may only have an
         # "accession", but that accession may match the *name* of a family
         # already in Dfam. The accession may also match a family already in
         # Dfam, but with a "v" added.
+        # This has been spot-checked and seems to avoid conflicts - Anthony 11/5/24
 
         # check by accession first
         accession = family.accession
@@ -283,7 +284,7 @@ class FamDBLeaf:
     # Taxonomy Nodes
     def write_taxonomy(self, tax_db, nodes):
         """Writes taxonomy nodes in 'nodes' to the database."""
-        LOGGER.info("Writing taxonomy nodes")
+        LOGGER.info(f"Writing taxonomy nodes in partition: {self.file.attrs['partition_num']}")
         start = time.perf_counter()
 
         count = 0

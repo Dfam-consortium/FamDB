@@ -39,8 +39,9 @@ def load_taxonomy_from_db(session, relevant_nodes):
 
     for node in nodes.values():
         if node.tax_id != 1:
-            node.parent_node = nodes[node.parent_id]
-            node.parent_node.children += [node]
+            node.parent_node = nodes.get(node.parent_id) # TODO revert this!
+            if node.parent_node:
+                node.parent_node.children += [node]
 
     delta = time.perf_counter() - start
     LOGGER.info("Loaded %d taxonomy nodes in %f seconds", len(nodes), delta)
