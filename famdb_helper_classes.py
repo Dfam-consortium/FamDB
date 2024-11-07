@@ -584,4 +584,3 @@ class Family:  # pylint: disable=too-many-instance-attributes
         out += "//\n"
 
         return out
-    

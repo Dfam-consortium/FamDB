@@ -2,7 +2,7 @@ import os
 import unittest
 from famdb_classes import FamDBLeaf, FamDBRoot, FamDB
 from famdb_helper_classes import Lineage, Family
-from .doubles import init_db_file, FILE_INFO
+from .doubles import init_db_file, FILE_INFO, FAKE_REPPEPS
 from unittest.mock import patch
 import io
 from famdb_globals import FILE_VERSION, GENERATOR_VERSION
@@ -245,6 +245,10 @@ class TestDatabase(unittest.TestCase):
             self.assertEqual(db.find_taxon(2), 0)
             self.assertEqual(db.find_taxon(4), 1)
             self.assertEqual(db.find_taxon(5), 2)
+
+    def test_repeatpeps(self):
+        with FamDBRoot(TestDatabase.filenames[0], "r") as db:
+            self.assertEqual(db.get_repeatpeps(), ">DUMMYACC\nDUMMYDATA")
 
     # Lineage tests --------------------------------------------------------------------------------
     def test_lineage(self):

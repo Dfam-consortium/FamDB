@@ -39,7 +39,7 @@ def load_taxonomy_from_db(session, relevant_nodes):
 
     for node in nodes.values():
         if node.tax_id != 1:
-            node.parent_node = nodes.get(node.parent_id) # TODO revert this!
+            node.parent_node = nodes.get(node.parent_id)  # TODO revert this!
             if node.parent_node:
                 node.parent_node.children += [node]
 
@@ -633,7 +633,12 @@ def read_embl_families(filename, lookup, header_cb=None):
                             if tax_id is not None:
                                 family.clades += [tax_id]
                             else:
-                                LOGGER.warning("Could not find taxon for '%s' upper or lower: line=%s, and ID=%s", name, value, family.accession)
+                                LOGGER.warning(
+                                    "Could not find taxon for '%s' upper or lower: line=%s, and ID=%s",
+                                    name,
+                                    value,
+                                    family.accession,
+                                )
             matches = re.search(r"SearchStages:\s*(\S+)", value)
             if matches:
                 family.search_stages = matches.group(1).strip()

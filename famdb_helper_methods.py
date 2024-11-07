@@ -178,20 +178,22 @@ def sanitize_name(name):
     name = re.sub(r"[\(\)\<\>\']+", "", name)
     return name
 
+
 def is_fasta(infile):
     fasta_el = {"header": None, "body": None}
-    with open(infile, 'r') as file:
+    with open(infile, "r") as file:
         for line in file.readlines():
 
-            if line.startswith(">") and fasta_el['header'] is not None:
-                fasta_el['header'] = line
-            elif not line.startswith(">") and fasta_el['body'] is not None:
-                fasta_el['body'] = line
+            if line.startswith(">") and fasta_el["header"] is not None:
+                fasta_el["header"] = line
+            elif not line.startswith(">") and fasta_el["body"] is not None:
+                fasta_el["body"] = line
 
-            if fasta_el['header'] is not None and fasta_el['body'] is not None:
-                fasta_el['header'] = None
-                fasta_el['body'] = None
-    return fasta_el['header'] is None and fasta_el['body'] is None
+            if fasta_el["header"] is not None and fasta_el["body"] is not None:
+                fasta_el["header"] = None
+                fasta_el["body"] = None
+    return fasta_el["header"] is None and fasta_el["body"] is None
+
 
 # def gen_min_map():
 #     return {

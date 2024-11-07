@@ -23,7 +23,7 @@ from famdb_globals import (
     HELP_URL,
     # GROUP_FILE_HISTORY,
     GROUP_OTHER_DATA,
-    GROUP_REPEATPEPS
+    GROUP_REPEATPEPS,
 )
 from famdb_helper_methods import (
     sanitize_name,
@@ -35,7 +35,7 @@ from famdb_helper_methods import (
     filter_name,
     get_family,
     accession_bin,
-    is_fasta
+    is_fasta,
 )
 
 
@@ -276,7 +276,9 @@ class FamDBLeaf:
     # Taxonomy Nodes
     def write_taxonomy(self, tax_db, nodes):
         """Writes taxonomy nodes in 'nodes' to the database."""
-        LOGGER.info(f"Writing taxonomy nodes in partition: {self.file.attrs['partition_num']}")
+        LOGGER.info(
+            f"Writing taxonomy nodes in partition: {self.file.attrs['partition_num']}"
+        )
         start = time.perf_counter()
 
         count = 0
@@ -439,16 +441,18 @@ class FamDBRoot(FamDBLeaf):
 
     def write_repeatpeps(self, infile):
         """
-        Writiing RepeatPeps to its own group as one big string. 
-        For now, only RepeatModeler consumes this, and does so 
+        Writiing RepeatPeps to its own group as one big string.
+        For now, only RepeatModeler consumes this, and does so
         by loading the whole file, so no need to do more
         """
         LOGGER.info(f"Writing RepeatPeps From File: {infile}")
         fasta = is_fasta(infile)
         if fasta:
-            with open(infile, 'r') as file:
+            with open(infile, "r") as file:
                 repeatpeps_str = file.read()
-                rp_data = self.file.require_group(GROUP_OTHER_DATA).create_dataset(GROUP_REPEATPEPS, shape=1, dtype=h5py.string_dtype())
+                rp_data = self.file.require_group(GROUP_OTHER_DATA).create_dataset(
+                    GROUP_REPEATPEPS, shape=1, dtype=h5py.string_dtype()
+                )
                 rp_data[:] = repeatpeps_str
             LOGGER.info("RepeatPeps Saved")
         else:
@@ -458,7 +462,11 @@ class FamDBRoot(FamDBLeaf):
         """
         Retrieve RepeatPeps File
         """
-        return self.file[GROUP_OTHER_DATA].get(GROUP_REPEATPEPS)[0].decode(encoding='UTF-8',errors='strict')
+        return (
+            self.file[GROUP_OTHER_DATA]
+            .get(GROUP_REPEATPEPS)[0]
+            .decode(encoding="UTF-8", errors="strict")
+        )
 
     def get_taxon_names(self, tax_id):
         """
@@ -1100,10 +1108,9 @@ class FamDB:
 
     def get_all_taxa_names(self):
         return self.files[0].get_all_taxa_names()
-    
+
     def get_repeatpeps(self):
         return self.files[0].get_repeatpeps()
-
 
     # File Utils
     def close(self):

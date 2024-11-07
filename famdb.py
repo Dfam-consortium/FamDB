@@ -527,8 +527,10 @@ def command_fasta_all(args):
     print_families(args, args.db_dir.fasta_all("/DF"), True, 1)
     print_families(args, args.db_dir.fasta_all("/Aux"), True, 1)
 
+
 def command_repeatpeps(args):
     print(args.db_dir.get_repeatpeps())
+
 
 def command_append(args):
     """

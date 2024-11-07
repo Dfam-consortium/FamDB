@@ -65,6 +65,7 @@ FILE_INFO = {
 }
 
 DB_INFO = ("Test", "V1", "2020-07-15", "Test Database", "<copyright header>")
+FAKE_REPPEPS = "./tests/rep_pep_test.lib"
 
 
 def build_taxa(nodes):
@@ -98,7 +99,6 @@ def write_test_metadata(db):
 
 
 def init_db_file(filename):
-
     FAMILIES = [
         make_family("TEST0001", [1], "ACGT", "<model1>"),
         make_family("TEST0002", [2, 3], None, "<model2>"),
@@ -128,6 +128,7 @@ def init_db_file(filename):
     with FamDBRoot(f"{filename}.0.h5", "w") as db:
         db.set_metadata(0, FILE_INFO, *DB_INFO)
         write_test_metadata(db)
+        db.write_repeatpeps(FAKE_REPPEPS)
 
         db.write_taxonomy(taxa, NODES[0])
         db.write_taxa_names(taxa, NODES)
