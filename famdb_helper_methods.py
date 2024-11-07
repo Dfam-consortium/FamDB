@@ -178,33 +178,47 @@ def sanitize_name(name):
     name = re.sub(r"[\(\)\<\>\']+", "", name)
     return name
 
+def is_fasta(infile):
+    fasta_el = {"header": None, "body": None}
+    with open(infile, 'r') as file:
+        for line in file.readlines():
 
-def gen_min_map():
-    return {
-        "file_map": {
-            "0": {
-                "T_root": 1,
-                "bytes": 0,
-                "nodes": [1],
-                "F_roots": [1],
-                "T_root_name": "root",
-                "F_roots_names": ["root"],
-                "filename": "min_init",
-            }
-        }
-    }
+            if line.startswith(">") and fasta_el['header'] is not None:
+                fasta_el['header'] = line
+            elif not line.startswith(">") and fasta_el['body'] is not None:
+                fasta_el['body'] = line
+
+            if fasta_el['header'] is not None and fasta_el['body'] is not None:
+                fasta_el['header'] = None
+                fasta_el['body'] = None
+    return fasta_el['header'] is None and fasta_el['body'] is None
+
+# def gen_min_map():
+#     return {
+#         "file_map": {
+#             "0": {
+#                 "T_root": 1,
+#                 "bytes": 0,
+#                 "nodes": [1],
+#                 "F_roots": [1],
+#                 "T_root_name": "root",
+#                 "F_roots_names": ["root"],
+#                 "filename": "min_init",
+#             }
+#         }
+#     }
 
 
-def gen_min_data():
-    dum_node = TaxNode(1, 1)
-    dum_node.names.append("root")
-    tax_db = {1: dum_node}
-    partition_nodes = {0: [1]}
-    min_map = gen_min_map()
-    dum_fam = Family()
-    dum_fam.name = "dummy"
-    dum_fam.accession = "DUMMYAccession"
-    dum_fam.clades = [0]
-    dum_fam.consensus = "BLAHBLAHBLAH"
-    dum_fam.model = "BLAHBLAHBLAH"
-    return tax_db, partition_nodes, min_map, [dum_fam]
+# def gen_min_data():
+#     dum_node = TaxNode(1, 1)
+#     dum_node.names.append("root")
+#     tax_db = {1: dum_node}
+#     partition_nodes = {0: [1]}
+#     min_map = gen_min_map()
+#     dum_fam = Family()
+#     dum_fam.name = "dummy"
+#     dum_fam.accession = "DUMMYAccession"
+#     dum_fam.clades = [0]
+#     dum_fam.consensus = "BLAHBLAHBLAH"
+#     dum_fam.model = "BLAHBLAHBLAH"
+#     return tax_db, partition_nodes, min_map, [dum_fam]

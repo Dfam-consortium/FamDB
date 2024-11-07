@@ -21,7 +21,9 @@ from famdb_globals import (
     GROUP_TAXANAMES,
     MISSING_FILE,
     HELP_URL,
-    COPYRIGHT_TEXT,
+    # GROUP_FILE_HISTORY,
+    GROUP_OTHER_DATA,
+    GROUP_REPEATPEPS
 )
 from famdb_helper_methods import (
     sanitize_name,
@@ -33,8 +35,7 @@ from famdb_helper_methods import (
     filter_name,
     get_family,
     accession_bin,
-    gen_min_data,
-    gen_min_map,
+    is_fasta
 )
 
 
@@ -63,15 +64,6 @@ class FamDBLeaf:
             )
 
         self.filename = filename
-
-        # if filename == "min_init":
-        #     # Create an in-memory HDF5 file
-        #     self.file = h5py.File(filename, "w", driver="core", backing_store=False)
-        #     self.added = {"consensus": 0, "hmm": 0}
-        #     self.__write_metadata()
-        # else:
-        #     self.file = h5py.File(filename, mode)
-
         self.file = h5py.File(filename, mode)
         self.mode = mode
 
@@ -419,23 +411,6 @@ class FamDBRoot(FamDBLeaf):
     def __init__(self, filename, mode="r"):
         super(FamDBRoot, self).__init__(filename, mode)
 
-        # if filename == "min_init":
-        #     tax_db, partition_nodes, min_map, dum_fams = gen_min_data()
-        #     self.write_taxa_names(tax_db, partition_nodes)
-        #     self.set_partition_info(0)
-        #     self.set_file_info(min_map)
-        #     self.set_db_info(
-        #         "Minimal Dfam",
-        #         "min_init",
-        #         self.file.attrs["created"],
-        #         "A minimal instantiation of Dfam, comprising only the root taxon node and contaminate sequences",
-        #         COPYRIGHT_TEXT,
-        #     )
-        #     self.write_taxonomy(tax_db, [1])
-        #     for fam in dum_fams:
-        #         self.add_family(fam)
-        #     self.finalize()
-
         if mode == "r" or mode == "r+":
             self.names_dump = {
                 partition: json.loads(
@@ -461,6 +436,29 @@ class FamDBRoot(FamDBLeaf):
                 "TaxaNames", shape=names_data.shape, dtype=FamDBLeaf.dtype_str
             )
             names_dset[:] = names_data
+
+    def write_repeatpeps(self, infile):
+        """
+        Writiing RepeatPeps to its own group as one big string. 
+        For now, only RepeatModeler consumes this, and does so 
+        by loading the whole file, so no need to do more
+        """
+        LOGGER.info(f"Writing RepeatPeps From File: {infile}")
+        fasta = is_fasta(infile)
+        if fasta:
+            with open(infile, 'r') as file:
+                repeatpeps_str = file.read()
+                rp_data = self.file.require_group(GROUP_OTHER_DATA).create_dataset(GROUP_REPEATPEPS, shape=1, dtype=h5py.string_dtype())
+                rp_data[:] = repeatpeps_str
+            LOGGER.info("RepeatPeps Saved")
+        else:
+            LOGGER.error(f"File {infile} not in FASTA format, write cancelled")
+
+    def get_repeatpeps(self):
+        """
+        Retrieve RepeatPeps File
+        """
+        return self.file[GROUP_OTHER_DATA].get(GROUP_REPEATPEPS)[0].decode(encoding='UTF-8',errors='strict')
 
     def get_taxon_names(self, tax_id):
         """
@@ -699,24 +697,6 @@ up with the 'names' command.""",
 class FamDB:
 
     def __init__(self, db_dir, mode, min=False):
-        #     if min:
-        #         FamDB.min_init(self)
-        #     else:
-        #         FamDB.full_init(self, db_dir, mode)
-
-        # def min_init(self):
-        #     """
-        #     Initialize a single taxon (root) with a fixed set of sequences
-        #     """
-        #     self.files = {}
-        #     self.files[0] = FamDBRoot("min_init", "r")
-        #     self.db_dir = "min_init"
-        #     self.file_map = gen_min_map()["file_map"]
-        #     self.uuid = "min_init"
-        #     self.db_version = "min_init"
-        #     self.db_date = time.ctime(time.time())
-
-        # def full_init(self, db_dir, mode):
         """
         Initialize from a directory containing a *partitioned* famdb dataset
         """
@@ -1120,6 +1100,10 @@ class FamDB:
 
     def get_all_taxa_names(self):
         return self.files[0].get_all_taxa_names()
+    
+    def get_repeatpeps(self):
+        return self.files[0].get_repeatpeps()
+
 
     # File Utils
     def close(self):

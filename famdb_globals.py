@@ -9,6 +9,9 @@ GROUP_LOOKUP_BYACC = "Lookup/ByAccession"
 GROUP_LOOKUP_BYSTAGE = "Lookup/ByStage"
 GROUP_NODES = "Taxonomy/Nodes"
 GROUP_TAXANAMES = "Partitions"
+GROUP_OTHER_DATA = "Other_Data"
+GROUP_REPEATPEPS = "RepeatPeps"
+GROUP_FILE_HISTORY = "File_History"
 
 # DF####### or DF########## or DR####### or DR##########
 dfam_acc_pat = re.compile("^(D[FR])([0-9]{2})([0-9]{2})([0-9]{2})[0-9]{3,6}$")

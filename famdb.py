@@ -69,11 +69,11 @@ def command_info(args):
         f"""\
 FamDB Directory     : {os.path.realpath(args.db_dir.db_dir)}
 FamDB Generator     : {db_info["generator"]}
-FamDB Format Version: {db_info["version"]}
+FamDB Format Version: {db_info["famdb_version"]}
 FamDB Creation Date : {db_info["created"]}
 
 Database: {db_info["name"]}
-Version : {db_info["version"]}
+Version : {db_info["db_version"]}
 Date    : {db_info["date"]}
 
 {db_info["description"]}
@@ -527,6 +527,8 @@ def command_fasta_all(args):
     print_families(args, args.db_dir.fasta_all("/DF"), True, 1)
     print_families(args, args.db_dir.fasta_all("/Aux"), True, 1)
 
+def command_repeatpeps(args):
+    print(args.db_dir.get_repeatpeps())
 
 def command_append(args):
     """
@@ -535,10 +537,10 @@ def command_append(args):
     """
 
     lookup = args.db_dir.get_all_taxa_names()
-    repbase_lookup = {}
-    with open(REPBASE_FILE) as file:
-        repbase_lookup = json.load(file)
-    lookup.update(repbase_lookup)
+    infile_lookup = {}
+    with open(args.infile) as file:
+        infile_lookup = json.load(file)
+    lookup.update(infile_lookup)
 
     header = None
 
@@ -589,7 +591,7 @@ def command_append(args):
 
     args.db_dir.set_db_info(
         db_info["name"],
-        db_info["version"],
+        db_info["db_version"],
         db_info["date"],
         db_info["description"],
         db_info["copyright"],
@@ -815,6 +817,10 @@ with a given clade, optionally filtered by additional criteria",
     # FASTA ALL --------------------------------------------------------------------------------------------------------------------------------
     p_fasta = subparsers.add_parser("fasta_all")
     p_fasta.set_defaults(func=command_fasta_all)
+
+    # RepeatPeps -------------------------------------------------------------------------------------------------------------------------------
+    p_rp = subparsers.add_parser("repeat_peps")
+    p_rp.set_defaults(func=command_repeatpeps)
 
     args = parser.parse_args()
     logging.getLogger().setLevel(getattr(logging, args.log_level.upper()))

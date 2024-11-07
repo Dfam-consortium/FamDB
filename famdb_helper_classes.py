@@ -2,7 +2,6 @@
 import collections
 import textwrap
 import json
-import re
 import sys
 
 
