@@ -21,7 +21,7 @@ from famdb_globals import (
     GROUP_TAXANAMES,
     MISSING_FILE,
     HELP_URL,
-    # GROUP_FILE_HISTORY,
+    GROUP_FILE_HISTORY,
     GROUP_OTHER_DATA,
     GROUP_REPEATPEPS,
 )
@@ -87,21 +87,53 @@ class FamDBLeaf:
         elif self.mode == "r+":
             self.added = self.get_counts()
 
-    # def _change_logger(func):
-    #     def wrapper(self, *args, **kwargs):
-    #         print(func.__name__, func.__code__.co_varnames[:func.__code__.co_argcount])
-    #         func(self, *args, **kwargs)
-    #     return wrapper
+    def _update_changelog(self, message, verified=False):
+        """
+        Creates a OtherData/FileHistory/Timestamp/Message/bool
+        to record file changes. Defaults to False to show that change is not complete
+        """
+        time_stamp = str(datetime.datetime.now())
+        group = (
+            self.file.require_group(GROUP_OTHER_DATA)
+            .require_group(GROUP_FILE_HISTORY)
+            .require_group(time_stamp)
+        )
+        group.create_dataset(message, data=numpy.array([verified]))
+        return time_stamp
+
+    def _verify_change(self, time_stamp, message):
+        """
+        Sets the data of a log entry to True, indicating that it was successful
+        """
+        self.file[GROUP_OTHER_DATA][GROUP_FILE_HISTORY][time_stamp][message][0] = True
+
+    def _change_logger(func):
+        func_to_note = {
+            "__write_metadata": "File Initialized",
+            "set_metadata": "Metadata Set",
+            "add_family": "Family Added",
+            "write_taxa_names": "Taxonomy Names Written",
+            "write_repeatpeps": "RepeatPeps Written",
+            "write_taxonomy": "Taxonomy Nodes Written",
+        }
+        message = func_to_note[func.__name__]
+
+        def wrapper(self, *args, **kwargs):
+            time_stamp = self._update_changelog(message)
+            func(self, *args, **kwargs)
+            self._verify_change(time_stamp, message)
+
+        return wrapper
 
     # Export Setters ----------------------------------------------------------------------------------------------------
-    # @_change_logger
+    @_change_logger
     def __write_metadata(self):
         """Sets file data during writing"""
         self.file.attrs["generator"] = f"famdb.py v{GENERATOR_VERSION}"
         self.file.attrs["famdb_version"] = FILE_VERSION
         self.file.attrs["created"] = str(datetime.datetime.now())
 
-    # @_change_logger
+    @_change_logger
     def set_metadata(
         self, partition_num, map_str, name, version, date, desc, copyright_text
     ):
@@ -119,7 +151,6 @@ class FamDBLeaf:
         self.file.attrs["partition_num"] = partition_num
         self.file.attrs["root"] = partition_num == "0" or partition_num == 0
 
-    # @_change_logger
     def finalize(self):
         """Writes some collected metadata, such as counts, to the database"""
         self.file.attrs["count_consensus"] = self.added["consensus"]
@@ -219,7 +250,6 @@ class FamDBLeaf:
 
         return True
 
-    # @_change_logger TODO batch this
     def add_family(self, family):
         """Adds the family described by 'family' to the database."""
         # Verify uniqueness of name and accession.
@@ -284,7 +314,7 @@ class FamDBLeaf:
         LOGGER.debug("Added family %s (%s)", family.name, family.accession)
 
     # Taxonomy Nodes
-    # @_change_logger
+    @_change_logger
     def write_taxonomy(self, tax_db, nodes):
         """Writes taxonomy nodes in 'nodes' to the database."""
         LOGGER.info(
@@ -434,7 +464,7 @@ class FamDBRoot(FamDBLeaf):
             self.file_info = self.get_file_info()
             self.__lineage_cache = {}
 
-    # @FamDBLeaf._change_logger
+    @FamDBLeaf._change_logger
     def write_taxa_names(self, tax_db, nodes):
         """
         Writes Names -> taxa maps per partition
@@ -451,7 +481,7 @@ class FamDBRoot(FamDBLeaf):
             )
             names_dset[:] = names_data
 
-    # @FamDBLeaf._change_logger
+    @FamDBLeaf._change_logger
     def write_repeatpeps(self, infile):
         """
         Writiing RepeatPeps to its own group as one big string.
