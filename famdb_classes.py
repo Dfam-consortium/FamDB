@@ -87,7 +87,7 @@ class FamDBLeaf:
         elif self.mode == "r+":
             self.added = self.get_counts()
 
-    def _update_changelog(self, message, verified=False):
+    def update_changelog(self, message, verified=False):
         """
         Creates a OtherData/FileHistory/Timestamp/Message/bool
         to record file changes. Defaults to False to show that change is not complete
@@ -119,7 +119,7 @@ class FamDBLeaf:
         message = func_to_note[func.__name__]
 
         def wrapper(self, *args, **kwargs):
-            time_stamp = self._update_changelog(message)
+            time_stamp = self.update_changelog(message)
             func(self, *args, **kwargs)
             self._verify_change(time_stamp, message)
 
@@ -1141,7 +1141,29 @@ class FamDB:
 
     def set_db_info(self, name, version, date, desc, copyright_text):
         for file in self.files:
-            self.files[file].set_db_info(name, version, date, desc, copyright_text)
+            partition_num = self.files[file].get_partition_num()
+            file_info = self.files[file].get_file_info()
+            self.files[file].set_metadata(
+                partition_num,
+                file_info,
+                name,
+                version,
+                date,
+                desc,
+                copyright_text,
+            )
+
+    def update_changelog(self, added_ctr, total_ctr, file_counts, infile):
+        for file in self.files:
+            if file in file_counts:
+                self.files[file].update_changelog(
+                    f"Added {file_counts[file]} of {total_ctr} Families", verified=True
+                )
+            if file == 0:
+                self.files[file].update_changelog(
+                    f"Added {added_ctr} of {total_ctr} Total Families To Local Files From {infile.split('/')[-1]}",
+                    verified=True,
+                )
 
     def filter_stages(self, accession, stages):
         for file in self.files:

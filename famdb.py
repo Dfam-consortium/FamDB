@@ -539,21 +539,21 @@ def command_append(args):
     """
 
     lookup = args.db_dir.get_all_taxa_names()
-    infile_lookup = {}
-    with open(args.infile) as file:
-        infile_lookup = json.load(file)
-    lookup.update(infile_lookup)
+    # infile_lookup = {}
+    # with open(args.infile) as file:
+    #     infile_lookup = json.load(file)
+    # lookup.update(infile_lookup)
 
     header = None
 
     def set_header(val):
         nonlocal header
         header = val
-
     embl_iter = read_embl_families(args.infile, lookup, header_cb=set_header)
 
     total_ctr = 0
     added_ctr = 0
+    file_counts = {}
     dups = set()
     for entry in embl_iter:
         total_ctr += 1
@@ -574,9 +574,12 @@ def command_append(args):
                 args.db_dir.files[file].add_family(entry)
                 LOGGER.debug(f"Added {acc} to file {file}")
                 added_ctr += 1
+                file_counts[file] = file_counts.get(file, 0) + 1
             except Exception as e:
                 LOGGER.debug(f" Ignoring duplicate entry {entry.accession}: {e}")
                 dups.add(entry.accession)
+    
+    args.db_dir.update_changelog(added_ctr, total_ctr, file_counts, args.infile) 
 
     LOGGER.info(f"Added {added_ctr}/{total_ctr} families")
     if dups:
