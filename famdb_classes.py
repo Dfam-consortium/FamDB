@@ -250,6 +250,7 @@ class FamDBLeaf:
 
         return True
 
+    # no @_change_logger here to avoid 1000s of history logs. it is called in the methods that call add_family
     def add_family(self, family):
         """Adds the family described by 'family' to the database."""
         # Verify uniqueness of name and accession.
@@ -905,6 +906,23 @@ class FamDB:
                 )
             print()
 
+    def show_history(self):
+        histories = {}
+        for part in sorted([int(x) for x in self.file_map]):
+            history = (
+                self.files[part].file.get(GROUP_OTHER_DATA).get(GROUP_FILE_HISTORY)
+            )
+            messages = {
+                stamp: list(history[stamp].keys())[0] for stamp in history.keys()
+            }
+            histories[part] = messages
+        print(f"\nFile History\n-----------------")
+        for file in histories:
+            print(f"\n File {file}")
+            history = histories[file]
+            for entry in history:
+                print(f"{entry} - {history[entry]}")
+
     def assemble_filters(self, **kwargs):
         """Define family filters (logically ANDed together)"""
         filters = []
@@ -1153,15 +1171,26 @@ class FamDB:
                 copyright_text,
             )
 
+    def append_start_changelog(self, message):
+        rec = {}
+        for file in self.files:
+            time_stamp = self.files[file].update_changelog(message)
+            rec[file] = time_stamp
+        return rec
+    
+    def append_finish_changelog(self, message, rec):
+        for file in rec:
+            self.files[file]._verify_change(rec[file], message)
+
     def update_changelog(self, added_ctr, total_ctr, file_counts, infile):
         for file in self.files:
             if file in file_counts:
                 self.files[file].update_changelog(
-                    f"Added {file_counts[file]} of {total_ctr} Families", verified=True
+                    f"Added {file_counts[file]} of {total_ctr} Families From {infile.split('/')[-1]}", verified=True
                 )
             if file == 0:
                 self.files[file].update_changelog(
-                    f"Added {added_ctr} of {total_ctr} Total Families To Local Files From {infile.split('/')[-1]}",
+                    f"Total Families {added_ctr} of {total_ctr} Added To Local Files From {infile.split('/')[-1]}",
                     verified=True,
                 )
 

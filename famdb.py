@@ -84,6 +84,8 @@ Total HMMs present               : {counts["hmm"]}
 """
     )
     args.db_dir.show_files()
+    if args.history:
+        args.db_dir.show_history()
 
 
 def command_names(args):
@@ -551,6 +553,9 @@ def command_append(args):
         header = val
     embl_iter = read_embl_families(args.infile, lookup, header_cb=set_header)
 
+    message = f"Adding Data From {args.infile.split('/')[-1]}"
+    rec = args.db_dir.append_start_changelog(message)
+
     total_ctr = 0
     added_ctr = 0
     file_counts = {}
@@ -558,6 +563,7 @@ def command_append(args):
     for entry in embl_iter:
         total_ctr += 1
         acc = entry.accession
+        added = False
 
         # prepare set of local files to add family to
         add_files = set()
@@ -573,12 +579,15 @@ def command_append(args):
             try:
                 args.db_dir.files[file].add_family(entry)
                 LOGGER.debug(f"Added {acc} to file {file}")
-                added_ctr += 1
+                if not added:
+                    added_ctr += 1
+                    added = True
                 file_counts[file] = file_counts.get(file, 0) + 1
             except Exception as e:
                 LOGGER.debug(f" Ignoring duplicate entry {entry.accession}: {e}")
                 dups.add(entry.accession)
     
+    args.db_dir.append_finish_changelog(message, rec)
     args.db_dir.update_changelog(added_ctr, total_ctr, file_counts, args.infile) 
 
     LOGGER.info(f"Added {added_ctr}/{total_ctr} families")
@@ -634,6 +643,7 @@ famdb.py families --help
     p_info = subparsers.add_parser(
         "info", description="List general information about the file."
     )
+    p_info.add_argument("--history", action="store_true", help="List the file changelog in addition to general information")
     p_info.set_defaults(func=command_info)
 
     # NAMES --------------------------------------------------------------------------------------------------------------------------------
