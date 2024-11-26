@@ -195,6 +195,18 @@ class FamDBLeaf:
             "copyright": self.file.attrs["db_copyright"],
         }
 
+    def get_history(self):
+        history = (
+                self.file.get(GROUP_OTHER_DATA).get(GROUP_FILE_HISTORY)
+            )
+        messages = {
+            stamp: list(history[stamp].keys())[0] for stamp in history.keys()
+        }
+        hist_str = f"\n File {self.get_partition_num()}\n"
+        for entry in messages:
+            hist_str += f"{entry} - {messages[entry]}\n"
+        return hist_str
+
     def get_counts(self):
         """
         Gets counts of entries in the current file as a dict
@@ -206,6 +218,21 @@ class FamDBLeaf:
         }
 
     # File Utils
+    def interrupt_check(self):
+        """ Changelogs Start as False and are flipped to True when complete"""
+        interrupted = False
+        history = (
+            self.file.get(GROUP_OTHER_DATA).get(GROUP_FILE_HISTORY)
+        )
+        for el in history:
+            item = history.get(el)
+            note = list(item.keys())[0]
+            val = item[note][()][0]
+            if not val:
+                interrupted = True
+                break
+        return interrupted
+
     def close(self):
         """Closes this FamDB instance, making further use invalid."""
         self.file.close()
@@ -812,17 +839,27 @@ class FamDB:
         self.db_version = file_info["meta"]["db_version"]
         self.db_date = file_info["meta"]["db_date"]
 
-        err_files = []
+        partition_err_files = []
         for file in self.files:
             meta = self.files[file].get_file_info()["meta"]
+
             if (
                 self.uuid != meta["partition_id"]
                 or self.db_version != meta["db_version"]
                 or self.db_date != meta["db_date"]
             ):
-                err_files += [file]
-        if err_files:
-            LOGGER.error(f"Files From Different Partitioning Runs: {err_files}")
+                partition_err_files += [file]
+        if partition_err_files:
+            LOGGER.error(f"Files From Different Partitioning Runs: {partition_err_files}")
+            exit()
+
+        change_err_files = []
+        for file in self.files:
+            interrupted = self.files[file].interrupt_check()
+            if interrupted:
+                change_err_files += [file]
+        if partition_err_files:
+            LOGGER.error(f"Files Interrupted During Edit: {partition_err_files}")
             exit()
 
     def get_lineage_combined(self, tax_id, **kwargs):
@@ -907,21 +944,9 @@ class FamDB:
             print()
 
     def show_history(self):
-        histories = {}
-        for part in sorted([int(x) for x in self.file_map]):
-            history = (
-                self.files[part].file.get(GROUP_OTHER_DATA).get(GROUP_FILE_HISTORY)
-            )
-            messages = {
-                stamp: list(history[stamp].keys())[0] for stamp in history.keys()
-            }
-            histories[part] = messages
         print(f"\nFile History\n-----------------")
-        for file in histories:
-            print(f"\n File {file}")
-            history = histories[file]
-            for entry in history:
-                print(f"{entry} - {history[entry]}")
+        for file in self.files:
+            print(self.files[file].get_history())
 
     def assemble_filters(self, **kwargs):
         """Define family filters (logically ANDed together)"""
@@ -1172,6 +1197,9 @@ class FamDB:
             )
 
     def append_start_changelog(self, message):
+        """
+        Called when an append command starts
+        """
         rec = {}
         for file in self.files:
             time_stamp = self.files[file].update_changelog(message)
@@ -1179,18 +1207,27 @@ class FamDB:
         return rec
     
     def append_finish_changelog(self, message, rec):
+        """
+        Called when an append command finishes successfully
+        """
         for file in rec:
             self.files[file]._verify_change(rec[file], message)
 
     def update_changelog(self, added_ctr, total_ctr, file_counts, infile):
+        """ Used to add a context log after an append command """
+        filename = infile.split('/')[-1]
         for file in self.files:
             if file in file_counts:
                 self.files[file].update_changelog(
-                    f"Added {file_counts[file]} of {total_ctr} Families From {infile.split('/')[-1]}", verified=True
+                    f"Added {file_counts[file]} of {total_ctr} Families From {filename}", verified=True
+                )
+            else:
+                self.files[file].update_changelog(
+                    f"Found No Relevant Families From {filename}", verified=True
                 )
             if file == 0:
                 self.files[file].update_changelog(
-                    f"Total Families {added_ctr} of {total_ctr} Added To Local Files From {infile.split('/')[-1]}",
+                    f"Total Families {added_ctr} of {total_ctr} Added To Local Files From {filename}",
                     verified=True,
                 )
 
