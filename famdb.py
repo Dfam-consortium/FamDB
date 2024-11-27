@@ -534,6 +534,10 @@ def command_repeatpeps(args):
     print(args.db_dir.get_repeatpeps())
 
 
+def command_edit_description(args):
+    args.db_dir.update_description(args.new)
+
+
 def command_append(args):
     """
     The 'append' command reads an EMBL file and appends its entries to an
@@ -551,6 +555,7 @@ def command_append(args):
     def set_header(val):
         nonlocal header
         header = val
+
     embl_iter = read_embl_families(args.infile, lookup, header_cb=set_header)
 
     message = f"Adding Data From {args.infile.split('/')[-1]}"
@@ -586,9 +591,9 @@ def command_append(args):
             except Exception as e:
                 LOGGER.debug(f" Ignoring duplicate entry {entry.accession}: {e}")
                 dups.add(entry.accession)
-    
+
     args.db_dir.append_finish_changelog(message, rec)
-    args.db_dir.update_changelog(added_ctr, total_ctr, file_counts, args.infile) 
+    args.db_dir.update_changelog(added_ctr, total_ctr, file_counts, args.infile)
 
     LOGGER.info(f"Added {added_ctr}/{total_ctr} families")
     if dups:
@@ -643,7 +648,11 @@ famdb.py families --help
     p_info = subparsers.add_parser(
         "info", description="List general information about the file."
     )
-    p_info.add_argument("--history", action="store_true", help="List the file changelog in addition to general information")
+    p_info.add_argument(
+        "--history",
+        action="store_true",
+        help="List the file changelog in addition to general information",
+    )
     p_info.set_defaults(func=command_info)
 
     # NAMES --------------------------------------------------------------------------------------------------------------------------------
@@ -837,10 +846,16 @@ with a given clade, optionally filtered by additional criteria",
     p_rp = subparsers.add_parser("repeat_peps")
     p_rp.set_defaults(func=command_repeatpeps)
 
+    # Edit Description -------------------------------------------------------------------------------------------------------------------------------
+    p_desc = subparsers.add_parser("edit_description")
+    p_desc.add_argument("new")
+    p_desc.set_defaults(func=command_edit_description)
+
     args = parser.parse_args()
     logging.getLogger().setLevel(getattr(logging, args.log_level.upper()))
 
-    if "func" in args and args.func is command_append:
+    write_commands = [command_append, command_edit_description]
+    if "func" in args and args.func in write_commands:
         mode = "r+"
     else:
         mode = "r"

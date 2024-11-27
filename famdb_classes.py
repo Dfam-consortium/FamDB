@@ -115,6 +115,7 @@ class FamDBLeaf:
             "write_taxa_names": "Taxonomy Names Written",
             "write_repeatpeps": "RepeatPeps Written",
             "write_taxonomy": "Taxonomy Nodes Written",
+            "update_description": "File Description Updated",
         }
         message = func_to_note[func.__name__]
 
@@ -156,6 +157,10 @@ class FamDBLeaf:
         self.file.attrs["count_consensus"] = self.added["consensus"]
         self.file.attrs["count_hmm"] = self.added["hmm"]
 
+    @_change_logger
+    def update_description(self, new_desc):
+        self.file.attrs["db_description"] = new_desc
+
     # Attribute Getters -----------------------------------------------------------------------------------------------
     def get_partition_num(self):
         """Partition num is used as the key in file_info"""
@@ -196,12 +201,8 @@ class FamDBLeaf:
         }
 
     def get_history(self):
-        history = (
-                self.file.get(GROUP_OTHER_DATA).get(GROUP_FILE_HISTORY)
-            )
-        messages = {
-            stamp: list(history[stamp].keys())[0] for stamp in history.keys()
-        }
+        history = self.file.get(GROUP_OTHER_DATA).get(GROUP_FILE_HISTORY)
+        messages = {stamp: list(history[stamp].keys())[0] for stamp in history.keys()}
         hist_str = f"\n File {self.get_partition_num()}\n"
         for entry in messages:
             hist_str += f"{entry} - {messages[entry]}\n"
@@ -219,11 +220,9 @@ class FamDBLeaf:
 
     # File Utils
     def interrupt_check(self):
-        """ Changelogs Start as False and are flipped to True when complete"""
+        """Changelogs Start as False and are flipped to True when complete"""
         interrupted = False
-        history = (
-            self.file.get(GROUP_OTHER_DATA).get(GROUP_FILE_HISTORY)
-        )
+        history = self.file.get(GROUP_OTHER_DATA).get(GROUP_FILE_HISTORY)
         for el in history:
             item = history.get(el)
             note = list(item.keys())[0]
@@ -850,7 +849,9 @@ class FamDB:
             ):
                 partition_err_files += [file]
         if partition_err_files:
-            LOGGER.error(f"Files From Different Partitioning Runs: {partition_err_files}")
+            LOGGER.error(
+                f"Files From Different Partitioning Runs: {partition_err_files}"
+            )
             exit()
 
         change_err_files = []
@@ -1205,7 +1206,7 @@ class FamDB:
             time_stamp = self.files[file].update_changelog(message)
             rec[file] = time_stamp
         return rec
-    
+
     def append_finish_changelog(self, message, rec):
         """
         Called when an append command finishes successfully
@@ -1214,12 +1215,13 @@ class FamDB:
             self.files[file]._verify_change(rec[file], message)
 
     def update_changelog(self, added_ctr, total_ctr, file_counts, infile):
-        """ Used to add a context log after an append command """
-        filename = infile.split('/')[-1]
+        """Used to add a context log after an append command"""
+        filename = infile.split("/")[-1]
         for file in self.files:
             if file in file_counts:
                 self.files[file].update_changelog(
-                    f"Added {file_counts[file]} of {total_ctr} Families From {filename}", verified=True
+                    f"Added {file_counts[file]} of {total_ctr} Families From {filename}",
+                    verified=True,
                 )
             else:
                 self.files[file].update_changelog(
@@ -1242,6 +1244,10 @@ class FamDB:
 
     def get_repeatpeps(self):
         return self.files[0].get_repeatpeps()
+
+    def update_description(self, new_desc):
+        for file in self.files:
+            self.files[file].update_description(new_desc)
 
     # File Utils
     def close(self):
