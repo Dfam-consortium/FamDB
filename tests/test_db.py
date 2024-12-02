@@ -74,6 +74,12 @@ class TestDatabase(unittest.TestCase):
             db._verify_change(stamp, message)
             self.assertFalse(db.interrupt_check())
 
+    def test_update_description(self):
+        new_desc = "New Description"
+        with FamDBRoot(TestDatabase.filenames[0], "r") as db:
+            db.update_description(new_desc)
+            self.assertEqual(db.get_metadata()["description"], new_desc)
+
     def test_get_counts(self):
         with FamDBRoot(TestDatabase.filenames[0], "r") as db:
             self.assertEqual(db.get_counts(), {"consensus": 2, "hmm": 3})
