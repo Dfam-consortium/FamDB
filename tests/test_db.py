@@ -2,7 +2,7 @@ import os
 import unittest
 from famdb_classes import FamDBLeaf, FamDBRoot, FamDB
 from famdb_helper_classes import Lineage, Family
-from .doubles import init_db_file, FILE_INFO, FAKE_REPPEPS
+from .doubles import init_db_file, FILE_INFO
 from unittest.mock import patch
 import io
 from famdb_globals import FILE_VERSION, GENERATOR_VERSION
@@ -18,7 +18,7 @@ class TestDatabase(unittest.TestCase):
         filenames = [f"{db_dir}.0.h5", f"{db_dir}.1.h5", f"{db_dir}.2.h5"]
         TestDatabase.filenames = filenames
         TestDatabase.file_dir = file_dir
-        TestDatabase.famdb = FamDB(file_dir, "r")
+        TestDatabase.famdb = FamDB(file_dir, "r+")
 
     @classmethod
     def tearDownClass(cls):
@@ -52,6 +52,27 @@ class TestDatabase(unittest.TestCase):
                 db.get_metadata(),
                 test_info,
             )
+
+    def test_get_history(self):
+        substrings = [
+            "File Initialized",
+            "Metadata Set",
+            "RepeatPeps Written",
+            "Taxonomy Nodes Written",
+            "Taxonomy Names Written",
+        ]
+        with FamDBRoot(TestDatabase.filenames[0], "r") as db:
+            history = db.get_history()
+            for substring in substrings:
+                self.assertIn(substring, history)
+
+    def test_interrupt_check(self):
+        message = "Test Message"
+        with FamDBRoot(TestDatabase.filenames[0], "r") as db:
+            stamp = db.update_changelog(message)
+            self.assertTrue(db.interrupt_check())
+            db._verify_change(stamp, message)
+            self.assertFalse(db.interrupt_check())
 
     def test_get_counts(self):
         with FamDBRoot(TestDatabase.filenames[0], "r") as db:

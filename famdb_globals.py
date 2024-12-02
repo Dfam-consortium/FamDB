@@ -25,7 +25,6 @@ GENERATOR_VERSION = "1.0.3"
 LEAF_LINK = "leaf_link:"
 ROOT_LINK = "root_link:"
 
-# TODO: make command-line options to customize these
 DESCRIPTION = (
     "Dfam - A database of transposable element (TE) sequence alignments and HMMs."
 )

@@ -5,7 +5,7 @@ from famdb_globals import (
     GROUP_FAMILIES,
     dfam_acc_pat,
 )
-from famdb_helper_classes import Family, TaxNode
+from famdb_helper_classes import Family
 
 
 def accession_bin(acc):

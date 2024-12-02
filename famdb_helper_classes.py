@@ -534,7 +534,9 @@ class Family:  # pylint: disable=too-many-instance-attributes
                 append("FH", "Key             Location/Qualifiers")
                 out += "FH\n"
                 for cds in json.loads(self.coding_sequences):
-                    # TODO: sanitize values which might already contain a " in them?
+                    for element in cds:
+                        if type(cds[element]) == str:
+                            cds[element] = cds[element].replace('"', '')
 
                     append(
                         "FT",
