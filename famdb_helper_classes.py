@@ -60,7 +60,7 @@ class Lineage(list):
                 full_lineage[position] = subtree
         # format splits for json reading
         for i in range(len(full_lineage)):
-            if "leaf_link:" in full_lineage[i]:
+            if LEAF_LINK in full_lineage[i] or ROOT_LINK in full_lineage[i]:
                 full_lineage[i] = f'"{full_lineage[i]}"'
         # join splits back to single string, read as list
         linked_lineage = json.loads("".join(full_lineage))
@@ -536,7 +536,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
                 for cds in json.loads(self.coding_sequences):
                     for element in cds:
                         if type(cds[element]) == str:
-                            cds[element] = cds[element].replace('"', '')
+                            cds[element] = cds[element].replace('"', "")
 
                     append(
                         "FT",

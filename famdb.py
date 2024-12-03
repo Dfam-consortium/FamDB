@@ -54,6 +54,8 @@ from famdb_globals import (
     FAMILY_FORMATS_EPILOG,
     MISSING_FILE,
     HELP_URL,
+    ROOT_LINK,
+    LEAF_LINK,
 )
 from famdb_classes import FamDB
 from famdb_data_loaders import read_embl_families
@@ -128,6 +130,7 @@ def print_lineage_tree(
     gutter_children,
     uncurated_only=False,
     curated_only=False,
+    prune=False,
 ):
     """Pretty-prints a lineage tree with box drawing characters."""
     # TODO: prune branches with 0 total
@@ -141,7 +144,7 @@ def print_lineage_tree(
         tax_id = tree[0]
         children = tree[1:]
 
-    if "_link:" in str(tax_id):
+    if ROOT_LINK in str(tax_id) or LEAF_LINK in str(tax_id):
         tax_id = str(tax_id).split(":")[1]
     name, tax_partition = file.get_taxon_name(tax_id, "scientific name")
     if name != "Not Found":
@@ -151,13 +154,15 @@ def print_lineage_tree(
             curated_only=curated_only,
             uncurated_only=uncurated_only,
         )
+        num_fams = len(fams) if fams is not None else 0
         missing_message = MISSING_FILE % (tax_partition, file.db_dir, HELP_URL)
         missing_message = (
             missing_message.replace("\t", f"{gutter_self[:-2]}│ * \t")
             + f"\n{gutter_self[:-2]}│"
         )
-        count = f"[{len(fams)}]" if fams is not None else missing_message
-        print(f"{gutter_self}{tax_id} {name}({tax_partition}) {count}")
+        count = f"[{num_fams}]" if fams is not None else missing_message
+        if (prune and num_fams > 0) or (not prune):
+            print(f"{gutter_self}{tax_id} {name}({tax_partition}) {count}")
 
     # All but the last child need a downward-pointing line that will link up
     # to the next child, so this is split into two cases
@@ -171,6 +176,7 @@ def print_lineage_tree(
                 gutter_children + "│ ",
                 curated_only,
                 uncurated_only,
+                prune,
             )
 
     if children:
@@ -182,6 +188,7 @@ def print_lineage_tree(
             gutter_children + "  ",
             curated_only,
             uncurated_only,
+            prune,
         )
 
 
@@ -305,8 +312,6 @@ def get_lineage_totals(
 def command_lineage(args):
     """The 'lineage' command outputs ancestors and/or descendants of the given taxon."""
 
-    # TODO: like 'families', filter curated or uncurated (and other filters?)
-
     target_id, partition = args.db_dir.resolve_one_species(args.term)
 
     if not target_id:
@@ -314,7 +319,6 @@ def command_lineage(args):
         return
     if target_id == "Ambiguous":
         return
-
     tree = args.db_dir.get_lineage_combined(
         target_id,
         descendants=args.descendants,
@@ -322,10 +326,16 @@ def command_lineage(args):
     )
     if not tree:
         return
-
     if args.format == "pretty":
         print_lineage_tree(
-            args.db_dir, tree, partition, "", "", args.curated, args.uncurated
+            args.db_dir,
+            tree,
+            partition,
+            "",
+            "",
+            args.curated,
+            args.uncurated,
+            args.prune,
         )
     elif args.format == "semicolon":
         print_lineage_semicolons(
@@ -483,7 +493,7 @@ def command_family(args):
 
 def command_families(args):
     """The 'families' command outputs all families associated with the given taxon."""
-    target_id, partition = args.db_dir.resolve_one_species(args.term)
+    target_id, _ = args.db_dir.resolve_one_species(args.term)
     if not target_id:
         print(f"No species found for search term '{args.term}'", file=sys.stderr)
         return
@@ -690,6 +700,12 @@ famdb.py families --help
         "--descendants",
         action="store_true",
         help="include all descendants of the given clade",
+    )
+    p_lineage.add_argument(
+        "-p",
+        "--prune",
+        action="store_true",
+        help="suppress output of taxa without families",
     )
     p_lineage.add_argument(
         "-c",

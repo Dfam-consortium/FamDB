@@ -381,9 +381,9 @@ class FamDBLeaf:
 
         # Filter out DF/DR or not at all depending on flags
         if curated_only:
-            return list(filter(lambda a: filter_curated(a, True)), group.keys())
+            return list(filter(lambda a: filter_curated(a, True), group.keys()))
         elif uncurated_only:
-            return list(filter(lambda a: filter_curated(a, False)), group.keys())
+            return list(filter(lambda a: filter_curated(a, False), group.keys()))
         else:
             return list(group.keys())
 
@@ -874,7 +874,6 @@ class FamDB:
             return None
         # query lineage in correct file
         base_lineage = self.files[location].get_lineage(tax_id, **kwargs)
-
         if base_lineage.descendants:  # lineage extends from root file to leaf file(s)
             add_lineages = []
             missing = {}
@@ -911,6 +910,11 @@ class FamDB:
                 ancestor_node, descendants=True, ancestors=True, for_combine=True
             )
             base_lineage += root_lineage
+
+        # ensure that the root link is back to an INT if it still exists
+        # should not happen in full export, but happens in test sets
+        if base_lineage.__iter__ and type(base_lineage[0]) is str and ROOT_LINK in base_lineage[0]:
+            base_lineage[0] = int(base_lineage[0].split(":")[-1])
 
         # strip out leftover links
         def remove_links(lineage):
