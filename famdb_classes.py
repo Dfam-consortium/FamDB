@@ -913,7 +913,11 @@ class FamDB:
 
         # ensure that the root link is back to an INT if it still exists
         # should not happen in full export, but happens in test sets
-        if base_lineage.__iter__ and type(base_lineage[0]) is str and ROOT_LINK in base_lineage[0]:
+        if (
+            base_lineage.__iter__
+            and type(base_lineage[0]) is str
+            and ROOT_LINK in base_lineage[0]
+        ):
             base_lineage[0] = int(base_lineage[0].split(":")[-1])
 
         # strip out leftover links

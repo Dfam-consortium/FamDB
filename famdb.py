@@ -133,7 +133,6 @@ def print_lineage_tree(
     prune=False,
 ):
     """Pretty-prints a lineage tree with box drawing characters."""
-    # TODO: prune branches with 0 total
 
     if not tree:
         return
