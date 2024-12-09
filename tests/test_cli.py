@@ -137,6 +137,7 @@ class TestCliOutput(unittest.TestCase):
         test_one(self, test, args)
 
     def test_lineage_pretty(self):
+        # prune and curated aren't tested yet TODO
         test = "lineage-pretty"
         args = ["lineage", "-d", "1"]
         test_one(self, test, args)

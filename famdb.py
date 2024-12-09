@@ -47,6 +47,7 @@ import logging
 import os
 import re
 import sys
+import traceback
 
 from famdb_globals import (
     LOGGER,
@@ -909,8 +910,8 @@ with a given clade, optionally filtered by additional criteria",
     if "func" in args:
         try:
             args.func(args)
-        except Exception as e:
-            print(f"Double-Check Command: {e}")
+        except Exception:
+            traceback.print_exc()
     else:
         parser.print_help()
 
