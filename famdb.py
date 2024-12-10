@@ -161,8 +161,8 @@ def print_lineage_tree(
             + f"\n{gutter_self[:-2]}│"
         )
         count = f"[{num_fams}]" if fams is not None else missing_message
-        if (prune and num_fams > 0) or (not prune):
-            print(f"{gutter_self}{tax_id} {name}({tax_partition}) {count}")
+        # if (prune and num_fams > 0) or (not prune):
+        print(f"{gutter_self}{tax_id} {name}({tax_partition}) {count}")
 
     # All but the last child need a downward-pointing line that will link up
     # to the next child, so this is split into two cases
