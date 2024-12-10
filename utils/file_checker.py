@@ -1,3 +1,46 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+    This script can be used to check the data contained in FamDB files. 
+    It performs the following tests:
+        Open the file as an h5py file
+        Load and display metadata including version info and expected counts
+        Test for the existence of the datasets expected in FamDB files
+        Attempt to use the FamDBRoot or FamDBLeaf classes to read the file
+        Check for any interruptions in the file's change log.
+    
+    Note that this does require h5py and a FamDB installation to function.
+
+    Usage: file_checker.py /input/path
+
+    input    : A path to the file to check.
+
+SEE ALSO:
+    famdb.py
+    Dfam: http://www.dfam.org
+
+AUTHOR(S):
+    Anthony Gray <agray@systemsbiology.org>
+
+LICENSE:
+    This code may be used in accordance with the Creative Commons
+    Zero ("CC0") public domain dedication:
+    https://creativecommons.org/publicdomain/zero/1.0/
+
+DISCLAIMER:
+    This software is provided ``AS IS'' and any express or implied
+    warranties, including, but not limited to, the implied warranties of
+    merchantability and fitness for a particular purpose, are disclaimed.
+    In no event shall the authors or the Dfam consortium members be
+    liable for any direct, indirect, incidental, special, exemplary, or
+    consequential damages (including, but not limited to, procurement of
+    substitute goods or services; loss of use, data, or profits; or
+    business interruption) however caused and on any theory of liability,
+    whether in contract, strict liability, or tort (including negligence
+    or otherwise) arising in any way out of the use of this software, even
+    if advised of the possibility of such damage.
+"""
+
 import sys
 import os
 import logging
@@ -116,16 +159,28 @@ def main():
     try:
         print(f"Testing that {args.input} can be opened as H5 file...")
         with h5py.File(args.input, "r") as file:
+            print(
+                "  Metatadata Retrieved:\n"
+                f"    FamDB Version: {file.attrs['famdb_version'] if file.attrs.get('famdb_version') else file.attrs['version']}\n"
+                f"    FamDB Generator Version: {file.attrs['generator']}\n"
+                f"    File Created: {file.attrs['created']}\n"
+                f"    Name: {file.attrs['db_name']}\n"
+                f"    Dfam Version: {file.attrs['db_version']}\n"
+                f"    Consensi Count: {file.attrs['count_consensus']}\n"
+                f"    HMM Count: {file.attrs['count_hmm']}"
+            )
             all_expected_groups = True
             for group in file_groups:
                 if (
                     is_root_file or file_groups[group]
                 ):  # check all groups for root files, but only selected ones for leaf files
-                    print(f"\t Testing Group: {group}")
+                    print(f"  Testing Group: {group}")
                     if not get_group(file, group):
+                        print(f"\t {group} Not found, or not as expected")
                         all_expected_groups = False
             if all_expected_groups:
                 print("  All Expected Groups Found")
+           
 
     except Exception as e:
         print(f"{args.input} Could not be Opened as an H5 File: {e}")
@@ -136,17 +191,6 @@ def main():
             f"Testing that {args.input} can be opened with the {'FamDBRoot' if is_root_file else 'FamDBLeaf'} class..."
         )
         with get_famdb_class(is_root_file, args.input) as file:
-            metadata = file.get_metadata()
-            counts = file.get_counts()
-            print(
-                "  Metatadata Retrieved:\n"
-                f"\tFamDB Generator Version: {metadata['generator']}\n"
-                f"\tFile Created: {metadata['created']}\n"
-                f"\tName: {metadata['name']}\n"
-                f"\tDfam Version: {metadata['db_version']}\n"
-                f"  Consensi Count: {counts['consensus']}\n"
-                f"  HMM Count: {counts['hmm']}"
-            )
             if file.interrupt_check():
                 print(
                     f"{args.input} Was Interrupted During Writing. Corruption Possible"
