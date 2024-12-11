@@ -107,15 +107,17 @@ def get_group(file, group):
                     "DR",
                 }  # all families should be sorted into one of these three bins
             if group == GROUP_LOOKUP_BYNAME:
-                return len(keys) > 0  # names vary, just testing that there is more than one element
-            if group == GROUP_NODES:
                 return (
-                    all(x.isdigit() for x in set(keys))
+                    len(keys) > 0
+                )  # names vary, just testing that there is more than one element
+            if group == GROUP_NODES:
+                return all(
+                    x.isdigit() for x in set(keys)
                 )  # test that all elements are numbers
             if group == GROUP_TAXANAMES:
-                return (
-                    all(x.isdigit() for x in set(keys))
-                )  # test that all elements are numbers 
+                return all(
+                    x.isdigit() for x in set(keys)
+                )  # test that all elements are numbers
             if group == GROUP_OTHER_DATA:
                 return (
                     len(keys) == 2 or len(keys) == 1
@@ -131,7 +133,7 @@ def get_group(file, group):
                 return True
         else:
             if group == f"{GROUP_OTHER_DATA}/{GROUP_REPEATPEPS}":
-                return True # if this exists, it's just a dataset
+                return True  # if this exists, it's just a dataset
 
     return False
 
@@ -142,6 +144,20 @@ def get_famdb_class(is_root, path):
         return FamDBRoot(path, "r")
     else:
         return FamDBLeaf(path, "r")
+
+
+@attempt
+def get_attrs(file):
+    print(
+        "  Metatadata Retrieved:\n"
+        f"    FamDB Version: {file.attrs['famdb_version'] if file.attrs.get('famdb_version') else file.attrs['version']}\n"
+        f"    FamDB Generator Version: {file.attrs['generator']}\n"
+        f"    File Created: {file.attrs['created']}\n"
+        f"    Name: {file.attrs['db_name']}\n"
+        f"    Dfam Version: {file.attrs['db_version']}\n"
+        f"    Consensi Count: {file.attrs['count_consensus']}\n"
+        f"    HMM Count: {file.attrs['count_hmm']}"
+    )
 
 
 def main():
@@ -159,16 +175,7 @@ def main():
     try:
         print(f"Testing that {args.input} can be opened as H5 file...")
         with h5py.File(args.input, "r") as file:
-            print(
-                "  Metatadata Retrieved:\n"
-                f"    FamDB Version: {file.attrs['famdb_version'] if file.attrs.get('famdb_version') else file.attrs['version']}\n"
-                f"    FamDB Generator Version: {file.attrs['generator']}\n"
-                f"    File Created: {file.attrs['created']}\n"
-                f"    Name: {file.attrs['db_name']}\n"
-                f"    Dfam Version: {file.attrs['db_version']}\n"
-                f"    Consensi Count: {file.attrs['count_consensus']}\n"
-                f"    HMM Count: {file.attrs['count_hmm']}"
-            )
+            get_attrs(file)
             all_expected_groups = True
             for group in file_groups:
                 if (
@@ -180,7 +187,6 @@ def main():
                         all_expected_groups = False
             if all_expected_groups:
                 print("  All Expected Groups Found")
-           
 
     except Exception as e:
         print(f"{args.input} Could not be Opened as an H5 File: {e}")
