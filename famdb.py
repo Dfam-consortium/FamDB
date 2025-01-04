@@ -59,8 +59,6 @@ from famdb_globals import (
     LEAF_LINK,
 )
 from famdb_classes import FamDB
-from famdb_data_loaders import read_embl_families
-
 
 # Command-line utilities
 def command_info(args):
@@ -566,7 +564,7 @@ def command_append(args):
         nonlocal header
         header = val
 
-    embl_iter = read_embl_families(args.infile, lookup, header_cb=set_header)
+    embl_iter = FamDB.read_embl_families(args.infile, lookup, header_cb=set_header)
 
     message = f"Adding Data From {args.infile.split('/')[-1]}"
     rec = args.db_dir.append_start_changelog(message)
