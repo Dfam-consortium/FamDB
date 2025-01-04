@@ -24,6 +24,10 @@ from famdb_globals import (
     GROUP_FILE_HISTORY,
     GROUP_OTHER_DATA,
     GROUP_REPEATPEPS,
+    DATA_CHILDREN,
+    DATA_PARENT,
+    DATA_VAL_CHILDREN,
+    DATA_VAL_PARENT
 )
 from famdb_helper_methods import (
     sanitize_name,
@@ -357,12 +361,12 @@ class FamDBLeaf:
             )
             parent_id = int(tax_db[node].parent_id) if node != 1 else None
             if parent_id:
-                group.create_dataset("Parent", data=numpy.array([parent_id]))
+                group.create_dataset(DATA_PARENT, data=numpy.array([parent_id]))
 
             child_ids = []
             for child in tax_db[node].children:
                 child_ids += [int(child.tax_id)]
-            group.create_dataset("Children", data=numpy.array(child_ids))
+            group.create_dataset(DATA_CHILDREN, data=numpy.array(child_ids))
         delta = time.perf_counter() - start
         LOGGER.info("Wrote %d taxonomy nodes in %f", count, delta)
 
@@ -413,7 +417,7 @@ class FamDBLeaf:
                 descendants = [
                     int(tax_id)
                 ]  # h5py is based on numpy, need to cast numpy base64 to python int for serialization in Lineage class
-                for child in group_nodes[str(tax_id)]["Children"]:
+                for child in group_nodes[str(tax_id)][DATA_CHILDREN]:
                     # only list the decendants of the target node if it's not being combined with another decendant lineage
                     if not kwargs.get("for_combine") and str(child) in group_nodes:
                         descendants += [descendants_of(child)]
@@ -428,10 +432,10 @@ class FamDBLeaf:
         if ancestors:
             while tax_id:
                 node = group_nodes[str(tax_id)]
-                if "Parent" in node:
+                if DATA_PARENT in node:
                     # test if parent is in this file
-                    if str(node["Parent"][0]) in group_nodes:
-                        tax_id = node["Parent"][0]
+                    if str(node[DATA_PARENT][0]) in group_nodes:
+                        tax_id = node[DATA_PARENT][0]
                         tree = [
                             int(tax_id),
                             tree,
@@ -752,7 +756,7 @@ up with the 'names' command.""",
     def parent_of(self, tax_id):
         group_nodes = self.file[GROUP_NODES]
         for node in group_nodes:
-            if int(tax_id) in group_nodes[node]["Children"]:
+            if int(tax_id) in group_nodes[node][DATA_CHILDREN]:
                 return node
         return None
 
@@ -862,7 +866,19 @@ class FamDB:
         if partition_err_files:
             LOGGER.error(f"Files Interrupted During Edit: {partition_err_files}")
             exit()
+    
+    # Data writing methods ---------------------------------------------------------------------------------------
+    def build_pruned_tree(self):
+        parts = {file:self.files[file].file[GROUP_NODES] for file in self.files}
+        nodes = parts[0]
+        for id in nodes:
+            node = nodes[id]
+            children = node['Children'][()] if node['Children'].size > 0 else []
+            parent = node['Parent'][()][0] if node['Parent'].size > 0 else None
+            val = bool(node.get('Families'))
+            print(f"{id}, Children: {children} Parent {parent} Val: {val}")
 
+    # Data access methods ---------------------------------------------------------------------------------------
     def get_lineage_combined(self, tax_id, **kwargs):
         # check if tax_id exists in Dfam
         location = self.find_taxon(tax_id)

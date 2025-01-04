@@ -12,6 +12,10 @@ GROUP_TAXANAMES = "Partitions"
 GROUP_OTHER_DATA = "Other_Data"
 GROUP_REPEATPEPS = "RepeatPeps"
 GROUP_FILE_HISTORY = "File_History"
+DATA_CHILDREN = "Children"
+DATA_PARENT = "Parent"
+DATA_VAL_CHILDREN = "Val_Children"
+DATA_VAL_PARENT = "Val_Parent"
 
 # DF####### or DF########## or DR####### or DR##########
 dfam_acc_pat = re.compile("^(D[FR])([0-9]{2})([0-9]{2})([0-9]{2})[0-9]{3,6}$")
