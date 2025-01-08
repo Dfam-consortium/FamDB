@@ -85,6 +85,10 @@ class TaxNode:  # pylint: disable=too-few-public-methods
         self.children = []
         self.ancestral = 0
 
+        self.val = False
+        self.val_children = []
+        self.val_parent = None
+
 
 class ClassificationNode:  # pylint: disable=too-few-public-methods
     """A Dfam Classification node linked to its parent and children."""

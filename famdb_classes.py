@@ -3,11 +3,11 @@ import time
 import os
 import json
 import sys
-import re 
+import re
 import h5py
 import numpy
 
-from famdb_helper_classes import Family, Lineage
+from famdb_helper_classes import Family, Lineage, TaxNode
 from famdb_globals import (
     LOGGER,
     FILE_VERSION,
@@ -27,7 +27,7 @@ from famdb_globals import (
     DATA_CHILDREN,
     DATA_PARENT,
     DATA_VAL_CHILDREN,
-    DATA_VAL_PARENT
+    DATA_VAL_PARENT,
 )
 from famdb_helper_methods import (
     sanitize_name,
@@ -369,6 +369,11 @@ class FamDBLeaf:
             group.create_dataset(DATA_CHILDREN, data=numpy.array(child_ids))
         delta = time.perf_counter() - start
         LOGGER.info("Wrote %d taxonomy nodes in %f", count, delta)
+
+    def write_pruned_taxonomy(self, tax_id, val_parent, val_children):
+        group = self.file.require_group(GROUP_NODES).require_group(str(tax_id))
+        group.create_dataset(DATA_VAL_CHILDREN, data=numpy.array(val_children))
+        group.create_dataset(DATA_VAL_PARENT, data=numpy.array([val_parent]))
 
     # Data Access Methods ------------------------------------------------------------------------------------------------
     def has_taxon(self, tax_id):
@@ -866,17 +871,74 @@ class FamDB:
         if partition_err_files:
             LOGGER.error(f"Files Interrupted During Edit: {partition_err_files}")
             exit()
-    
+
     # Data writing methods ---------------------------------------------------------------------------------------
     def build_pruned_tree(self):
-        parts = {file:self.files[file].file[GROUP_NODES] for file in self.files}
-        nodes = parts[0]
-        for id in nodes:
-            node = nodes[id]
-            children = node['Children'][()] if node['Children'].size > 0 else []
-            parent = node['Parent'][()][0] if node['Parent'].size > 0 else None
-            val = bool(node.get('Families'))
-            print(f"{id}, Children: {children} Parent {parent} Val: {val}")
+
+        def traverse_val_parents(tree, id):
+            node = tree[id]
+            if node.parent_id:
+                if node.parent_id in ["127322"]:  # TODO remove after testing
+                    return 1
+                parent = tree[node.parent_id]
+                if parent.val:
+                    return parent.tax_id
+                else:
+                    return traverse_val_parents(tree, parent.tax_id)
+            else:
+                return None
+
+        def traverse_val_children(tree, id, node_id):
+            node = tree[id]
+            if node.parent_id:
+                if node.parent_id in ["127322"]:  # TODO remove after testing
+                    return
+                parent = tree[node.parent_id]
+                parent.val_children += [node_id]
+                if not parent.val:
+                    traverse_val_children(tree, parent.tax_id, node_id)
+
+        # read taxonomy tree
+        tree = {}
+        parts = {file: self.files[file].file[GROUP_NODES] for file in self.files}
+        for part in parts:
+            nodes = parts[part]
+            for id in nodes:
+                node = nodes[id]
+                children = (
+                    node[DATA_CHILDREN][()] if node[DATA_CHILDREN].size > 0 else []
+                )
+                parent = (
+                    node[DATA_PARENT][()][0] if node[DATA_PARENT].size > 0 else None
+                )
+                val = bool(node.get(GROUP_FAMILIES))
+
+                tree_node = TaxNode(id, str(parent))
+                tree_node.val = val
+                tree_node.children = children
+                tree[id] = tree_node
+
+        # assign each node a val_parent
+        for id in tree:
+            node = tree[id]
+            node.val_parent = traverse_val_parents(tree, node.tax_id)
+
+        # add each node with a value to it's parents as a val_child
+        for id in tree:
+            node = tree[id]
+            if node.val:
+                traverse_val_children(tree, node.tax_id, node.tax_id)
+
+        part_map = {
+            part: [id for id in tree if self.find_taxon(id) == part] for part in parts
+        }
+        for part in part_map:
+            ids = part_map[part]
+            for id in ids:
+                node = tree[id]
+                val_children = [int(child) for child in node.val_children]
+                val_parent = int(node.val_parent)
+                self.files[part].write_pruned_taxonomy(id, val_parent, val_children)
 
     # Data access methods ---------------------------------------------------------------------------------------
     def get_lineage_combined(self, tax_id, **kwargs):
@@ -1286,7 +1348,7 @@ class FamDB:
         self.close()
 
     # This method is here because famdb_data_loaders.py imports dfamorm, which is not available to users
-    @staticmethod   
+    @staticmethod
     def read_embl_families(filename, lookup, header_cb=None):
         """
         Iterates over Family objects from the .embl file 'filename'. The format

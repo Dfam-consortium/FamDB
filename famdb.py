@@ -60,6 +60,7 @@ from famdb_globals import (
 )
 from famdb_classes import FamDB
 
+
 # Command-line utilities
 def command_info(args):
     """The 'info' command displays some of the stored metadata."""
