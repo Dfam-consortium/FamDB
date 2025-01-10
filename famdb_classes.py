@@ -416,13 +416,18 @@ class FamDBLeaf:
         ancestors = True if kwargs.get("ancestors") else False
         descendants = True if kwargs.get("descendants") else False
         root = self.is_root()
+        children_key = (
+            DATA_VAL_CHILDREN if not kwargs.get("complete") else DATA_CHILDREN
+        )
+        parent_key = DATA_VAL_PARENT if not kwargs.get("complete") else DATA_PARENT
+
         if descendants:
 
             def descendants_of(tax_id):
                 descendants = [
                     int(tax_id)
                 ]  # h5py is based on numpy, need to cast numpy base64 to python int for serialization in Lineage class
-                for child in group_nodes[str(tax_id)][DATA_CHILDREN]:
+                for child in group_nodes[str(tax_id)][children_key]:
                     # only list the decendants of the target node if it's not being combined with another decendant lineage
                     if not kwargs.get("for_combine") and str(child) in group_nodes:
                         descendants += [descendants_of(child)]
@@ -439,8 +444,8 @@ class FamDBLeaf:
                 node = group_nodes[str(tax_id)]
                 if DATA_PARENT in node:
                     # test if parent is in this file
-                    if str(node[DATA_PARENT][0]) in group_nodes:
-                        tax_id = node[DATA_PARENT][0]
+                    if str(node[parent_key][0]) in group_nodes:
+                        tax_id = node[parent_key][0]
                         tree = [
                             int(tax_id),
                             tree,
@@ -933,12 +938,16 @@ class FamDB:
             part: [id for id in tree if self.find_taxon(id) == part] for part in parts
         }
         for part in part_map:
+            message = "Pruned Tree Built"
+            file = self.files[part]
+            timestamp = file.update_changelog(message)
             ids = part_map[part]
             for id in ids:
                 node = tree[id]
                 val_children = [int(child) for child in node.val_children]
                 val_parent = int(node.val_parent)
-                self.files[part].write_pruned_taxonomy(id, val_parent, val_children)
+                file.write_pruned_taxonomy(id, val_parent, val_children)
+            file._verify_change(timestamp, message)
 
     # Data access methods ---------------------------------------------------------------------------------------
     def get_lineage_combined(self, tax_id, **kwargs):

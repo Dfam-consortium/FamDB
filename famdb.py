@@ -130,7 +130,6 @@ def print_lineage_tree(
     gutter_children,
     uncurated_only=False,
     curated_only=False,
-    prune=False,
 ):
     """Pretty-prints a lineage tree with box drawing characters."""
 
@@ -160,7 +159,6 @@ def print_lineage_tree(
             + f"\n{gutter_self[:-2]}│"
         )
         count = f"[{num_fams}]" if fams is not None else missing_message
-        # if (prune and num_fams > 0) or (not prune):
         print(f"{gutter_self}{tax_id} {name}({tax_partition}) {count}")
 
     # All but the last child need a downward-pointing line that will link up
@@ -175,7 +173,6 @@ def print_lineage_tree(
                 gutter_children + "│ ",
                 curated_only,
                 uncurated_only,
-                prune,
             )
 
     if children:
@@ -187,7 +184,6 @@ def print_lineage_tree(
             gutter_children + "  ",
             curated_only,
             uncurated_only,
-            prune,
         )
 
 
@@ -322,6 +318,7 @@ def command_lineage(args):
         target_id,
         descendants=args.descendants,
         ancestors=args.ancestors or args.format == "semicolon",
+        complete=args.complete,
     )
     if not tree:
         return
@@ -334,7 +331,6 @@ def command_lineage(args):
             "",
             args.curated,
             args.uncurated,
-            args.prune,
         )
     elif args.format == "semicolon":
         print_lineage_semicolons(
@@ -701,10 +697,11 @@ famdb.py families --help
         help="include all descendants of the given clade",
     )
     p_lineage.add_argument(
-        "-p",
-        "--prune",
+        "-k",
+        "--complete",
         action="store_true",
-        help="suppress output of taxa without families",
+        help="include output of taxa without families",
+        default=False,
     )
     p_lineage.add_argument(
         "-c",
