@@ -373,7 +373,8 @@ class FamDBLeaf:
     def write_pruned_taxonomy(self, tax_id, val_parent, val_children):
         group = self.file.require_group(GROUP_NODES).require_group(str(tax_id))
         group.create_dataset(DATA_VAL_CHILDREN, data=numpy.array(val_children))
-        group.create_dataset(DATA_VAL_PARENT, data=numpy.array([val_parent]))
+        if val_parent:
+            group.create_dataset(DATA_VAL_PARENT, data=numpy.array([val_parent]))
 
     # Data Access Methods ------------------------------------------------------------------------------------------------
     def has_taxon(self, tax_id):
@@ -718,7 +719,9 @@ up with the 'names' command.""",
             name = sanitize_name(name[0])
         return name
 
-    def get_lineage_path(self, tax_id, tree=[], cache=True, partition=True):
+    def get_lineage_path(
+        self, tax_id, tree=[], cache=True, partition=True, complete=False
+    ):
         """
         Returns a list of strings encoding the lineage for 'tax_id'.
         """
@@ -726,7 +729,7 @@ up with the 'names' command.""",
         if cache and tax_id in self.__lineage_cache:
             return self.__lineage_cache[tax_id]
         if not tree:
-            tree = self.get_lineage(tax_id, ancestors=True)
+            tree = self.get_lineage(tax_id, ancestors=True, complete=complete)
 
         lineage = []
 
@@ -883,8 +886,6 @@ class FamDB:
         def traverse_val_parents(tree, id):
             node = tree[id]
             if node.parent_id:
-                if node.parent_id in ["127322"]:  # TODO remove after testing
-                    return 1
                 parent = tree[node.parent_id]
                 if parent.val:
                     return parent.tax_id
@@ -896,8 +897,6 @@ class FamDB:
         def traverse_val_children(tree, id, node_id):
             node = tree[id]
             if node.parent_id:
-                if node.parent_id in ["127322"]:  # TODO remove after testing
-                    return
                 parent = tree[node.parent_id]
                 parent.val_children += [node_id]
                 if not parent.val:
@@ -914,11 +913,13 @@ class FamDB:
                     node[DATA_CHILDREN][()] if node[DATA_CHILDREN].size > 0 else []
                 )
                 parent = (
-                    node[DATA_PARENT][()][0] if node[DATA_PARENT].size > 0 else None
+                    node[DATA_PARENT][()][0]
+                    if node.get(DATA_PARENT) and node[DATA_PARENT].size > 0
+                    else None
                 )
                 val = bool(node.get(GROUP_FAMILIES))
 
-                tree_node = TaxNode(id, str(parent))
+                tree_node = TaxNode(id, str(parent) if parent else None)
                 tree_node.val = val
                 tree_node.children = children
                 tree[id] = tree_node
@@ -945,12 +946,15 @@ class FamDB:
             for id in ids:
                 node = tree[id]
                 val_children = [int(child) for child in node.val_children]
-                val_parent = int(node.val_parent)
+                val_parent = int(node.val_parent) if node.val_parent else None
                 file.write_pruned_taxonomy(id, val_parent, val_children)
             file._verify_change(timestamp, message)
 
     # Data access methods ---------------------------------------------------------------------------------------
     def get_lineage_combined(self, tax_id, **kwargs):
+        complete = (
+            kwargs.get("complete") if kwargs.get("complete") is not None else False
+        )
         # check if tax_id exists in Dfam
         location = self.find_taxon(tax_id)
         if location is None:
@@ -971,7 +975,7 @@ class FamDB:
                     # query and save subtree if file is installed
                     add_lineages += [
                         self.files[loc].get_lineage(
-                            taxa, descendants=True, ancestors=True
+                            taxa, descendants=True, ancestors=True, complete=complete
                         )
                     ]
                 elif loc and loc not in self.files:
@@ -994,7 +998,11 @@ class FamDB:
                 list(base_lineage.links[ROOT_LINK].keys())[0]
             )  # TODO this is probably really slow
             root_lineage = self.files[0].get_lineage(
-                ancestor_node, descendants=True, ancestors=True, for_combine=True
+                ancestor_node,
+                descendants=True,
+                ancestors=True,
+                for_combine=True,
+                complete=complete,
             )
             base_lineage += root_lineage
 
@@ -1230,8 +1238,11 @@ class FamDB:
             kwargs.get("partition") if kwargs.get("partition") is not None else True
         )
         cache = kwargs.get("cache") if kwargs.get("cache") is not None else True
+        complete = (
+            kwargs.get("complete") if kwargs.get("complete") is not None else True
+        )
         return self.files[0].get_lineage_path(
-            tax_id, lineage, cache=cache, partition=partition
+            tax_id, lineage, cache=cache, partition=partition, complete=complete
         )
 
     def get_sanitized_name(self, tax_id):

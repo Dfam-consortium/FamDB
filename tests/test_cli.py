@@ -1,8 +1,9 @@
 import os
 import subprocess
 import unittest
-
+from famdb_classes import FamDB
 from .doubles import init_db_file
+from famdb_globals import TEST_DIR
 
 
 def test_one(t, test, args):
@@ -51,14 +52,16 @@ class TestCliOutput(unittest.TestCase):
     # Set up a single database file shared by all tests in this class
     @classmethod
     def setUpClass(cls):
-        file_dir = "/tmp/cli"
-        os.makedirs(file_dir)
+        file_dir = f"{TEST_DIR}/cli"
+        os.makedirs(file_dir, exist_ok=True)
         db_dir = f"{file_dir}/unittest"
         init_db_file(db_dir)
         filenames = [f"{db_dir}.0.h5", f"{db_dir}.1.h5", f"{db_dir}.2.h5"]
         TestCliOutput.filenames = filenames
         TestCliOutput.file_dir = file_dir
         TestCliOutput.tests_dir = os.path.join(os.path.dirname(__file__), "cli")
+        TestCliOutput.famdb = FamDB(file_dir, "r+")
+        TestCliOutput.famdb.build_pruned_tree()
 
     @classmethod
     def tearDownClass(cls):

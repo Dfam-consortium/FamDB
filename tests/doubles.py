@@ -14,8 +14,8 @@ from famdb_globals import FILE_VERSION, GENERATOR_VERSION
 --------------
 (1)/ |\\ (2)
   4	 | *5
- /   |
-6    |
+ /   |  \\
+6    |    7
 """
 
 TAX_NAMES = {
@@ -25,6 +25,7 @@ TAX_NAMES = {
     4: "Genus",
     5: "Other Genus",
     6: "Species",
+    7: "Other Species",
 }
 COMMON_NAMES = {
     1: "Root Dummy 1",
@@ -33,9 +34,10 @@ COMMON_NAMES = {
     4: "Leaf Dummy 4",
     5: "Leaf Dummy 5",
     6: "Leaf Dummy 6",
+    7: "Leaf Dummy 7",
 }
 # 0 - root, 1 - search, 2 - other
-NODES = {0: [1, 2, 3], 1: [4, 6], 2: [5]}
+NODES = {0: [1, 2, 3], 1: [4, 6], 2: [5, 7]}
 
 FILE_INFO = {
     "meta": {"partition_id": "uuidXX", "db_version": "V1", "db_date": "2020-07-15"},
@@ -104,7 +106,7 @@ def init_db_file(filename):
         make_family("TEST0002", [2, 3], None, "<model2>"),
         make_family("TEST0003", [3], "GGTC", "<model3>"),
         make_family("TEST0004", [4], "CCCCTTTT", None),
-        make_family("DR000000001", [5], "GCATATCG", None),
+        make_family("DR000000001", [7], "GCATATCG", None),
         make_family("DR_Repeat1", [6], "CGACTAT", None),
     ]
     families = FAMILIES
@@ -122,6 +124,7 @@ def init_db_file(filename):
         4: TaxNode(4, 2),
         5: TaxNode(5, 2),
         6: TaxNode(6, 4),
+        7: TaxNode(7, 5),
     }
     taxa = build_taxa(TAX_DB)
 
@@ -170,6 +173,7 @@ def init_single_file(n, db_dir, change_id=False):
         4: TaxNode(4, 2),
         5: TaxNode(5, 2),
         6: TaxNode(6, 4),
+        7: TaxNode(7, 5),
     }
     filename = f"{db_dir}.{n}.h5"
     taxa = build_taxa(TAX_DB)

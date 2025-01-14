@@ -153,4 +153,4 @@ SOUNDEX_LOOKUP = {
     "W": None,
 }
 
-TEST_DIR = '/tmp/famdb_test'
+TEST_DIR = "/tmp/famdb_test"
