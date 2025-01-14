@@ -152,3 +152,5 @@ SOUNDEX_LOOKUP = {
     "H": None,
     "W": None,
 }
+
+TEST_DIR = '/tmp/famdb_test'

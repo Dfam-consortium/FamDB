@@ -4,13 +4,13 @@ import shutil
 import logging
 from .doubles import init_single_file, make_family
 from famdb_classes import FamDB
-from famdb_globals import FILE_VERSION, GENERATOR_VERSION
+from famdb_globals import FILE_VERSION, GENERATOR_VERSION, TEST_DIR
 
 
 class TestExports(unittest.TestCase):
     def setUp(self):
-        file_dir = "/tmp/export"
-        os.makedirs(file_dir)
+        file_dir = f"{TEST_DIR}/export"
+        os.makedirs(file_dir, exist_ok=True)
         db_dir = f"{file_dir}/unittest"
         self.file_dir = file_dir
         self.db_dir = db_dir
