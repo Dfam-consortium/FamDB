@@ -193,7 +193,9 @@ class TestDatabase(unittest.TestCase):
                 db.get_lineage(1, descendants=True, complete=False),
                 [1, [2, "leaf_link:7", "leaf_link:4"], [3]],
             )
-            self.assertEqual(db.get_lineage(3, ancestors=True, complete=False), [1, [3]])
+            self.assertEqual(
+                db.get_lineage(3, ancestors=True, complete=False), [1, [3]]
+            )
             self.assertEqual(
                 db.get_lineage(2, ancestors=True, descendants=True, complete=False),
                 [1, [2, "leaf_link:7", "leaf_link:4"]],
@@ -395,17 +397,24 @@ class TestDatabase(unittest.TestCase):
         famdb = TestDatabase.famdb
         # descendants from root
         self.assertEqual(
-            famdb.get_lineage_combined(2, descendants=True, complete=False), [2, [7], [4, [6]]]
+            famdb.get_lineage_combined(2, descendants=True, complete=False),
+            [2, [7], [4, [6]]],
         )
         # ancenstors from leaf
         # self.assertEqual(famdb.get_lineage_combined(7, ancestors=True, complete=False), [1, [2, [7]]]) TODO
         # ancestors from root
-        self.assertEqual(famdb.get_lineage_combined(2, ancestors=True, complete=False), [1, [2]])
+        self.assertEqual(
+            famdb.get_lineage_combined(2, ancestors=True, complete=False), [1, [2]]
+        )
         # decendants from leaf
-        self.assertEqual(famdb.get_lineage_combined(5, descendants=True, complete=False), [5, [7]])
+        self.assertEqual(
+            famdb.get_lineage_combined(5, descendants=True, complete=False), [5, [7]]
+        )
         # ancestors and descendants from root
         self.assertEqual(
-            famdb.get_lineage_combined(2, descendants=True, ancestors=True, complete=False),
+            famdb.get_lineage_combined(
+                2, descendants=True, ancestors=True, complete=False
+            ),
             [1, [2, [7], [4, [6]]]],
         )
         # ancestors and descendants from leaf
