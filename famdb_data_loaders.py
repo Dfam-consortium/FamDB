@@ -323,7 +323,7 @@ def iterate_db_families(session, families_query):
             if start_pos == 0 and end_pos == 0:
                 bs_values += [str(stage_id)]
             else:
-                bs_values += ["{}[{}-{}]".format(stage_id, start_pos, end_pos)]
+                bs_values += [f"{stage_id}[{start_pos}-{end_pos}]"]
 
         if bs_values:
             family.buffer_stages = ",".join(bs_values)
@@ -346,9 +346,7 @@ def iterate_db_families(session, families_query):
                     + " in tax_id "
                     + str(tax_id)
                 )
-            th_values += [
-                "{}, {}, {}, {}, {}".format(tax_id, spec_ga, spec_tc, spec_nc, spec_fdr)
-            ]
+            th_values += [f"{tax_id}, {spec_ga}, {spec_tc}, {spec_nc}, {spec_fdr}"]
 
         if th_values:
             family.taxa_thresholds = "\n".join(th_values)

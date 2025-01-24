@@ -5,71 +5,7 @@ import json
 import sys
 
 
-from famdb_globals import LOGGER, LEAF_LINK, ROOT_LINK
-
-
-class Lineage(list):
-    """A class to mediate lineages across multiple FamDB files. Contains methods to combine lineages at cross-file break points"""
-
-    def __init__(self, lineage, root, partition_num):
-        super().__init__(lineage)
-        self.ancestors = False
-        self.descendants = False
-        self.root = root
-        self.partition = partition_num
-        links = {LEAF_LINK: {}, ROOT_LINK: None}
-
-        # find and store link elements
-        lin_str = lineage.__repr__()
-        splits = lin_str.split("'")
-        if LEAF_LINK in lin_str:
-            self.descendants = True
-            if not self.root:
-                raise Exception("Leaf Links Found In Non-Root Lineage")
-            for i in range(len(splits)):
-                if LEAF_LINK in splits[i]:
-                    links[LEAF_LINK][i] = str(splits[i].split(":")[1])
-        elif ROOT_LINK in lin_str:
-            self.ancestors = True
-            if self.root:
-                raise Exception("Root Links found In Root Lineage")
-            links[ROOT_LINK] = {str(lineage[1][0]): str(lineage[1])}
-
-        if self.ancestors and self.descendants:
-            raise Exception("Lineage Should Not Contain Root Links And Leaf Links")
-        self.links = links
-        self.splits = splits
-
-    def __add__(self, other):
-        # check to avoid adding root+root or leaf+leaf
-        if (self.root and other.root) or (not self.root and not other.root):
-            raise Exception("Must Combine Root and Non-Root Lineages")
-
-        # assign lineages
-        root_lineage = self if self.root else other
-        leaf_lineage = self if not self.root else other
-        # load links and split lineage string
-        leaf_links = root_lineage.links[LEAF_LINK]
-        full_lineage = root_lineage.splits.copy()
-        # check each link position in root for linked subtree in leaf
-        for position in leaf_links:
-            node = leaf_links[position]
-            subtree = leaf_lineage.links[ROOT_LINK].get(node)
-            if subtree:
-                # replace link position with subtree if found
-                full_lineage[position] = subtree
-        # format splits for json reading
-        for i in range(len(full_lineage)):
-            if LEAF_LINK in full_lineage[i] or ROOT_LINK in full_lineage[i]:
-                full_lineage[i] = f'"{full_lineage[i]}"'
-        # join splits back to single string, read as list
-        linked_lineage = json.loads("".join(full_lineage))
-        # return as new Lineage object, with root True and partion 0
-        return Lineage(linked_lineage, root_lineage.root, root_lineage.partition)
-
-    def __iadd__(self, other):
-        self.lineage = self + other
-        return self.lineage
+from famdb_globals import LOGGER
 
 
 class TaxNode:  # pylint: disable=too-few-public-methods
@@ -174,12 +110,12 @@ class Family:  # pylint: disable=too-many-instance-attributes
 
     def __getattr__(self, name):
         if name not in Family.META_LOOKUP:
-            raise AttributeError("Unknown Family metadata attribute '{}'".format(name))
+            raise AttributeError(f"Unknown Family metadata attribute '{name}'")
 
     # Data is converted on setting, so that consumers can rely on the correct types
     def __setattr__(self, name, value):
         if name not in Family.META_LOOKUP:
-            raise AttributeError("Unknown Family metadata attribute '{}'".format(name))
+            raise AttributeError(f"Unknown Family metadata attribute '{name}'")
 
         expected_type = self.type_for(name)
         if value is not None and not isinstance(value, expected_type):
@@ -187,9 +123,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
                 value = expected_type(value)
             except Exception as exc:
                 raise TypeError(
-                    "Incompatible type for '{}'. Expected '{}', got '{}'".format(
-                        name, expected_type, type(value)
-                    )
+                    f"Incompatible type for '{name}'. Expected '{expected_type}', got '{type(value)}'"
                 ) from exc
         super().__setattr__(name, value)
 
@@ -295,9 +229,7 @@ class Family:  # pylint: disable=too-many-instance-attributes
                     hmm_nc = 0.0
                     hmm_fdr = 0.0
                     print(
-                        "Error in thresholds for accession={} and taxid={}".format(
-                            self.accession_with_optional_version(), tax_id
-                        ),
+                        f"Error in thresholds for accession={self.accession_with_optional_version()} and taxid={tax_id}",
                         file=sys.stderr,
                     )
 

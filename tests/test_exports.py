@@ -4,7 +4,7 @@ import shutil
 import logging
 from .doubles import init_single_file, make_family
 from famdb_classes import FamDB
-from famdb_globals import FILE_VERSION, GENERATOR_VERSION, TEST_DIR
+from famdb_globals import FAMDB_VERSION, TEST_DIR
 
 
 class TestExports(unittest.TestCase):
@@ -31,8 +31,7 @@ class TestExports(unittest.TestCase):
                 "description": "Test Database",
                 "name": "Test",
                 "db_version": "V1",
-                "generator": GENERATOR_VERSION,
-                "famdb_version": FILE_VERSION,
+                "famdb_version": FAMDB_VERSION,
                 "created": "2023-01-09 09:57:56.026443",
                 "partition_name": "Root Node",
                 "partition_detail": "",

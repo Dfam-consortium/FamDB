@@ -7,27 +7,23 @@ import re
 import h5py
 import numpy
 
-from famdb_helper_classes import Family, Lineage, TaxNode
+from famdb_helper_classes import Family, TaxNode
 from famdb_globals import (
     LOGGER,
-    FILE_VERSION,
-    GENERATOR_VERSION,
-    LEAF_LINK,
-    ROOT_LINK,
+    FAMDB_VERSION,
     GROUP_FAMILIES,
     GROUP_LOOKUP_BYNAME,
     GROUP_LOOKUP_BYSTAGE,
+    GROUP_LOOKUP_BYTAXON,
     GROUP_NODES,
     GROUP_TAXANAMES,
-    MISSING_FILE,
-    HELP_URL,
     GROUP_FILE_HISTORY,
-    GROUP_OTHER_DATA,
     GROUP_REPEATPEPS,
     DATA_CHILDREN,
     DATA_PARENT,
     DATA_VAL_CHILDREN,
     DATA_VAL_PARENT,
+    DESCRIPTION,
 )
 from famdb_helper_methods import (
     sanitize_name,
@@ -64,7 +60,7 @@ class FamDBLeaf:
             reading = False
         else:
             raise ValueError(
-                "Invalid file mode. Expected 'r' or 'r+' or 'w', got '{}'".format(mode)
+                f"Invalid file mode. Expected 'r' or 'r+' or 'w', got '{mode}'"
             )
 
         self.filename = filename
@@ -72,12 +68,9 @@ class FamDBLeaf:
         self.mode = mode
 
         try:
-            if reading and self.file.attrs["famdb_version"] != FILE_VERSION:
+            if reading and self.file.attrs["famdb_version"] != FAMDB_VERSION:
                 raise Exception(
-                    "File version is {}, but this is version {}".format(
-                        self.file.attrs["famdb_version"],
-                        FILE_VERSION,
-                    )
+                    f"File version is {self.file.attrs['famdb_version']}, but this is version {FAMDB_VERSION}"
                 )
         except:
             # This 'except' catches both "version" missing from attrs, or the
@@ -97,11 +90,7 @@ class FamDBLeaf:
         to record file changes. Defaults to False to show that change is not complete
         """
         time_stamp = str(datetime.datetime.now())
-        group = (
-            self.file.require_group(GROUP_OTHER_DATA)
-            .require_group(GROUP_FILE_HISTORY)
-            .require_group(time_stamp)
-        )
+        group = self.file.require_group(GROUP_FILE_HISTORY).require_group(time_stamp)
         group.create_dataset(message, data=numpy.array([verified]))
         return time_stamp
 
@@ -109,7 +98,7 @@ class FamDBLeaf:
         """
         Sets the data of a log entry to True, indicating that it was successful
         """
-        self.file[GROUP_OTHER_DATA][GROUP_FILE_HISTORY][time_stamp][message][0] = True
+        self.file[GROUP_FILE_HISTORY][time_stamp][message][0] = True
 
     def _change_logger(func):
         func_to_note = {
@@ -119,7 +108,9 @@ class FamDBLeaf:
             "write_taxa_names": "Taxonomy Names Written",
             "write_repeatpeps": "RepeatPeps Written",
             "write_taxonomy": "Taxonomy Nodes Written",
+            "write_full_taxonomy": "Taxonomy Nodes Written",
             "update_description": "File Description Updated",
+            "update_pruned_taxa": "Pruned Tree Updated",
         }
         message = func_to_note[func.__name__]
 
@@ -134,19 +125,16 @@ class FamDBLeaf:
     @_change_logger
     def __write_metadata(self):
         """Sets file data during writing"""
-        self.file.attrs["generator"] = f"famdb.py v{GENERATOR_VERSION}"
-        self.file.attrs["famdb_version"] = FILE_VERSION
+        self.file.attrs["famdb_version"] = FAMDB_VERSION
         self.file.attrs["created"] = str(datetime.datetime.now())
+        self.file.attrs["db_description"] = DESCRIPTION
 
     @_change_logger
-    def set_metadata(
-        self, partition_num, map_str, name, version, date, desc, copyright_text
-    ):
+    def set_metadata(self, partition_num, map_str, name, version, date, copyright_text):
         """Sets database metadata for the current file"""
         self.file.attrs["db_name"] = name
         self.file.attrs["db_version"] = version
         self.file.attrs["db_date"] = date
-        self.file.attrs["db_description"] = desc
         self.file.attrs["db_copyright"] = copyright_text
 
         """Stores information about other files as json string"""
@@ -192,7 +180,6 @@ class FamDBLeaf:
         num = self.file.attrs["partition_num"]
         partition = self.get_file_info()["file_map"][str(num)]
         return {
-            "generator": self.file.attrs["generator"],
             "famdb_version": self.file.attrs["famdb_version"],
             "created": self.file.attrs["created"],
             "partition_name": partition["T_root_name"],
@@ -205,7 +192,7 @@ class FamDBLeaf:
         }
 
     def get_history(self):
-        history = self.file.get(GROUP_OTHER_DATA).get(GROUP_FILE_HISTORY)
+        history = self.file.get(GROUP_FILE_HISTORY)
         messages = {stamp: list(history[stamp].keys())[0] for stamp in history.keys()}
         hist_str = f"\n File {self.get_partition_num()}\n"
         for entry in messages:
@@ -226,7 +213,7 @@ class FamDBLeaf:
     def interrupt_check(self):
         """Changelogs Start as False and are flipped to True when complete"""
         interrupted = False
-        history = self.file.get(GROUP_OTHER_DATA).get(GROUP_FILE_HISTORY)
+        history = self.file.get(GROUP_FILE_HISTORY)
         for el in history:
             item = history.get(el)
             note = list(item.keys())[0]
@@ -321,10 +308,9 @@ class FamDBLeaf:
 
         for clade_id in family.clades:
             clade = str(clade_id)
-            nodes = self.file[GROUP_NODES]
+            nodes = self.file[GROUP_LOOKUP_BYTAXON]
             if clade in nodes:
-                families_group = nodes[clade].require_group("Families")
-                families_group[family.accession] = h5py.SoftLink(fam_link)
+                nodes[clade][family.accession] = h5py.SoftLink(fam_link)
 
         def add_stage_link(stage, accession):
             stage_group = self.file.require_group(GROUP_LOOKUP_BYSTAGE).require_group(
@@ -346,46 +332,28 @@ class FamDBLeaf:
 
     # Taxonomy Nodes
     @_change_logger
-    def write_taxonomy(self, tax_db, nodes):
-        """Writes taxonomy nodes in 'nodes' to the database."""
-        LOGGER.info(
-            f"Writing taxonomy nodes in partition: {self.file.attrs['partition_num']}"
-        )
+    def write_taxonomy(self, nodes):
+        """Writes taxonomy nodes to the database. These nodes only contain links to family data and not data regarding tree relationships"""
+        LOGGER.info(f"Writing taxonomy in partition")
         start = time.perf_counter()
 
         count = 0
         for node in nodes:
             count += 1
-            group = self.file.require_group(GROUP_NODES).require_group(
-                str(tax_db[node].tax_id)
-            )
-            parent_id = int(tax_db[node].parent_id) if node != 1 else None
-            if parent_id:
-                group.create_dataset(DATA_PARENT, data=numpy.array([parent_id]))
-
-            child_ids = []
-            for child in tax_db[node].children:
-                child_ids += [int(child.tax_id)]
-            group.create_dataset(DATA_CHILDREN, data=numpy.array(child_ids))
+            self.file.require_group(GROUP_LOOKUP_BYTAXON).require_group(str(node))
         delta = time.perf_counter() - start
         LOGGER.info("Wrote %d taxonomy nodes in %f", count, delta)
-
-    def write_pruned_taxonomy(self, tax_id, val_parent, val_children):
-        group = self.file.require_group(GROUP_NODES).require_group(str(tax_id))
-        group.create_dataset(DATA_VAL_CHILDREN, data=numpy.array(val_children))
-        if val_parent:
-            group.create_dataset(DATA_VAL_PARENT, data=numpy.array([val_parent]))
 
     # Data Access Methods ------------------------------------------------------------------------------------------------
     def has_taxon(self, tax_id):
         """Returns True if 'self' has a taxonomy entry for 'tax_id'"""
-        return str(tax_id) in self.file[GROUP_NODES]
+        return str(tax_id) in self.file[GROUP_LOOKUP_BYTAXON]
 
     def get_families_for_taxon(self, tax_id, curated_only=False, uncurated_only=False):
         """Returns a list of the accessions for each family directly associated with 'tax_id'."""
         group = (
-            self.file[GROUP_NODES][str(tax_id)].get("Families")
-            if f"{GROUP_NODES}/{tax_id}/Families" in self.file
+            self.file[GROUP_LOOKUP_BYTAXON][str(tax_id)].get("Families")
+            if f"{GROUP_LOOKUP_BYTAXON}/{tax_id}/Families" in self.file
             else {}
         )
 
@@ -396,69 +364,6 @@ class FamDBLeaf:
             return list(filter(lambda a: filter_curated(a, False), group.keys()))
         else:
             return list(group.keys())
-
-    def get_lineage(self, tax_id, **kwargs):
-        """
-        Returns the lineage of 'tax_id'. Recognized kwargs: 'descendants' to include
-        descendant taxa, 'ancestors' to include ancestor taxa.
-        IDs are returned as a nested list, for example
-        [ 1, [ 2, [3, [4]], [5], [6, [7]] ] ]
-        where '2' may have been the passed-in 'tax_id'.
-
-        Where a lineage crosses between files, a string indicator is used instead of
-        the int tax_id. The indicator takes the form "FLAG:tax_id", and the FamDB
-        class uses the FLAG to determine what type of link is indicated, and the tax_id
-        to continue building the lineage in a different file. The Lineage class uses
-        the indicators to stitch serialized lineage trees together to form the final
-        lineage.
-        """
-
-        group_nodes = self.file[GROUP_NODES]
-        ancestors = True if kwargs.get("ancestors") else False
-        descendants = True if kwargs.get("descendants") else False
-        root = self.is_root()
-        children_key = (
-            DATA_VAL_CHILDREN if not kwargs.get("complete") else DATA_CHILDREN
-        )
-        parent_key = DATA_VAL_PARENT if not kwargs.get("complete") else DATA_PARENT
-
-        if descendants:
-
-            def descendants_of(tax_id):
-                descendants = [
-                    int(tax_id)
-                ]  # h5py is based on numpy, need to cast numpy base64 to python int for serialization in Lineage class
-                for child in group_nodes[str(tax_id)][children_key]:
-                    # only list the decendants of the target node if it's not being combined with another decendant lineage
-                    if not kwargs.get("for_combine") and str(child) in group_nodes:
-                        descendants += [descendants_of(child)]
-                    elif root:
-                        descendants += [f"{LEAF_LINK}{child}"]
-                return descendants
-
-            tree = descendants_of(tax_id)
-        else:
-            tree = [tax_id]
-
-        if ancestors:
-            while tax_id:
-                node = group_nodes[str(tax_id)]
-                if DATA_PARENT in node:
-                    # test if parent is in this file
-                    if str(node[parent_key][0]) in group_nodes:
-                        tax_id = node[parent_key][0]
-                        tree = [
-                            int(tax_id),
-                            tree,
-                        ]  # h5py is based on numpy, need to cast numpy base64 to python int for serialization in Lineage class
-                    else:
-                        tree = [f"{ROOT_LINK}{tax_id}", tree]
-                        tax_id = None
-                else:
-                    tax_id = None
-
-        lineage = Lineage(tree, root, self.get_partition_num())
-        return lineage
 
     def filter_stages(self, accession, stages):
         """Returns True if the family belongs to a search or buffer stage in 'stages'."""
@@ -507,6 +412,51 @@ class FamDBRoot(FamDBLeaf):
             self.__lineage_cache = {}
 
     @FamDBLeaf._change_logger
+    def write_full_taxonomy(self, tax_db):
+        """Writes taxonomy nodes to the database."""
+        LOGGER.info(f"Writing taxonomy tree in partition 0")
+        start = time.perf_counter()
+
+        count = 0
+        for node in tax_db:
+            count += 1
+            group = self.file.require_group(GROUP_NODES).require_group(
+                str(tax_db[node].tax_id)
+            )
+            parent_id = int(tax_db[node].parent_id) if node != 1 else None
+            if parent_id:
+                group.create_dataset(DATA_PARENT, data=numpy.array([parent_id]))
+
+            child_ids = []
+            for child in tax_db[node].children:
+                child_ids += [int(child.tax_id)]
+            group.create_dataset(DATA_CHILDREN, data=numpy.array(child_ids))
+        delta = time.perf_counter() - start
+        LOGGER.info("Wrote %d taxonomy nodes in %f", count, delta)
+
+    @FamDBLeaf._change_logger
+    def update_pruned_taxa(self, tree):
+        for id in tree:
+            node = tree[id]
+            val_children = [int(child) for child in node.val_children]
+            val_parent = int(node.val_parent) if node.val_parent else None
+            # TODO remove data fields that already exist
+            group = self.file[GROUP_NODES][id]
+            group.require_dataset(
+                DATA_VAL_CHILDREN,
+                data=numpy.array(val_children),
+                shape=(len(val_children),),
+                dtype="i8",
+            )
+            if val_parent:
+                group.require_dataset(
+                    DATA_VAL_PARENT,
+                    data=numpy.array([val_parent]),
+                    shape=(1,),
+                    dtype="i8",
+                )
+
+    @FamDBLeaf._change_logger
     def write_taxa_names(self, tax_db, nodes):
         """
         Writes Names -> taxa maps per partition
@@ -535,7 +485,7 @@ class FamDBRoot(FamDBLeaf):
         if fasta:
             with open(infile, "r") as file:
                 repeatpeps_str = file.read()
-                rp_data = self.file.require_group(GROUP_OTHER_DATA).create_dataset(
+                rp_data = self.file.create_dataset(
                     GROUP_REPEATPEPS, shape=1, dtype=h5py.string_dtype()
                 )
                 rp_data[:] = repeatpeps_str
@@ -547,10 +497,8 @@ class FamDBRoot(FamDBLeaf):
         """
         Retrieve RepeatPeps File
         """
-        return (
-            self.file[GROUP_OTHER_DATA]
-            .get(GROUP_REPEATPEPS)[0]
-            .decode(encoding="UTF-8", errors="strict")
+        return self.file.get(GROUP_REPEATPEPS)[0].decode(
+            encoding="UTF-8", errors="strict"
         )
 
     def get_taxon_names(self, tax_id):
@@ -671,7 +619,7 @@ class FamDBRoot(FamDBLeaf):
                     names = self.get_taxon_names(tax_id)
                     print(
                         tax_id,
-                        ", ".join(["{1}".format(*n) for n in names]),
+                        ", ".join([f"{n}" for n in names]),
                         file=sys.stderr,
                     )
 
@@ -719,6 +667,51 @@ up with the 'names' command.""",
             name = sanitize_name(name[0])
         return name
 
+    def get_lineage(self, tax_id, **kwargs):
+        """
+        Returns the lineage of 'tax_id'. Recognized kwargs: 'descendants' to include
+        descendant taxa, 'ancestors' to include ancestor taxa.
+        IDs are returned as a nested list, for example
+        [ 1, [ 2, [3, [4]], [5], [6, [7]] ] ]
+        where '2' may have been the passed-in 'tax_id'.
+        """
+
+        group_nodes = self.file[GROUP_NODES]
+        ancestors = True if kwargs.get("ancestors") else False
+        descendants = True if kwargs.get("descendants") else False
+        children_key = (
+            DATA_VAL_CHILDREN if not kwargs.get("complete") else DATA_CHILDREN
+        )
+        parent_key = DATA_VAL_PARENT if not kwargs.get("complete") else DATA_PARENT
+
+        if descendants:
+
+            def descendants_of(tax_id):
+                descendants = [
+                    int(tax_id)
+                ]  # h5py is based on numpy, need to cast numpy base64 to python int for serialization in Lineage class
+                for child in group_nodes[str(tax_id)][children_key]:
+                    descendants += [descendants_of(child)]
+                return descendants
+
+            tree = descendants_of(tax_id)
+        else:
+            tree = [tax_id]
+
+        if ancestors:
+            while tax_id:
+                node = group_nodes[str(tax_id)]
+                if parent_key in node:
+                    tax_id = node[parent_key][0]
+                    tree = [
+                        int(tax_id),
+                        tree,
+                    ]  # h5py is based on numpy, need to cast numpy base64 to python int for serialization in Lineage class
+                else:
+                    tax_id = None
+
+        return tree
+
     def get_lineage_path(
         self, tax_id, tree=[], cache=True, partition=True, complete=False
     ):
@@ -764,13 +757,6 @@ up with the 'names' command.""",
         for partition in self.names_dump:
             if str(tax_id) in self.names_dump[partition]:
                 return int(partition)
-        return None
-
-    def parent_of(self, tax_id):
-        group_nodes = self.file[GROUP_NODES]
-        for node in group_nodes:
-            if int(tax_id) in group_nodes[node][DATA_CHILDREN]:
-                return node
         return None
 
     def get_all_taxa_names(self):
@@ -903,26 +889,38 @@ class FamDB:
                     traverse_val_children(tree, parent.tax_id, node_id)
 
         # read taxonomy tree
-        tree = {}
-        parts = {file: self.files[file].file[GROUP_NODES] for file in self.files}
-        for part in parts:
-            nodes = parts[part]
-            for id in nodes:
-                node = nodes[id]
-                children = (
-                    node[DATA_CHILDREN][()] if node[DATA_CHILDREN].size > 0 else []
-                )
-                parent = (
-                    node[DATA_PARENT][()][0]
-                    if node.get(DATA_PARENT) and node[DATA_PARENT].size > 0
-                    else None
-                )
-                val = bool(node.get(GROUP_FAMILIES))
+        tree = {
+            node: self.files[0].file[GROUP_NODES][node]
+            for node in self.files[0].file[GROUP_NODES]
+        }
+        nodes = {
+            file: list(self.files[file].file[GROUP_LOOKUP_BYTAXON].keys())
+            for file in [file for file in self.files.keys()]
+        }
+        vals = set(
+            [
+                id
+                for file in nodes
+                for id in nodes[file]
+                if self.files[file].file[GROUP_LOOKUP_BYTAXON][id].get(GROUP_FAMILIES)
+                is not None
+            ]
+        )
 
-                tree_node = TaxNode(id, str(parent) if parent else None)
-                tree_node.val = val
-                tree_node.children = children
-                tree[id] = tree_node
+        for id in tree:
+            node = tree[id]
+            children = node[DATA_CHILDREN][()] if node[DATA_CHILDREN].size > 0 else []
+            parent = (
+                node[DATA_PARENT][()][0]
+                if node.get(DATA_PARENT) and node[DATA_PARENT].size > 0
+                else None
+            )
+            val = id in vals
+
+            tree_node = TaxNode(id, str(parent) if parent else None)
+            tree_node.val = val
+            tree_node.children = children
+            tree[id] = tree_node
 
         # assign each node a val_parent
         for id in tree:
@@ -935,99 +933,9 @@ class FamDB:
             if node.val:
                 traverse_val_children(tree, node.tax_id, node.tax_id)
 
-        part_map = {
-            part: [id for id in tree if self.find_taxon(id) == part] for part in parts
-        }
-        for part in part_map:
-            message = "Pruned Tree Built"
-            file = self.files[part]
-            timestamp = file.update_changelog(message)
-            ids = part_map[part]
-            for id in ids:
-                node = tree[id]
-                val_children = [int(child) for child in node.val_children]
-                val_parent = int(node.val_parent) if node.val_parent else None
-                file.write_pruned_taxonomy(id, val_parent, val_children)
-            file._verify_change(timestamp, message)
+        self.files[0].update_pruned_taxa(tree)
 
     # Data access methods ---------------------------------------------------------------------------------------
-    def get_lineage_combined(self, tax_id, **kwargs):
-        complete = (
-            kwargs.get("complete") if kwargs.get("complete") is not None else False
-        )
-        # check if tax_id exists in Dfam
-        location = self.find_taxon(tax_id)
-        if location is None:
-            print("Taxon Not Found In Dfam")
-            return None
-        if location not in self.files:
-            print(MISSING_FILE % (location, self.db_dir, HELP_URL))
-            return None
-        # query lineage in correct file
-        base_lineage = self.files[location].get_lineage(tax_id, **kwargs)
-        if base_lineage.descendants:  # lineage extends from root file to leaf file(s)
-            add_lineages = []
-            missing = {}
-            for taxa in base_lineage.links[LEAF_LINK].values():
-                # find location of each linked node
-                loc = self.find_taxon(taxa)
-                if loc and loc in self.files:
-                    # query and save subtree if file is installed
-                    add_lineages += [
-                        self.files[loc].get_lineage(
-                            taxa, descendants=True, ancestors=True, complete=complete
-                        )
-                    ]
-                elif loc and loc not in self.files:
-                    # if file is not found, return Lineage of 1 node, record that node is missing
-                    add_lineages += [
-                        Lineage([f"{ROOT_LINK}{taxa}", [int(taxa)]], False, loc)
-                    ]
-                    missing[taxa] = loc
-
-            # Combine lineages
-            for lin in add_lineages:
-                base_lineage += lin
-
-            # attach missing file info
-            base_lineage.missing = missing
-
-        if base_lineage.ancestors:  # lineage extends from leaf file to root file
-            # find ancestor node in root and query lineage
-            ancestor_node = self.files[0].parent_of(
-                list(base_lineage.links[ROOT_LINK].keys())[0]
-            )  # TODO this is probably really slow
-            root_lineage = self.files[0].get_lineage(
-                ancestor_node,
-                descendants=True,
-                ancestors=True,
-                for_combine=True,
-                complete=complete,
-            )
-            base_lineage += root_lineage
-
-        # ensure that the root link is back to an INT if it still exists
-        # should not happen in full export, but happens in test sets
-        if (
-            base_lineage.__iter__
-            and type(base_lineage[0]) is str
-            and ROOT_LINK in base_lineage[0]
-        ):
-            base_lineage[0] = int(base_lineage[0].split(":")[-1])
-
-        # strip out leftover links
-        def remove_links(lineage):
-            for thing in list(lineage):
-                if not thing or type(thing) == str:
-                    lineage.remove(thing)
-                if type(thing) == list:
-                    remove_links(thing)
-
-        if kwargs.get("remove_links") or base_lineage.descendants:
-            remove_links(base_lineage)
-
-        return base_lineage
-
     def show_files(self):
         print(f"\nPartition Details\n-----------------")
         for part in sorted([int(x) for x in self.file_map]):
@@ -1169,7 +1077,7 @@ class FamDB:
                     for name in names:
                         yield name
             else:
-                lineage = self.get_lineage_combined(
+                lineage = self.get_lineage(
                     tax_id, ancestors=ancestors, descendants=descendants
                 )
                 for node in walk_tree(lineage):
@@ -1231,9 +1139,13 @@ class FamDB:
             counts["file"] += 1
         return counts
 
+    def get_lineage(self, tax_id, **kwargs):
+        """Wrapper method for the Root get_lineage method"""
+        return self.files[0].get_lineage(tax_id, **kwargs)
+
     def get_lineage_path(self, tax_id, **kwargs):
         """method used in EMBL exports"""
-        lineage = self.get_lineage_combined(tax_id, **kwargs)
+        lineage = self.get_lineage(tax_id, **kwargs)
         partition = (
             kwargs.get("partition") if kwargs.get("partition") is not None else True
         )

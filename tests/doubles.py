@@ -5,7 +5,7 @@ Fakes, stubs, etc. for use in testing FamDB
 from copy import deepcopy
 from famdb_classes import FamDBLeaf, FamDBRoot
 from famdb_helper_classes import TaxNode, Family
-from famdb_globals import FILE_VERSION, GENERATOR_VERSION
+from famdb_globals import FAMDB_VERSION, DESCRIPTION
 
 """
         1
@@ -66,7 +66,7 @@ FILE_INFO = {
     },
 }
 
-DB_INFO = ("Test", "V1", "2020-07-15", "Test Database", "<copyright header>")
+DB_INFO = ("Test Dfam", "V1", "2020-07-15", "<copyright header>")
 FAKE_REPPEPS = "./tests/rep_pep_test.lib"
 
 
@@ -95,9 +95,9 @@ def make_family(acc, clades, consensus, model):
 
 def write_test_metadata(db):
     # Override setting of format metadata for testing
-    db.file.attrs["version"] = FILE_VERSION
-    db.file.attrs["generator"] = GENERATOR_VERSION
-    db.file.attrs["created"] = "2023-01-09 09:57:56.026443"
+    db.file.attrs["famdb_version"] = FAMDB_VERSION
+    db.file.attrs["created"] = "<creation date>"
+    db.file.attrs["db_description"] = DESCRIPTION
 
 
 def init_db_file(filename):
@@ -133,7 +133,8 @@ def init_db_file(filename):
         write_test_metadata(db)
         db.write_repeatpeps(FAKE_REPPEPS)
 
-        db.write_taxonomy(taxa, NODES[0])
+        db.write_full_taxonomy(taxa)
+        db.write_taxonomy(NODES[0])
         db.write_taxa_names(taxa, NODES)
 
         db.add_family(families[0])
@@ -146,7 +147,7 @@ def init_db_file(filename):
         db.set_metadata(1, FILE_INFO, *DB_INFO)
         write_test_metadata(db)
 
-        db.write_taxonomy(taxa, NODES[1])
+        db.write_taxonomy(NODES[1])
 
         db.add_family(families[3])
         db.add_family(families[5])
@@ -157,7 +158,7 @@ def init_db_file(filename):
         db.set_metadata(2, FILE_INFO, *DB_INFO)
         write_test_metadata(db)
 
-        db.write_taxonomy(taxa, NODES[2])
+        db.write_taxonomy(NODES[2])
 
         db.add_family(families[4])
 
@@ -179,6 +180,7 @@ def init_single_file(n, db_dir, change_id=False):
     taxa = build_taxa(TAX_DB)
     if n == 0:
         file = FamDBRoot(filename, "w")
+        file.write_full_taxonomy(taxa)
         file.write_taxa_names(taxa, {n: NODES[n] for n in NODES})
     else:
         file = FamDBLeaf(filename, "w")
@@ -189,10 +191,10 @@ def init_single_file(n, db_dir, change_id=False):
     else:
         file_info = deepcopy(FILE_INFO)
 
+    file.write_taxonomy(NODES[n])
+
     write_test_metadata(file)
 
     file.set_metadata(n, file_info, *DB_INFO)
 
-    nodes = NODES[n]
-    file.write_taxonomy(taxa, nodes)
     file.finalize()

@@ -7,9 +7,9 @@ GROUP_FAMILIES = "Families"
 GROUP_LOOKUP_BYNAME = "Lookup/ByName"
 GROUP_LOOKUP_BYACC = "Lookup/ByAccession"
 GROUP_LOOKUP_BYSTAGE = "Lookup/ByStage"
+GROUP_LOOKUP_BYTAXON = "Lookup/ByTaxon"
 GROUP_NODES = "Taxonomy/Nodes"
-GROUP_TAXANAMES = "Partitions"
-GROUP_OTHER_DATA = "Other_Data"
+GROUP_TAXANAMES = "Taxonomy/Partitions"
 GROUP_REPEATPEPS = "RepeatPeps"
 GROUP_FILE_HISTORY = "File_History"
 DATA_CHILDREN = "Children"
@@ -21,13 +21,7 @@ DATA_VAL_PARENT = "Val_Parent"
 dfam_acc_pat = re.compile("^(D[FR])([0-9]{2})([0-9]{2})([0-9]{2})[0-9]{3,6}$")
 
 # The current version of the file format
-FILE_VERSION = "1.0"
-
-# The version of the famdb python package
-GENERATOR_VERSION = "1.0.5"
-
-LEAF_LINK = "leaf_link:"
-ROOT_LINK = "root_link:"
+FAMDB_VERSION = "2.0.0"
 
 DESCRIPTION = (
     "Dfam - A database of transposable element (TE) sequence alignments and HMMs."
@@ -64,7 +58,7 @@ You may also obtain a copy of the CC0 license here:
 http://creativecommons.org/publicdomain/zero/1.0/legalcode
 """
 
-FILE_DESCRIPTION = f"""This is famdb.py version {GENERATOR_VERSION}.
+FILE_DESCRIPTION = f"""This is famdb.py version {FAMDB_VERSION}.
 
 example commands, including the most commonly used options:
 

@@ -44,7 +44,7 @@ def get_family(entry):
 
 def families_iterator(g, prefix=""):
     for key, item in g.items():
-        path = "{}/{}".format(prefix, key)
+        path = f"{prefix}/{key}"
         if isinstance(item, h5py.Dataset):  # test for dataset
             yield (key)
         elif isinstance(item, h5py.Group):  # test for group (go down)
