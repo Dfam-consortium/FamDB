@@ -5,7 +5,7 @@ from famdb_helper_classes import Family
 from .doubles import init_db_file, FILE_INFO
 from unittest.mock import patch
 import io
-from famdb_globals import FAMDB_VERSION, TEST_DIR
+from famdb_globals import FAMDB_VERSION, TEST_DIR, DESCRIPTION
 
 
 class TestDatabase(unittest.TestCase):
@@ -26,20 +26,20 @@ class TestDatabase(unittest.TestCase):
         filenames = TestDatabase.filenames
         TestDatabase.filenames = None
 
-        # for name in filenames:
-        #     os.remove(name)
-        # os.rmdir(TestDatabase.file_dir)
+        for name in filenames:
+            os.remove(name)
+        os.rmdir(TestDatabase.file_dir)
 
     def test_get_metadata(self):
         test_info = {
             "famdb_version": FAMDB_VERSION,
-            "created": "2023-01-09 09:57:56.026443",
+            "created": "<creation date>",
             "partition_name": "Search Node",
             "partition_detail": "",
-            "name": "Test",
+            "name": "Test Dfam",
             "db_version": "V1",
             "date": "2020-07-15",
-            "description": "Test Database",
+            "description": DESCRIPTION,
             "copyright": "<copyright header>",
         }
 
@@ -148,55 +148,51 @@ class TestDatabase(unittest.TestCase):
 
     def test_get_complete_lineage(self):
         with FamDBRoot(TestDatabase.filenames[0], "r") as db:
-            self.assertEqual(db.get_lineage(4, complete=True), [4])
+            self.assertEqual(db.get_lineage(4), [4])
             self.assertEqual(
                 db.get_lineage(4, descendants=True, complete=True), [4, [6]]
             )
             self.assertEqual(
                 db.get_lineage(6, ancestors=True, complete=True),
-                ["root_link:4", [4, [6]]],
+                [1, [2, [4, [6]]]],
             )
             self.assertEqual(
                 db.get_lineage(4, ancestors=True, descendants=True, complete=True),
-                ["root_link:4", [4, [6]]],
+                [1, [2, [4, [6]]]],
             )
 
             self.assertEqual(db.get_lineage(1, complete=True), [1])
             self.assertEqual(
                 db.get_lineage(1, descendants=True, complete=True),
-                [1, [2, "leaf_link:4", "leaf_link:5"], [3]],
+                [1, [2, [4, [6]], [5, [7]]], [3]],
             )
-            self.assertEqual(db.get_lineage(3, ancestors=True, complete=True), [1, [3]])
             self.assertEqual(
                 db.get_lineage(2, ancestors=True, descendants=True, complete=True),
-                [1, [2, "leaf_link:4", "leaf_link:5"]],
+                 [1, [2, [4, [6]], [5, [7]]]],
             )
-
-    def test_get_pruned_lineage(self):
-        with FamDBRoot(TestDatabase.filenames[0], "r") as db:
 
             self.assertEqual(
                 db.get_lineage(5, descendants=True, complete=False), [5, [7]]
             )
             self.assertEqual(
                 db.get_lineage(7, ancestors=True, complete=False),
-                ["root_link:7", [7]],
+                [1, [2, [7]]],
             )
             self.assertEqual(
                 db.get_lineage(5, ancestors=True, complete=False),
-                ["root_link:5", [5]],
+                 [1, [2, [5]]],
             )
 
             self.assertEqual(
                 db.get_lineage(1, descendants=True, complete=False),
-                [1, [2, "leaf_link:7", "leaf_link:4"], [3]],
+                [1, [2, [4, [6]], [7]], [3]],
             )
             self.assertEqual(
                 db.get_lineage(3, ancestors=True, complete=False), [1, [3]]
             )
-            self.assertEqual(
+            self.assertEqual( 
                 db.get_lineage(2, ancestors=True, descendants=True, complete=False),
-                [1, [2, "leaf_link:7", "leaf_link:4"]],
+                [1, [2, [4, [6]], [7]]],
             )
 
     # Root File Methods ------------------------------------------------
@@ -314,58 +310,53 @@ class TestDatabase(unittest.TestCase):
             self.assertEqual(db.get_repeatpeps(), ">DUMMYACC\nDUMMYDATA")
 
     # Umbrella Methods -----------------------------------------------------------------------------
-    def test_get_lineage(self):  # TODO
+    def test_get_lineage(self):
         famdb = TestDatabase.famdb
-        # descendants from root
-        self.assertEqual(
-            famdb.get_lineage(2, descendants=True, complete=True),
-            [2, [4, [6]], [5, [7]]],
-        )
-        # ancenstors from leaf
-        self.assertEqual(
-            famdb.get_lineage(4, ancestors=True, complete=True), [1, [2, [4]]]
-        )
-        # ancestors from root
-        self.assertEqual(famdb.get_lineage(2, ancestors=True, complete=True), [1, [2]])
-        # decendants from leaf
+        self.assertEqual(famdb.get_lineage(4), [4])
         self.assertEqual(
             famdb.get_lineage(4, descendants=True, complete=True), [4, [6]]
         )
-        # ancestors and descendants from root
         self.assertEqual(
-            famdb.get_lineage(2, descendants=True, ancestors=True, complete=True),
-            [1, [2, [4, [6]], [5, [7]]]],
+            famdb.get_lineage(6, ancestors=True, complete=True),
+            [1, [2, [4, [6]]]],
         )
-        # ancestors and descendants from leaf
         self.assertEqual(
             famdb.get_lineage(4, ancestors=True, descendants=True, complete=True),
             [1, [2, [4, [6]]]],
         )
 
-        # descendants from root
+        self.assertEqual(famdb.get_lineage(1, complete=True), [1])
         self.assertEqual(
-            famdb.get_lineage(2, descendants=True, complete=False),
-            [2, [7], [4, [6]]],
+            famdb.get_lineage(1, descendants=True, complete=True),
+            [1, [2, [4, [6]], [5, [7]]], [3]],
         )
-        # ancenstors from leaf
         self.assertEqual(
-            famdb.get_lineage_combined(7, ancestors=True, complete=False), [1, [2, [7]]]
+            famdb.get_lineage(2, ancestors=True, descendants=True, complete=True),
+            [1, [2, [4, [6]], [5, [7]]]],
         )
-        # ancestors from root
-        self.assertEqual(famdb.get_lineage(2, ancestors=True, complete=False), [1, [2]])
-        # decendants from leaf
+
         self.assertEqual(
             famdb.get_lineage(5, descendants=True, complete=False), [5, [7]]
         )
-        # ancestors and descendants from root
-        self.assertEqual(
-            famdb.get_lineage(2, descendants=True, ancestors=True, complete=False),
-            [1, [2, [7], [4, [6]]]],
-        )
-        # ancestors and descendants from leaf
-        self.assertEqual(
-            famdb.get_lineage(5, ancestors=True, descendants=True, complete=False),
+        self.assertEqual( 
+            famdb.get_lineage(7, ancestors=True, complete=False),
             [1, [2, [7]]],
+        )
+        self.assertEqual(
+            famdb.get_lineage(5, ancestors=True, complete=False),
+            [1, [2, [5]]],
+        )
+
+        self.assertEqual(
+            famdb.get_lineage(1, descendants=True, complete=False),
+            [1, [2, [4, [6]], [7]], [3]],
+        )
+        self.assertEqual(
+            famdb.get_lineage(3, ancestors=True, complete=False), [1, [3]]
+        )
+        self.assertEqual(
+            famdb.get_lineage(2, ancestors=True, descendants=True, complete=False),
+            [1, [2, [4, [6]], [7]]],
         )
 
     @patch("sys.stdout", new_callable=io.StringIO)
@@ -387,31 +378,31 @@ class TestDatabase(unittest.TestCase):
 
     def test_get_complete_lineage_path(self):
         famdb = TestDatabase.famdb
-        # self.assertEqual(
-        #     famdb.get_lineage_path(5, cache=False, complete=True),
-        #     [["root", 0], ["Order", 0], ["Other Genus", 2]],
-        # ) TODO
-        # self.assertEqual(
-        #     famdb.get_lineage_path(
-        #         5, partition=False, cache=False, complete=True
-        #     ),
-        #     ["root", "Order", "Other Genus"],
-        # ) TODO
+        self.assertEqual(
+            famdb.get_lineage_path(5, cache=False, complete=True),
+            [["root", 0], ["Order", 0], ["Other Genus", 2]],
+        ) 
+        self.assertEqual(
+            famdb.get_lineage_path(
+                5, partition=False, cache=False, complete=True
+            ),
+            ["root", "Order", "Other Genus"],
+        )
 
     def test_get_pruned_lineage_path(self):
         famdb = TestDatabase.famdb
-        # self.assertEqual(
-        #     famdb.get_lineage_path(7, complete=False),
-        #     [["root", 0], ["Order", 0], ["Other Genus", 2]],
-        # ) TODO
-        # self.assertEqual(
-        #     famdb.get_lineage_path(5, complete=False),
-        #     [["root", 0], ["Order", 0], ["Other Genus", 2]],
-        # ) TODO
-        # self.assertEqual(
-        #     famdb.get_lineage_path(5,  partition=False, cache=False, complete=False),
-        #     ["root", "Order", "Other Genus"],
-        # ) TODO
+        self.assertEqual(
+            famdb.get_lineage_path(7, complete=False),
+            [["root", 0], ["Order", 0], ["Other Species", 2]],
+        ) 
+        self.assertEqual(
+            famdb.get_lineage_path(5, complete=False),
+            [["root", 0], ["Order", 0], ["Other Genus", 2]],
+        ) 
+        self.assertEqual(
+            famdb.get_lineage_path(5,  partition=False, cache=False, complete=False),
+            ["root", "Order", "Other Genus"],
+        ) 
 
     def test_get_counts(self):
         famdb = TestDatabase.famdb

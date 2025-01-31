@@ -4,7 +4,7 @@ import shutil
 import logging
 from .doubles import init_single_file, make_family
 from famdb_classes import FamDB
-from famdb_globals import FAMDB_VERSION, TEST_DIR
+from famdb_globals import FAMDB_VERSION, TEST_DIR, DESCRIPTION
 
 
 class TestExports(unittest.TestCase):
@@ -28,11 +28,11 @@ class TestExports(unittest.TestCase):
             {
                 "copyright": "<copyright header>",
                 "date": "2020-07-15",
-                "description": "Test Database",
-                "name": "Test",
+                "description": DESCRIPTION,
+                "name": "Test Dfam",
                 "db_version": "V1",
                 "famdb_version": FAMDB_VERSION,
-                "created": "2023-01-09 09:57:56.026443",
+                "created": "<creation date>",
                 "partition_name": "Root Node",
                 "partition_detail": "",
             },

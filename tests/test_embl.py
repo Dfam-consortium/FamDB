@@ -51,7 +51,7 @@ XX
 KW   Type/SubType.
 XX
 OS   Genus
-OC   .
+OC   root; Order.
 XX
 CC
 CC   RepeatMasker Annotations:
@@ -90,7 +90,7 @@ XX
 KW   Test/Multiline.
 XX
 OS   Other Genus
-OC   .
+OC   root; Order.
 XX
 CC
 CC   RepeatMasker Annotations:
@@ -131,7 +131,7 @@ XX
 KW   Test/Metadata.
 XX
 OS   Other Genus
-OC   .
+OC   root; Order.
 XX
 CC
 CC   RepeatMasker Annotations:
@@ -198,9 +198,9 @@ XX
 KW   Long terminal repeat of retrovirus-like element; Test5.
 XX
 OS   Other Genus
-OC   .
+OC   root; Order.
 OS   Other Order
-OC   .
+OC   root.
 XX
 CC
 CC   RepeatMasker Annotations:
@@ -294,7 +294,7 @@ XX
 KW   Test/HasCitations.
 XX
 OS   Order
-OC   .
+OC   root.
 XX
 RN   [1] (bases 1 to 16)
 RA   John Doe
@@ -360,7 +360,7 @@ XX
 KW   Test/CodingSequence.
 XX
 OS   Order
-OC   .
+OC   root.
 XX
 CC
 CC   RepeatMasker Annotations:

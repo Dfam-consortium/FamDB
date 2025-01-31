@@ -55,8 +55,6 @@ from famdb_globals import (
     FAMILY_FORMATS_EPILOG,
     MISSING_FILE,
     HELP_URL,
-    ROOT_LINK,
-    LEAF_LINK,
 )
 from famdb_classes import FamDB
 
@@ -142,8 +140,6 @@ def print_lineage_tree(
         tax_id = tree[0]
         children = tree[1:]
 
-    if ROOT_LINK in str(tax_id) or LEAF_LINK in str(tax_id):
-        tax_id = str(tax_id).split(":")[1]
     name, tax_partition = file.get_taxon_name(tax_id, "scientific name")
     if name != "Not Found":
         fams = file.get_families_for_taxon(
@@ -314,11 +310,11 @@ def command_lineage(args):
         return
     if target_id == "Ambiguous":
         return
-    tree = args.db_dir.get_lineage_combined(
+    tree = args.db_dir.get_lineage(
         target_id,
         descendants=args.descendants,
         ancestors=args.ancestors or args.format == "semicolon",
-        complete=args.complete,
+        complete=args.complete or args.format == "semicolon",
     )
     if not tree:
         return

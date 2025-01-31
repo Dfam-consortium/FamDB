@@ -352,8 +352,8 @@ class FamDBLeaf:
     def get_families_for_taxon(self, tax_id, curated_only=False, uncurated_only=False):
         """Returns a list of the accessions for each family directly associated with 'tax_id'."""
         group = (
-            self.file[GROUP_LOOKUP_BYTAXON][str(tax_id)].get("Families")
-            if f"{GROUP_LOOKUP_BYTAXON}/{tax_id}/Families" in self.file
+            self.file[GROUP_LOOKUP_BYTAXON][str(tax_id)]
+            if f"{GROUP_LOOKUP_BYTAXON}/{tax_id} in self.file"
             else {}
         )
 
@@ -713,7 +713,7 @@ up with the 'names' command.""",
         return tree
 
     def get_lineage_path(
-        self, tax_id, tree=[], cache=True, partition=True, complete=False
+        self, tax_id, cache=True, partition=True, complete=False
     ):
         """
         Returns a list of strings encoding the lineage for 'tax_id'.
@@ -721,9 +721,7 @@ up with the 'names' command.""",
 
         if cache and tax_id in self.__lineage_cache:
             return self.__lineage_cache[tax_id]
-        if not tree:
-            tree = self.get_lineage(tax_id, ancestors=True, complete=complete)
-
+        tree = self.get_lineage(tax_id, ancestors=True, complete=complete)
         lineage = []
 
         while tree:
@@ -902,8 +900,7 @@ class FamDB:
                 id
                 for file in nodes
                 for id in nodes[file]
-                if self.files[file].file[GROUP_LOOKUP_BYTAXON][id].get(GROUP_FAMILIES)
-                is not None
+                if bool(self.files[file].file[GROUP_LOOKUP_BYTAXON][id].keys())
             ]
         )
 
@@ -1145,7 +1142,6 @@ class FamDB:
 
     def get_lineage_path(self, tax_id, **kwargs):
         """method used in EMBL exports"""
-        lineage = self.get_lineage(tax_id, **kwargs)
         partition = (
             kwargs.get("partition") if kwargs.get("partition") is not None else True
         )
@@ -1154,7 +1150,7 @@ class FamDB:
             kwargs.get("complete") if kwargs.get("complete") is not None else True
         )
         return self.files[0].get_lineage_path(
-            tax_id, lineage, cache=cache, partition=partition, complete=complete
+            tax_id, cache=cache, partition=partition, complete=complete
         )
 
     def get_sanitized_name(self, tax_id):
