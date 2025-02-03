@@ -431,7 +431,9 @@ class Family:  # pylint: disable=too-many-instance-attributes
             out += "XX\n"
 
             for clade_id in self.clades:
-                lineage = famdb.get_lineage_path(clade_id, partition=False, complete=True)
+                lineage = famdb.get_lineage_path(
+                    clade_id, partition=False, complete=True
+                )
                 if lineage[0] == ["root"]:
                     lineage = lineage[1:]
                 if len(lineage) > 0:

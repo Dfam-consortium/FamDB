@@ -353,7 +353,7 @@ class FamDBLeaf:
         """Returns a list of the accessions for each family directly associated with 'tax_id'."""
         group = (
             self.file[GROUP_LOOKUP_BYTAXON][str(tax_id)]
-            if f"{GROUP_LOOKUP_BYTAXON}/{tax_id} in self.file"
+            if f"{GROUP_LOOKUP_BYTAXON}/{tax_id}" in self.file
             else {}
         )
 
@@ -375,11 +375,6 @@ class FamDBLeaf:
         return False
 
     # Family Getters --------------------------------------------------------------------------
-    # currently unused:
-    def get_family_names(self):
-        """Returns a list of names of families in the database."""
-        return sorted(self.file[GROUP_LOOKUP_BYNAME].keys(), key=str.lower)
-
     def get_family_by_accession(self, accession):
         """Returns the family with the given accession."""
         path = accession_bin(accession)
@@ -500,6 +495,11 @@ class FamDBRoot(FamDBLeaf):
         return self.file.get(GROUP_REPEATPEPS)[0].decode(
             encoding="UTF-8", errors="strict"
         )
+
+    # currently unused:
+    # def get_family_names(self):
+    #     """Returns a list of names of families in the database."""
+    #     return sorted(self.file[GROUP_LOOKUP_BYNAME].keys(), key=str.lower)
 
     def get_taxon_names(self, tax_id):
         """
@@ -712,9 +712,7 @@ up with the 'names' command.""",
 
         return tree
 
-    def get_lineage_path(
-        self, tax_id, cache=True, partition=True, complete=False
-    ):
+    def get_lineage_path(self, tax_id, cache=True, partition=True, complete=False):
         """
         Returns a list of strings encoding the lineage for 'tax_id'.
         """
@@ -775,7 +773,7 @@ up with the 'names' command.""",
 
 class FamDB:
 
-    def __init__(self, db_dir, mode, min=False):
+    def __init__(self, db_dir, mode):
         """
         Initialize from a directory containing a *partitioned* famdb dataset
         """
@@ -786,42 +784,54 @@ class FamDB:
         # A partioned famdb file is named *.#.h5 where
         # the number represents the partition number and
         # at a minimum partitition 0 must be present.
-        db_prefixes = {}
+        root_prefixes = set()
+        prefixes = set()
         h5_files = []
         for file in os.listdir(db_dir):
             if file.endswith(".h5"):
                 h5_files += [file]
-            if file.endswith(".0.h5"):
-                db_prefixes[file[:-5]] = 1
+                prefix = file[:-5]
+                prefixes.add(prefix)
+                if file.endswith(".0.h5"):
+                    root_prefixes.add(prefix)
+
+        # ensure only one FamDB export per folder
+        if len(prefixes) != 1:
+            LOGGER.error("Only one export of FamDB should be present in " + db_dir)
+            exit(1)
 
         # Make sure we only have at least one database present
-        if len(db_prefixes) == 0:
+        if len(root_prefixes) == 0:
             if h5_files:
                 LOGGER.error(
                     "A partitioned famdb database is not present in "
                     + db_dir
                     + "\n"
-                    + "There were several *.h5 files present. However, they do not appear\n"
+                    + "FamDB requires exactly one root file. There were several *.h5 files present. However, they do not appear\n"
                     + "to be in the correct format: "
                     + "\n".join(h5_files)
                     + "\n"
                 )
             else:
-                LOGGER.error("A partitioned famdb database is not present in " + db_dir)
+                LOGGER.error(
+                    "A partitioned famdb root file is not present in " + db_dir
+                )
             exit(1)
 
         # Make sure we have *only* one database present
-        if len(db_prefixes) > 1:
+        if len(root_prefixes) > 1:
+            print(root_prefixes)
+
             LOGGER.error(
                 "Multiple famdb root partitions were found in this export directory: "
-                + ", ".join(db_prefixes.keys())
+                + ", ".join(root_prefixes.keys())
                 + "\nEach famdb database "
                 + "should be in separate folders."
             )
             exit(1)
 
         # Tabulate all partitions for db_prefix
-        db_prefix = list(db_prefixes.keys())[0]
+        db_prefix = list(root_prefixes)[0]
         for file in h5_files:
             if db_prefix in file:
                 fields = file.split(".")
@@ -860,8 +870,8 @@ class FamDB:
             interrupted = self.files[file].interrupt_check()
             if interrupted:
                 change_err_files += [file]
-        if partition_err_files:
-            LOGGER.error(f"Files Interrupted During Edit: {partition_err_files}")
+        if change_err_files:
+            LOGGER.error(f"Files Interrupted During Edit: {change_err_files}")
             exit()
 
     # Data writing methods ---------------------------------------------------------------------------------------

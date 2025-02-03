@@ -118,18 +118,18 @@ class TestDatabase(unittest.TestCase):
             self.assertEqual(test_fam.name, "Test family TEST0001")
             self.assertEqual(db.get_family_by_accession("TEST0000"), None)
 
-    def test_get_family_names(self):
-        with FamDBRoot(TestDatabase.filenames[0], "r") as db:
-            self.assertCountEqual(
-                db.get_family_names(), ["Test family TEST0001", "Test family TEST0003"]
-            )
-        with FamDBLeaf(TestDatabase.filenames[1], "r") as db:
-            self.assertCountEqual(
-                db.get_family_names(),
-                ["Test family TEST0004", "Test family DR_Repeat1"],
-            )
-        with FamDBLeaf(TestDatabase.filenames[2], "r") as db:
-            self.assertCountEqual(db.get_family_names(), ["Test family DR000000001"])
+    # def test_get_family_names(self):
+    #     with FamDBRoot(TestDatabase.filenames[0], "r") as db:
+    #         self.assertCountEqual(
+    #             db.get_family_names(), ["Test family TEST0001", "Test family TEST0003"]
+    #         )
+    #     with FamDBLeaf(TestDatabase.filenames[1], "r") as db:
+    #         self.assertCountEqual(
+    #             db.get_family_names(),
+    #             ["Test family TEST0004", "Test family DR_Repeat1"],
+    #         )
+    #     with FamDBLeaf(TestDatabase.filenames[2], "r") as db:
+    #         self.assertCountEqual(db.get_family_names(), ["Test family DR000000001"])
 
     def test_get_family_by_name(self):
         with FamDBRoot(TestDatabase.filenames[0], "r") as db:
@@ -146,6 +146,7 @@ class TestDatabase(unittest.TestCase):
         with FamDBLeaf(TestDatabase.filenames[1], "r") as db:
             self.assertEqual(db.get_families_for_taxon(4), ["TEST0004"])
 
+    # Root File Methods ------------------------------------------------
     def test_get_complete_lineage(self):
         with FamDBRoot(TestDatabase.filenames[0], "r") as db:
             self.assertEqual(db.get_lineage(4), [4])
@@ -168,7 +169,7 @@ class TestDatabase(unittest.TestCase):
             )
             self.assertEqual(
                 db.get_lineage(2, ancestors=True, descendants=True, complete=True),
-                 [1, [2, [4, [6]], [5, [7]]]],
+                [1, [2, [4, [6]], [5, [7]]]],
             )
 
             self.assertEqual(
@@ -180,7 +181,7 @@ class TestDatabase(unittest.TestCase):
             )
             self.assertEqual(
                 db.get_lineage(5, ancestors=True, complete=False),
-                 [1, [2, [5]]],
+                [1, [2, [5]]],
             )
 
             self.assertEqual(
@@ -190,12 +191,11 @@ class TestDatabase(unittest.TestCase):
             self.assertEqual(
                 db.get_lineage(3, ancestors=True, complete=False), [1, [3]]
             )
-            self.assertEqual( 
+            self.assertEqual(
                 db.get_lineage(2, ancestors=True, descendants=True, complete=False),
                 [1, [2, [4, [6]], [7]]],
             )
 
-    # Root File Methods ------------------------------------------------
     def test_search_taxon_names(self):
         with FamDBRoot(TestDatabase.filenames[0], "r") as db:
             self.assertEqual(
@@ -338,7 +338,7 @@ class TestDatabase(unittest.TestCase):
         self.assertEqual(
             famdb.get_lineage(5, descendants=True, complete=False), [5, [7]]
         )
-        self.assertEqual( 
+        self.assertEqual(
             famdb.get_lineage(7, ancestors=True, complete=False),
             [1, [2, [7]]],
         )
@@ -351,9 +351,7 @@ class TestDatabase(unittest.TestCase):
             famdb.get_lineage(1, descendants=True, complete=False),
             [1, [2, [4, [6]], [7]], [3]],
         )
-        self.assertEqual(
-            famdb.get_lineage(3, ancestors=True, complete=False), [1, [3]]
-        )
+        self.assertEqual(famdb.get_lineage(3, ancestors=True, complete=False), [1, [3]])
         self.assertEqual(
             famdb.get_lineage(2, ancestors=True, descendants=True, complete=False),
             [1, [2, [4, [6]], [7]]],
@@ -381,11 +379,9 @@ class TestDatabase(unittest.TestCase):
         self.assertEqual(
             famdb.get_lineage_path(5, cache=False, complete=True),
             [["root", 0], ["Order", 0], ["Other Genus", 2]],
-        ) 
+        )
         self.assertEqual(
-            famdb.get_lineage_path(
-                5, partition=False, cache=False, complete=True
-            ),
+            famdb.get_lineage_path(5, partition=False, cache=False, complete=True),
             ["root", "Order", "Other Genus"],
         )
 
@@ -394,15 +390,15 @@ class TestDatabase(unittest.TestCase):
         self.assertEqual(
             famdb.get_lineage_path(7, complete=False),
             [["root", 0], ["Order", 0], ["Other Species", 2]],
-        ) 
+        )
         self.assertEqual(
             famdb.get_lineage_path(5, complete=False),
             [["root", 0], ["Order", 0], ["Other Genus", 2]],
-        ) 
+        )
         self.assertEqual(
-            famdb.get_lineage_path(5,  partition=False, cache=False, complete=False),
+            famdb.get_lineage_path(5, partition=False, cache=False, complete=False),
             ["root", "Order", "Other Genus"],
-        ) 
+        )
 
     def test_get_counts(self):
         famdb = TestDatabase.famdb

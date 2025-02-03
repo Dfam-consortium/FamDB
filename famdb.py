@@ -68,7 +68,6 @@ def command_info(args):
     print(
         f"""\
 FamDB Directory     : {os.path.realpath(args.db_dir.db_dir)}
-FamDB Generator     : {db_info["generator"]}
 FamDB Format Version: {db_info["famdb_version"]}
 FamDB Creation Date : {db_info["created"]}
 
@@ -123,11 +122,10 @@ def command_names(args):
 def print_lineage_tree(
     file,
     tree,
-    partition,
     gutter_self,
     gutter_children,
-    uncurated_only=False,
     curated_only=False,
+    uncurated_only=False,
 ):
     """Pretty-prints a lineage tree with box drawing characters."""
 
@@ -139,7 +137,6 @@ def print_lineage_tree(
     else:
         tax_id = tree[0]
         children = tree[1:]
-
     name, tax_partition = file.get_taxon_name(tax_id, "scientific name")
     if name != "Not Found":
         fams = file.get_families_for_taxon(
@@ -164,7 +161,6 @@ def print_lineage_tree(
             print_lineage_tree(
                 file,
                 child,
-                tax_partition,
                 gutter_children + "├─",
                 gutter_children + "│ ",
                 curated_only,
@@ -175,7 +171,6 @@ def print_lineage_tree(
         print_lineage_tree(
             file,
             children[-1],
-            tax_partition,
             gutter_children + "└─",
             gutter_children + "  ",
             curated_only,
@@ -322,7 +317,6 @@ def command_lineage(args):
         print_lineage_tree(
             args.db_dir,
             tree,
-            partition,
             "",
             "",
             args.curated,
@@ -618,14 +612,11 @@ def command_append(args):
     )
 
     # Write the updated counts and metadata
+    args.db_dir.build_pruned_tree()
     args.db_dir.finalize()
 
 
-def main():  # ================================================================================================================================
-    """Parses command-line arguments and runs the requested command."""
-
-    logging.basicConfig()
-
+def build_args():
     parser = argparse.ArgumentParser(
         description=FILE_DESCRIPTION,
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -775,11 +766,13 @@ with a given clade, optionally filtered by additional criteria",
         help="include only families whose name begins with this search term",
     )
     p_families.add_argument(
+        "-u",
         "--uncurated",
         action="store_true",
         help="include only 'uncurated' families (i.e. named DRXXXXXXXXX)",
     )
     p_families.add_argument(
+        "-c",
         "--curated",
         action="store_true",
         help="include only 'curated' families (i.e. not named DFXXXXXXXXX)",
@@ -859,6 +852,15 @@ with a given clade, optionally filtered by additional criteria",
     p_desc.add_argument("new")
     p_desc.set_defaults(func=command_edit_description)
 
+    return parser
+
+
+def main():  # ================================================================================================================================
+    """Parses command-line arguments and runs the requested command."""
+
+    logging.basicConfig()
+
+    parser = build_args()
     args = parser.parse_args()
     logging.getLogger().setLevel(getattr(logging, args.log_level.upper()))
 

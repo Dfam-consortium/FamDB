@@ -81,12 +81,12 @@ class TestCliOutput(unittest.TestCase):
     def test_families_embl_seq(self):
         test = "families-embl_seq"
         args = ["families", "--format", "embl_seq", "3"]
-        test_one(self, test, args) 
+        test_one(self, test, args)
 
     def test_families_embl(self):
         test = "families-embl"
         args = ["families", "--format", "embl", "-d", "2"]
-        test_one(self, test, args) 
+        test_one(self, test, args)
 
     def test_families_fasta_acc(self):
         test = "families-fasta_acc"
@@ -98,79 +98,91 @@ class TestCliOutput(unittest.TestCase):
             "-a",
             "4",
         ]
-        test_one(self, test, args) 
+        test_one(self, test, args)
 
     def test_families_fasta_name(self):
         test = "families-fasta_name"
         args = ["families", "--format", "fasta_name", "-a", "6"]
-        test_one(self, test, args) 
+        test_one(self, test, args)
 
     def test_families_hmm_speciies(self):
         test = "families-hmm_species"
         args = ["families", "--format", "hmm_species", "-ad", "3"]
-        test_one(self, test, args) 
+        test_one(self, test, args)
 
     def test_families_hmm(self):
         test = "families-hmm"
         args = ["families", "--format", "hmm", "-ad", "3"]
-        test_one(self, test, args) 
+        test_one(self, test, args)
 
     def test_families_summary(self):
         test = "families-summary"
         args = ["families", "-d", "1"]
-        test_one(self, test, args) 
+        test_one(self, test, args)
 
     def test_family_byacc_embl(self):
         test = "family-byacc-embl"
         args = ["family", "TEST0001", "-f", "embl"]
-        test_one(self, test, args) 
+        test_one(self, test, args)
 
     def test_family_byacc(self):
         test = "family-byacc"
         args = ["family", "TEST0001"]
-        test_one(self, test, args) 
+        test_one(self, test, args)
 
     def test_family_byname_hmm(self):
         test = "family-byname-hmm"
         args = ["family", "TEST0003", "-f", "hmm"]
-        test_one(self, test, args) 
+        test_one(self, test, args)
 
     def test_family_byname(self):
         test = "family-byname"
         args = ["family", "TEST0003", "-f", "fasta_name"]
-        test_one(self, test, args) 
+        test_one(self, test, args)
 
     def test_lineage_pretty(self):
         test = "lineage-pretty"
         args = ["lineage", "-d", "1"]
-        test_one(self, test, args) 
-    
+        test_one(self, test, args)
+
     def test_lineage_pretty_full(self):
-        test = "lineage-pretty"
-        args = ["lineage", "-d", "1"]
-        test_one(self, test, args) 
+        test = "lineage-pretty-full"
+        args = ["lineage", "-dk", "1"]
+        test_one(self, test, args)
 
     def test_lineage_semicolons(self):
         test = "lineage-semicolon"
         args = ["lineage", "--format", "semicolon", "7"]
-        test_one(self, test, args) 
+        test_one(self, test, args)
 
     def test_lineage_totals(self):
         test = "lineage-totals"
         args = ["lineage", "--format", "totals", "-ad", "3"]
-        test_one(self, test, args) 
+        test_one(self, test, args)
+
+    def test_lineage_curated(self):
+        test = "lineage-curated"
+        args = ["lineage", "-cdk", "1"]
+        test_one(self, test, args)
 
     def test_names_pretty(self):
         test = "names-pretty"
         args = ["names", "genus"]
-        test_one(self, test, args) 
+        test_one(self, test, args)
 
     def test_names_multi_arg(self):
         test = "names-multi-arg"
         args = ["names", "other", "genus"]
-        test_one(self, test, args) 
+        test_one(self, test, args)
 
     def test_names_json(self):
         test = "names-json"
         args = ["names", "--format", "json", "genus"]
-        test_one(self, test, args) 
+        test_one(self, test, args)
+
+    def test_info(self):
+        test = "info"
+        args = ["info"]
+        test_one(self, test, args)
+
+    # can't test history, the timestamps change
