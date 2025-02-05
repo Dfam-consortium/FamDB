@@ -101,6 +101,9 @@ class FamDBLeaf:
         self.file[GROUP_FILE_HISTORY][time_stamp][message][0] = True
 
     def _change_logger(func):
+        """
+        A wrapper method to update and verify the changelog for common methods
+        """
         func_to_note = {
             "__write_metadata": "File Initialized",
             "set_metadata": "Metadata Set",
@@ -124,23 +127,25 @@ class FamDBLeaf:
     # Export Setters ----------------------------------------------------------------------------------------------------
     @_change_logger
     def __write_metadata(self):
-        """Sets file data during writing"""
+        """Sets file data during writing. Called during file creation"""
         self.file.attrs["famdb_version"] = FAMDB_VERSION
         self.file.attrs["created"] = str(datetime.datetime.now())
         self.file.attrs["db_description"] = DESCRIPTION
 
     @_change_logger
     def set_metadata(self, partition_num, map_str, name, version, date, copyright_text):
-        """Sets database metadata for the current file"""
+        """
+        Sets database metadata for the current file
+        Stores information about other files as json string
+        Sets partition number (key to file info) and bool if is root file or not
+        """
         self.file.attrs["db_name"] = name
         self.file.attrs["db_version"] = version
         self.file.attrs["db_date"] = date
         self.file.attrs["db_copyright"] = copyright_text
 
-        """Stores information about other files as json string"""
         self.file.attrs["file_info"] = json.dumps(map_str)
 
-        """Sets partition number (key to file info) and bool if is root file or not"""
         self.file.attrs["partition_num"] = partition_num
         self.file.attrs["root"] = partition_num == "0" or partition_num == 0
 
@@ -151,6 +156,7 @@ class FamDBLeaf:
 
     @_change_logger
     def update_description(self, new_desc):
+        """Updates the description. Available to the user and during the append command"""
         self.file.attrs["db_description"] = new_desc
 
     # Attribute Getters -----------------------------------------------------------------------------------------------
@@ -169,11 +175,8 @@ class FamDBLeaf:
     def get_metadata(self):
         """
         Gets file metadata for the current file as a dict with keys
-        'generator', 'version', 'created', 'partition_name', 'partition_detail'
-        """
-        """
-        Gets database database metadata for the current file as a dict with keys
-        'name', 'version', 'date', 'description', 'copyright'
+        'famdb_version', 'created', 'partition_name', 'partition_detail',
+        'db_name', 'db_version', 'db_date', 'db_description', 'db_copyright'
         """
         if "db_name" not in self.file.attrs:
             return None
@@ -192,6 +195,9 @@ class FamDBLeaf:
         }
 
     def get_history(self):
+        """
+        Retrieves and concatenates the changelog into a string
+        """
         history = self.file.get(GROUP_FILE_HISTORY)
         messages = {stamp: list(history[stamp].keys())[0] for stamp in history.keys()}
         hist_str = f"\n File {self.get_partition_num()}\n"
@@ -211,7 +217,10 @@ class FamDBLeaf:
 
     # File Utils
     def interrupt_check(self):
-        """Changelogs Start as False and are flipped to True when complete"""
+        """
+        Changelogs Start as False and are flipped to True when complete
+        Returns bool if any changes are not confirmed
+        """
         interrupted = False
         history = self.file.get(GROUP_FILE_HISTORY)
         for el in history:
@@ -408,7 +417,11 @@ class FamDBRoot(FamDBLeaf):
 
     @FamDBLeaf._change_logger
     def write_full_taxonomy(self, tax_db):
-        """Writes taxonomy nodes to the database."""
+        """
+        Takes a map of TaxaNodes
+        Writes taxonomy nodes to the database.
+        Includes parent-child relationships
+        """
         LOGGER.info(f"Writing taxonomy tree in partition 0")
         start = time.perf_counter()
 
@@ -431,11 +444,15 @@ class FamDBRoot(FamDBLeaf):
 
     @FamDBLeaf._change_logger
     def update_pruned_taxa(self, tree):
+        """
+        Takes a map of TaxaNodes
+        Updates the nodes to include sparse parent-child relationships
+        based on which nodes have family data associated with them
+        """
         for id in tree:
             node = tree[id]
             val_children = [int(child) for child in node.val_children]
             val_parent = int(node.val_parent) if node.val_parent else None
-            # TODO remove data fields that already exist
             group = self.file[GROUP_NODES][id]
             group.require_dataset(
                 DATA_VAL_CHILDREN,
@@ -452,7 +469,7 @@ class FamDBRoot(FamDBLeaf):
                 )
 
     @FamDBLeaf._change_logger
-    def write_taxa_names(self, tax_db, nodes):
+    def write_taxa_names(self, tax_db, nodes):  # TODO NAMES
         """
         Writes Names -> taxa maps per partition
         """
@@ -501,7 +518,7 @@ class FamDBRoot(FamDBLeaf):
     #     """Returns a list of names of families in the database."""
     #     return sorted(self.file[GROUP_LOOKUP_BYNAME].keys(), key=str.lower)
 
-    def get_taxon_names(self, tax_id):
+    def get_taxon_names(self, tax_id):  # TODO NAMES
         """
         Checks names_dump for each partition and returns a list of [name_class, name_value, partition]
         of the taxon given by 'tax_id'.
@@ -512,7 +529,7 @@ class FamDBRoot(FamDBLeaf):
                 return names
         return []
 
-    def get_taxon_name(self, tax_id, kind="scientific name"):
+    def get_taxon_name(self, tax_id, kind="scientific name"):  # TODO NAMES
         """
         Checks names_dump for each partition and returns eturns the first name of the given 'kind'
         for the taxon given by 'tax_id', or None if no such name was found.
@@ -525,7 +542,7 @@ class FamDBRoot(FamDBLeaf):
                         return [name[1], int(partition)]
         return "Not Found", "N/A"
 
-    def search_taxon_names(self, text, kind=None, search_similar=False):
+    def search_taxon_names(self, text, kind=None, search_similar=False):  # TODO NAMES
         """
         Searches 'self' for taxons with a name containing 'text', returning an
         iterator that yields a tuple of (id, is_exact, partition) for each matching node.
@@ -564,7 +581,7 @@ class FamDBRoot(FamDBLeaf):
                 if matches:
                     yield [int(tax_id), exact, int(partition)]
 
-    def resolve_species(self, term, kind=None, search_similar=False):
+    def resolve_species(self, term, kind=None, search_similar=False):  # TODO NAMES
         """
         Resolves 'term' as a species or clade in 'self'. If 'term' is a number,
         it is a taxon id. Otherwise, it will be searched for in 'self' in the
@@ -660,6 +677,7 @@ up with the 'names' command.""",
         """
         Returns the "sanitized name" of tax_id, which is the sanitized version
         of the scientific name.
+        Used in EMBL exports
         """
 
         name = self.get_taxon_name(tax_id, "scientific name")
@@ -746,7 +764,7 @@ up with the 'names' command.""",
 
         return lineage
 
-    def find_taxon(self, tax_id):
+    def find_taxon(self, tax_id):  # TODO NAMES
         """
         Returns the partition number containing the taxon
         """
@@ -755,7 +773,12 @@ up with the 'names' command.""",
                 return int(partition)
         return None
 
-    def get_all_taxa_names(self):
+    def get_all_taxa_names(self):  # TODO NAMES
+        """
+        Returns all taxa names in database.
+        Used for mapping EMBL file names to taxa nodes
+        Used in append command
+        """
         taxa = set()
         for partition in self.names_dump:
             for key in self.names_dump[partition].keys():
@@ -876,8 +899,17 @@ class FamDB:
 
     # Data writing methods ---------------------------------------------------------------------------------------
     def build_pruned_tree(self):
+        """
+        Establishes a sparse taxonomy tree where parent-child relationships are restricted to
+        nodes with associated family data. For example, a node will be assigned a sparese parent
+        as the closesed ancestor node with data, rather than it's actual parent node, if it's
+        actual parent node is empty.
+        This method exists in FamDB instead of FamDBRoot because it is subject to change after an append,
+        and because the associated data is stored in FamDBLeaf files
+        """
 
         def traverse_val_parents(tree, id):
+            """Recurs up the tree ancestor by ancestor until it finds the nearest ancestor with data"""
             node = tree[id]
             if node.parent_id:
                 parent = tree[node.parent_id]
@@ -889,6 +921,10 @@ class FamDB:
                 return None
 
         def traverse_val_children(tree, id, node_id):
+            """
+            Adds node to it's parent's list of sparse children
+            Continues recursion until it finds an ancestor with data
+            """
             node = tree[id]
             if node.parent_id:
                 parent = tree[node.parent_id]
@@ -905,6 +941,7 @@ class FamDB:
             file: list(self.files[file].file[GROUP_LOOKUP_BYTAXON].keys())
             for file in [file for file in self.files.keys()]
         }
+        # build set of nodes with associated family data
         vals = set(
             [
                 id
@@ -914,6 +951,7 @@ class FamDB:
             ]
         )
 
+        # build TaxNodes in tree
         for id in tree:
             node = tree[id]
             children = node[DATA_CHILDREN][()] if node[DATA_CHILDREN].size > 0 else []
@@ -940,10 +978,63 @@ class FamDB:
             if node.val:
                 traverse_val_children(tree, node.tax_id, node.tax_id)
 
+        # update database nodes
         self.files[0].update_pruned_taxa(tree)
+
+    def set_db_info(self, name, version, date, desc, copyright_text):
+        """Method for resetting metadata"""
+        for file in self.files:
+            partition_num = self.files[file].get_partition_num()
+            file_info = self.files[file].get_file_info()
+            self.files[file].set_metadata(
+                partition_num,
+                file_info,
+                name,
+                version,
+                date,
+                desc,
+                copyright_text,
+            )
+
+    def append_start_changelog(self, message):
+        """
+        Called when an append command starts
+        """
+        rec = {}
+        for file in self.files:
+            time_stamp = self.files[file].update_changelog(message)
+            rec[file] = time_stamp
+        return rec
+
+    def append_finish_changelog(self, message, rec):
+        """
+        Called when an append command finishes successfully
+        """
+        for file in rec:
+            self.files[file]._verify_change(rec[file], message)
+
+    def update_changelog(self, added_ctr, total_ctr, file_counts, infile):
+        """Used to add a context log after an append command"""
+        filename = infile.split("/")[-1]
+        for file in self.files:
+            if file in file_counts:
+                self.files[file].update_changelog(
+                    f"Added {file_counts[file]} of {total_ctr} Families From {filename}",
+                    verified=True,
+                )
+            else:
+                self.files[file].update_changelog(
+                    f"Found No Relevant Families From {filename}", verified=True
+                )
+            if file == 0:
+                self.files[file].update_changelog(
+                    f"Total Families {added_ctr} of {total_ctr} Added To Local Files From {filename}",
+                    verified=True,
+                )
 
     # Data access methods ---------------------------------------------------------------------------------------
     def show_files(self):
+        """Method to show file information by partition and if those files are present"""
         print(f"\nPartition Details\n-----------------")
         for part in sorted([int(x) for x in self.file_map]):
             part_str = str(part)
@@ -963,9 +1054,20 @@ class FamDB:
             print()
 
     def show_history(self):
+        """Iterates over all present files and prints each history"""
         print(f"\nFile History\n-----------------")
         for file in self.files:
             print(self.files[file].get_history())
+
+    def get_counts(self):
+        """Method gets collected counts from each file present"""
+        counts = {"consensus": 0, "hmm": 0, "file": 0}
+        for file in self.files:
+            file_counts = self.files[file].get_counts()
+            counts["consensus"] += file_counts["consensus"]
+            counts["hmm"] += file_counts["hmm"]
+            counts["file"] += 1
+        return counts
 
     def assemble_filters(self, **kwargs):
         """Define family filters (logically ANDed together)"""
@@ -1079,7 +1181,7 @@ class FamDB:
             elif tax_id == 1 and descendants:
                 for file in files:
                     names = families_iterator(
-                        files[file].file[GROUP_FAMILIES], "Families"
+                        files[file].file[GROUP_FAMILIES], GROUP_FAMILIES
                     )
                     for name in names:
                         yield name
@@ -1118,37 +1220,30 @@ class FamDB:
             if match:
                 yield accession
 
-    def resolve_names(self, term):
-        entries = []
-        for tax_id, partition, is_exact in self.files[0].resolve_species(term):
-            names = self.files[0].get_taxon_names(tax_id)
-            entries += [[tax_id, is_exact, partition, names]]
-        return entries
-
     def fasta_all(self, group):
+        """
+        Method collects all families in a group
+        Used to output all curated data from a db
+        """
         seen = set()
         for file in self.files:
             if GROUP_FAMILIES + group in self.files[file].file:
                 for name in families_iterator(
-                    self.files[file].file[GROUP_FAMILIES + group], "Families" + group
+                    self.files[file].file[GROUP_FAMILIES + group],
+                    GROUP_FAMILIES + group,
                 ):
                     if name not in seen:
                         seen.add(name)
                         yield self.get_family_by_accession(name)
 
-    # Wrapper methods ---------------------------------------------------------------------------------------
-    def get_counts(self):
-        counts = {"consensus": 0, "hmm": 0, "file": 0}
-        for file in self.files:
-            file_counts = self.files[file].get_counts()
-            counts["consensus"] += file_counts["consensus"]
-            counts["hmm"] += file_counts["hmm"]
-            counts["file"] += 1
-        return counts
-
-    def get_lineage(self, tax_id, **kwargs):
-        """Wrapper method for the Root get_lineage method"""
-        return self.files[0].get_lineage(tax_id, **kwargs)
+    # Root Wrapper methods ---------------------------------------------------------------------------------------
+    def resolve_names(self, term):
+        """Method to find names matching the search term and map them to the correct file"""
+        entries = []
+        for tax_id, partition, is_exact in self.files[0].resolve_species(term):
+            names = self.files[0].get_taxon_names(tax_id)
+            entries += [[tax_id, is_exact, partition, names]]
+        return entries
 
     def get_lineage_path(self, tax_id, **kwargs):
         """method used in EMBL exports"""
@@ -1164,21 +1259,42 @@ class FamDB:
         )
 
     def get_sanitized_name(self, tax_id):
-        """method used in EMBL exports"""
+        """Wrapper method for the Root get_sanitized_name method"""
         return self.files[0].get_sanitized_name(tax_id)
 
+    def get_lineage(self, tax_id, **kwargs):
+        """Wrapper method for the Root get_lineage method"""
+        return self.files[0].get_lineage(tax_id, **kwargs)
+
     def resolve_one_species(self, term):
+        """Wrapper method for the Root resolve_one_species method"""
         return self.files[0].resolve_one_species(term)
 
     def get_metadata(self):
+        """Wrapper method for the Root get_metadata method"""
         return self.files[0].get_metadata()
 
     def get_taxon_name(self, tax_id, kind):
+        """Wrapper method for the Root get_taxon_name method"""
         return self.files[0].get_taxon_name(tax_id, kind)
 
+    def find_taxon(self, tax_id):
+        """Wrapper method for the Root find_taxon method"""
+        return self.files[0].find_taxon(tax_id)
+
+    def get_all_taxa_names(self):
+        """Wrapper method for the Root get_all_taxa_names method"""
+        return self.files[0].get_all_taxa_names()
+
+    def get_repeatpeps(self):
+        """Wrapper method for the Root get_repeatpeps method"""
+        return self.files[0].get_repeatpeps()
+
+    # Leaf Wrapper methods ---------------------------------------------------------------------------------------
     def get_families_for_taxon(
         self, tax_id, partition, curated_only=False, uncurated_only=False
     ):
+        """Wrapper method to call the Leaf get_families_for_taxon on a specific file"""
         if partition in self.files:
             return self.files[partition].get_families_for_taxon(
                 tax_id, curated_only, uncurated_only
@@ -1187,6 +1303,7 @@ class FamDB:
             return None
 
     def get_family_by_accession(self, accession):
+        """Wrapper method to call the Leaf get_family_by_accession"""
         for file in self.files:
             fam = self.files[file].get_family_by_accession(accession)
             if fam:
@@ -1194,82 +1311,27 @@ class FamDB:
         return None
 
     def get_family_by_name(self, accession):
+        """Wrapper method to call the Leaf get_family_by_name"""
         for file in self.files:
             fam = self.files[file].get_family_by_name(accession)
             if fam:
                 return fam
         return None
 
-    def find_taxon(self, tax_id):
-        return self.files[0].find_taxon(tax_id)
-
     def finalize(self):
+        """Wrapper method to call the Leaf finalize"""
         for file in self.files:
             self.files[file].finalize()
 
-    def set_db_info(self, name, version, date, desc, copyright_text):
-        for file in self.files:
-            partition_num = self.files[file].get_partition_num()
-            file_info = self.files[file].get_file_info()
-            self.files[file].set_metadata(
-                partition_num,
-                file_info,
-                name,
-                version,
-                date,
-                desc,
-                copyright_text,
-            )
-
-    def append_start_changelog(self, message):
-        """
-        Called when an append command starts
-        """
-        rec = {}
-        for file in self.files:
-            time_stamp = self.files[file].update_changelog(message)
-            rec[file] = time_stamp
-        return rec
-
-    def append_finish_changelog(self, message, rec):
-        """
-        Called when an append command finishes successfully
-        """
-        for file in rec:
-            self.files[file]._verify_change(rec[file], message)
-
-    def update_changelog(self, added_ctr, total_ctr, file_counts, infile):
-        """Used to add a context log after an append command"""
-        filename = infile.split("/")[-1]
-        for file in self.files:
-            if file in file_counts:
-                self.files[file].update_changelog(
-                    f"Added {file_counts[file]} of {total_ctr} Families From {filename}",
-                    verified=True,
-                )
-            else:
-                self.files[file].update_changelog(
-                    f"Found No Relevant Families From {filename}", verified=True
-                )
-            if file == 0:
-                self.files[file].update_changelog(
-                    f"Total Families {added_ctr} of {total_ctr} Added To Local Files From {filename}",
-                    verified=True,
-                )
-
     def filter_stages(self, accession, stages):
+        """Wrapper method to call the Leaf filter_stages"""
         for file in self.files:
             fam = self.files[file].get_family_by_accession(accession)
             if fam:
                 return self.files[file].filter_stages(accession, stages)
 
-    def get_all_taxa_names(self):
-        return self.files[0].get_all_taxa_names()
-
-    def get_repeatpeps(self):
-        return self.files[0].get_repeatpeps()
-
     def update_description(self, new_desc):
+        """Wrapper method to call the Leaf update_description"""
         for file in self.files:
             self.files[file].update_description(new_desc)
 
@@ -1289,6 +1351,8 @@ class FamDB:
     @staticmethod
     def read_embl_families(filename, lookup, header_cb=None):
         """
+        This method is here because famdb_data_loaders.py imports dfamorm, which is not available to users
+
         Iterates over Family objects from the .embl file 'filename'. The format
         should match the output format of to_embl(), but this is not thoroughly
         tested.

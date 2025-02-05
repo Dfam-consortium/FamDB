@@ -526,10 +526,12 @@ def command_fasta_all(args):
 
 
 def command_repeatpeps(args):
+    """prints the RepeatPeps file"""
     print(args.db_dir.get_repeatpeps())
 
 
 def command_edit_description(args):
+    """Updates the db description"""
     args.db_dir.update_description(args.new)
 
 
@@ -617,6 +619,7 @@ def command_append(args):
 
 
 def build_args():
+    """builds and parses the command line args"""
     parser = argparse.ArgumentParser(
         description=FILE_DESCRIPTION,
         formatter_class=argparse.RawDescriptionHelpFormatter,
