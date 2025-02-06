@@ -17,6 +17,7 @@ DATA_VAL_CHILDREN = "Val_Children"
 DATA_VAL_PARENT = "Val_Parent"
 DATA_TAXANAMES = "TaxaNames"
 DATA_PARTITION = "Partition"
+DATA_NAMES_CACHE = "NamesCache"
 
 # DF####### or DF########## or DR####### or DR##########
 dfam_acc_pat = re.compile("^(D[FR])([0-9]{2})([0-9]{2})([0-9]{2})[0-9]{3,6}$")

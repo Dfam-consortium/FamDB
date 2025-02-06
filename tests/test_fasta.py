@@ -138,19 +138,19 @@ ACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCA
 """,
             )
 
-        self.assertEqual(
-            fam.to_fasta(
-                db,
-                use_accession=True,
-                include_class_in_name=True,
-                do_reverse_complement=True,
-                buffer=[23, 39],
-            ),
-            """\
+            self.assertEqual(
+                fam.to_fasta(
+                    db,
+                    use_accession=True,
+                    include_class_in_name=True,
+                    do_reverse_complement=True,
+                    buffer=[23, 39],
+                ),
+                """\
 >TEST0007.7_23_39#buffer (anti) name=Test7 @Order @Other_Order
 GCAACGTTGCAACGTTG
 """,
-        )
+            )
 
     def test_missing_consensus(self):
         fam = Family()

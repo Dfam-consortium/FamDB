@@ -24,6 +24,7 @@ from famdb_globals import (
     DATA_VAL_PARENT,
     DATA_TAXANAMES,
     DATA_PARTITION,
+    DATA_NAMES_CACHE,
     DESCRIPTION,
 )
 from famdb_helper_methods import (
@@ -337,7 +338,7 @@ class FamDBLeaf:
                 stage = stage.split("[")[0]
                 add_stage_link(stage, family.accession)
 
-        LOGGER.debug("Added family %s (%s)", family.name, family.accession)
+        LOGGER.debug(f"Added family {family.name} ({family.accession})")
 
     # Taxonomy Nodes
     @_change_logger
@@ -351,7 +352,7 @@ class FamDBLeaf:
             count += 1
             self.file.require_group(GROUP_LOOKUP_BYTAXON).require_group(str(node))
         delta = time.perf_counter() - start
-        LOGGER.info("Wrote %d taxonomy nodes in %f", count, delta)
+        LOGGER.info(f"Wrote {count} taxonomy nodes in {delta}")
 
     # Data Access Methods ------------------------------------------------------------------------------------------------
     def has_taxon(self, tax_id):
@@ -397,6 +398,7 @@ class FamDBLeaf:
         # TODO: This will also suffer the performance issues seen with
         #       other groups that exceed 200-500k entries in a single group
         #       at some point.  This needs to be refactored to scale appropriately.
+        # There are 24,768 names as of Dfam 3.8 - Anthony
         entry = self.file[GROUP_LOOKUP_BYNAME].get(name)
         return get_family(entry)
 
@@ -406,22 +408,7 @@ class FamDBRoot(FamDBLeaf):
         super(FamDBRoot, self).__init__(filename, mode)
 
         if mode == "r" or mode == "r+":
-            # self.names_dump = {
-            #     partition: json.loads(
-            #         self.file[f"{GROUP_TAXANAMES}/{partition}"][DATA_TAXANAMES][0]
-            #     )
-            #     for partition in self.file[GROUP_TAXANAMES]
-            # }
-            names_dump = {}
-            nodes = self.file[GROUP_NODES]
-            for node in nodes:
-                names = [name.decode() for name in nodes[node][DATA_TAXANAMES][0]]
-                partition = nodes[node][DATA_PARTITION][0]
-                if partition not in names_dump:
-                    names_dump[partition] = {}
-                names_dump[partition][node] = names
-            
-            self.names_dump = names_dump
+            self.names_dump = json.loads(self.file[DATA_NAMES_CACHE][()].decode())
             self.file_info = self.get_file_info()
             self.__lineage_cache = {}
 
@@ -431,11 +418,16 @@ class FamDBRoot(FamDBLeaf):
         Takes a map of TaxaNodes
         Writes taxonomy nodes to the database.
         Includes parent-child relationships
+        Also cache all taxa names as a node:[names] json string
+        This cache is loaded on __init__ to speed up search times
         """
         LOGGER.info(f"Writing taxonomy tree in partition 0")
         start = time.perf_counter()
 
-        partition_map = {node: partition for partition in nodes for node in nodes[partition] }
+        partition_map = {
+            node: partition for partition in nodes for node in nodes[partition]
+        }
+        names_dump = {}
         count = 0
         for node in tax_db:
             count += 1
@@ -452,15 +444,19 @@ class FamDBRoot(FamDBLeaf):
             group.create_dataset(DATA_CHILDREN, data=numpy.array(child_ids))
 
             names = tax_db[node].names
-            group.create_dataset(
-                DATA_TAXANAMES, data=numpy.array(names, dtype='S')
-            )
+            group.create_dataset(DATA_TAXANAMES, data=numpy.array(names, dtype="S"))
+            names_dump[node] = names
             group.create_dataset(
                 DATA_PARTITION, data=numpy.array([partition_map[node]])
             )
-                    
+
+        LOGGER.info(f"Writing Name Cache String")
+        self.file.create_dataset(
+            DATA_NAMES_CACHE, data=numpy.array(json.dumps(names_dump), dtype="S")
+        )
+
         delta = time.perf_counter() - start
-        LOGGER.info("Wrote %d taxonomy nodes in %f", count, delta)
+        LOGGER.info(f"Wrote {count} taxonomy nodes in {delta}")
 
     @FamDBLeaf._change_logger
     def update_pruned_taxa(self, tree):
@@ -529,7 +525,10 @@ class FamDBRoot(FamDBLeaf):
         nodes = self.file[GROUP_NODES]
         node = nodes.get(str(tax_id))
         if node:
-            return [[name.decode() for name in name_pair] for name_pair in node[DATA_TAXANAMES][:]]
+            return [
+                [name.decode() for name in name_pair]
+                for name_pair in node[DATA_TAXANAMES][:]
+            ]
         return []
 
     def get_taxon_name(self, tax_id, kind="scientific name"):
@@ -543,8 +542,11 @@ class FamDBRoot(FamDBLeaf):
         node = nodes.get(str(tax_id))
         if not node:
             return failure
-        
-        names = [[name.decode() for name in name_pair] for name_pair in node[DATA_TAXANAMES][:]]
+
+        names = [
+            [name.decode() for name in name_pair]
+            for name_pair in node[DATA_TAXANAMES][:]
+        ]
         partition = node[DATA_PARTITION][0]
 
         if names and partition is not None:
@@ -553,7 +555,7 @@ class FamDBRoot(FamDBLeaf):
                     return [name[1], partition]
         return failure
 
-    def search_taxon_names(self, text, kind=None, search_similar=False):  # TODO NAMES
+    def search_taxon_names(self, text, kind=None, search_similar=False):
         """
         Searches 'self' for taxons with a name containing 'text', returning an
         iterator that yields a tuple of (id, is_exact, partition) for each matching node.
@@ -568,31 +570,31 @@ class FamDBRoot(FamDBLeaf):
         """
 
         text = text.lower()
-        for partition in self.names_dump:
-            for tax_id, names in self.names_dump[partition].items():
-                matches = False
-                exact = False
-                for name_cls, name_txt in names:
-                    name_txt = name_txt.lower()
-                    if kind is None or kind == name_cls:
-                        if text == name_txt:
-                            matches = True
-                            exact = True
-                        elif name_txt.startswith(text + " <"):
-                            matches = True
-                            exact = True
-                        elif text == sanitize_name(name_txt):
-                            matches = True
-                            exact = True
-                        elif text in name_txt:
-                            matches = True
-                        elif search_similar and sounds_like(text, name_txt):
-                            matches = True
+        for tax_id, names in self.names_dump.items():
+            matches = False
+            exact = False
+            for name_cls, name_txt in names:
+                name_txt = name_txt.lower()
+                if kind is None or kind == name_cls:
+                    if text == name_txt:
+                        matches = True
+                        exact = True
+                    elif name_txt.startswith(text + " <"):
+                        matches = True
+                        exact = True
+                    elif text == sanitize_name(name_txt):
+                        matches = True
+                        exact = True
+                    elif text in name_txt:
+                        matches = True
+                    elif search_similar and sounds_like(text, name_txt):
+                        matches = True
 
-                if matches:
-                    yield [int(tax_id), exact, int(partition)]
+            if matches:
+                partition = self.find_taxon(tax_id)
+                yield [int(tax_id), exact, partition]
 
-    def resolve_species(self, term, kind=None, search_similar=False):  # TODO NAMES
+    def resolve_species(self, term, kind=None, search_similar=False):
         """
         Resolves 'term' as a species or clade in 'self'. If 'term' is a number,
         it is a taxon id. Otherwise, it will be searched for in 'self' in the
@@ -610,9 +612,9 @@ class FamDBRoot(FamDBLeaf):
         # Try as a number
         try:
             tax_id = int(term)
-            for partition in self.names_dump:
-                if str(tax_id) in self.names_dump[partition]:
-                    return [[tax_id, int(partition), True]]
+            if str(tax_id) in self.names_dump:
+                partition = self.find_taxon(tax_id)
+                return [[tax_id, partition, True]]
 
             return []
         except ValueError:
@@ -780,29 +782,24 @@ up with the 'names' command.""",
         Returns the partition number containing the taxon
         """
         node = self.file[GROUP_NODES].get(str(tax_id))
-        if node:        
+        if node:
             return int(node[DATA_PARTITION][0])
-        return None        
+        return None
 
-    def get_all_taxa_names(self):  # TODO NAMES
+    def get_all_taxa_names(self):
         """
         Returns all taxa names in database.
+        Names are cached as taxa : [[name type, name], ...]
+        Names are returned as {sanitized_lowercase_name: taxa...}
         Used for mapping EMBL file names to taxa nodes
         Used in append command
         """
-        taxa = set()
-        for partition in self.names_dump:
-            for key in self.names_dump[partition].keys():
-                taxa.add(key)
-        sanitized_dict = {}
-        for taxon in taxa:
-            sanitized_dict[
-                self.get_taxon_name(taxon, kind="sanitized scientific name")[0].lower()
-            ] = taxon
-            sanitized_dict[
-                self.get_taxon_name(taxon, kind="sanitized synonym")[0].lower()
-            ] = taxon
-        return sanitized_dict
+        return {
+            name[1].lower(): taxon
+            for taxon, names in self.names_dump
+            for name in names
+            if name[0] == "sanitized scientific name" or name[0] == "sanitized synonym"
+        }
 
 
 class FamDB:
@@ -1418,10 +1415,7 @@ class FamDB:
                                     family.clades += [tax_id]
                                 else:
                                     LOGGER.warning(
-                                        "Could not find taxon for '%s' upper or lower: line=%s, and ID=%s",
-                                        name,
-                                        value,
-                                        family.accession,
+                                        f"Could not find taxon for '{name}' upper or lower: line={value}, and ID={family.accession}"
                                     )
                 matches = re.search(r"SearchStages:\s*(\S+)", value)
                 if matches:
