@@ -8,14 +8,15 @@ GROUP_LOOKUP_BYNAME = "Lookup/ByName"
 GROUP_LOOKUP_BYACC = "Lookup/ByAccession"
 GROUP_LOOKUP_BYSTAGE = "Lookup/ByStage"
 GROUP_LOOKUP_BYTAXON = "Lookup/ByTaxon"
-GROUP_NODES = "Taxonomy/Nodes"
-GROUP_TAXANAMES = "Taxonomy/Partitions"
+GROUP_NODES = "Taxonomy"
 GROUP_REPEATPEPS = "RepeatPeps"
 GROUP_FILE_HISTORY = "File_History"
 DATA_CHILDREN = "Children"
 DATA_PARENT = "Parent"
 DATA_VAL_CHILDREN = "Val_Children"
 DATA_VAL_PARENT = "Val_Parent"
+DATA_TAXANAMES = "TaxaNames"
+DATA_PARTITION = "Partition"
 
 # DF####### or DF########## or DR####### or DR##########
 dfam_acc_pat = re.compile("^(D[FR])([0-9]{2})([0-9]{2})([0-9]{2})[0-9]{3,6}$")

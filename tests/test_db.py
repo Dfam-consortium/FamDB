@@ -26,9 +26,9 @@ class TestDatabase(unittest.TestCase):
         filenames = TestDatabase.filenames
         TestDatabase.filenames = None
 
-        for name in filenames:
-            os.remove(name)
-        os.rmdir(TestDatabase.file_dir)
+        # for name in filenames:
+        #     os.remove(name)
+        # os.rmdir(TestDatabase.file_dir)
 
     def test_get_metadata(self):
         test_info = {

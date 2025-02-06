@@ -133,9 +133,9 @@ def init_db_file(filename):
         write_test_metadata(db)
         db.write_repeatpeps(FAKE_REPPEPS)
 
-        db.write_full_taxonomy(taxa)
+        db.write_full_taxonomy(taxa, NODES)
         db.write_taxonomy(NODES[0])
-        db.write_taxa_names(taxa, NODES)
+        # db.write_taxa_names(taxa, NODES)
 
         db.add_family(families[0])
         db.add_family(families[1])
@@ -180,8 +180,8 @@ def init_single_file(n, db_dir, change_id=False):
     taxa = build_taxa(TAX_DB)
     if n == 0:
         file = FamDBRoot(filename, "w")
-        file.write_full_taxonomy(taxa)
-        file.write_taxa_names(taxa, {n: NODES[n] for n in NODES})
+        file.write_full_taxonomy(taxa, NODES)
+        # file.write_taxa_names(taxa, {n: NODES[n] for n in NODES})
     else:
         file = FamDBLeaf(filename, "w")
     if change_id:

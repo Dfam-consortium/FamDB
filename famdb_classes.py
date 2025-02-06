@@ -16,13 +16,14 @@ from famdb_globals import (
     GROUP_LOOKUP_BYSTAGE,
     GROUP_LOOKUP_BYTAXON,
     GROUP_NODES,
-    GROUP_TAXANAMES,
     GROUP_FILE_HISTORY,
     GROUP_REPEATPEPS,
     DATA_CHILDREN,
     DATA_PARENT,
     DATA_VAL_CHILDREN,
     DATA_VAL_PARENT,
+    DATA_TAXANAMES,
+    DATA_PARTITION,
     DESCRIPTION,
 )
 from famdb_helper_methods import (
@@ -108,7 +109,6 @@ class FamDBLeaf:
             "__write_metadata": "File Initialized",
             "set_metadata": "Metadata Set",
             "add_family": "Family Added",
-            "write_taxa_names": "Taxonomy Names Written",
             "write_repeatpeps": "RepeatPeps Written",
             "write_taxonomy": "Taxonomy Nodes Written",
             "write_full_taxonomy": "Taxonomy Nodes Written",
@@ -406,17 +406,27 @@ class FamDBRoot(FamDBLeaf):
         super(FamDBRoot, self).__init__(filename, mode)
 
         if mode == "r" or mode == "r+":
-            self.names_dump = {
-                partition: json.loads(
-                    self.file[f"{GROUP_TAXANAMES}/{partition}"]["TaxaNames"][0]
-                )
-                for partition in self.file[GROUP_TAXANAMES]
-            }
+            # self.names_dump = {
+            #     partition: json.loads(
+            #         self.file[f"{GROUP_TAXANAMES}/{partition}"][DATA_TAXANAMES][0]
+            #     )
+            #     for partition in self.file[GROUP_TAXANAMES]
+            # }
+            names_dump = {}
+            nodes = self.file[GROUP_NODES]
+            for node in nodes:
+                names = [name.decode() for name in nodes[node][DATA_TAXANAMES][0]]
+                partition = nodes[node][DATA_PARTITION][0]
+                if partition not in names_dump:
+                    names_dump[partition] = {}
+                names_dump[partition][node] = names
+            
+            self.names_dump = names_dump
             self.file_info = self.get_file_info()
             self.__lineage_cache = {}
 
     @FamDBLeaf._change_logger
-    def write_full_taxonomy(self, tax_db):
+    def write_full_taxonomy(self, tax_db, nodes):
         """
         Takes a map of TaxaNodes
         Writes taxonomy nodes to the database.
@@ -425,6 +435,7 @@ class FamDBRoot(FamDBLeaf):
         LOGGER.info(f"Writing taxonomy tree in partition 0")
         start = time.perf_counter()
 
+        partition_map = {node: partition for partition in nodes for node in nodes[partition] }
         count = 0
         for node in tax_db:
             count += 1
@@ -439,6 +450,15 @@ class FamDBRoot(FamDBLeaf):
             for child in tax_db[node].children:
                 child_ids += [int(child.tax_id)]
             group.create_dataset(DATA_CHILDREN, data=numpy.array(child_ids))
+
+            names = tax_db[node].names
+            group.create_dataset(
+                DATA_TAXANAMES, data=numpy.array(names, dtype='S')
+            )
+            group.create_dataset(
+                DATA_PARTITION, data=numpy.array([partition_map[node]])
+            )
+                    
         delta = time.perf_counter() - start
         LOGGER.info("Wrote %d taxonomy nodes in %f", count, delta)
 
@@ -469,26 +489,9 @@ class FamDBRoot(FamDBLeaf):
                 )
 
     @FamDBLeaf._change_logger
-    def write_taxa_names(self, tax_db, nodes):  # TODO NAMES
-        """
-        Writes Names -> taxa maps per partition
-        """
-        LOGGER.info("Writing TaxaNames")
-        for partition in nodes:
-            taxnames_group = self.file.require_group(GROUP_TAXANAMES + f"/{partition}")
-            names_dump = {}
-            for node in nodes[partition]:
-                names_dump[node] = tax_db[node].names
-            names_data = numpy.array([json.dumps(names_dump)])
-            names_dset = taxnames_group.create_dataset(
-                "TaxaNames", shape=names_data.shape, dtype=FamDBLeaf.dtype_str
-            )
-            names_dset[:] = names_data
-
-    @FamDBLeaf._change_logger
     def write_repeatpeps(self, infile):
         """
-        Writiing RepeatPeps to its own group as one big string.
+        Writing RepeatPeps to its own group as one big string.
         For now, only RepeatModeler consumes this, and does so
         by loading the whole file, so no need to do more
         """
@@ -518,29 +521,37 @@ class FamDBRoot(FamDBLeaf):
     #     """Returns a list of names of families in the database."""
     #     return sorted(self.file[GROUP_LOOKUP_BYNAME].keys(), key=str.lower)
 
-    def get_taxon_names(self, tax_id):  # TODO NAMES
+    def get_taxon_names(self, tax_id):
         """
         Checks names_dump for each partition and returns a list of [name_class, name_value, partition]
         of the taxon given by 'tax_id'.
         """
-        for partition in self.names_dump:
-            names = self.names_dump[partition].get(str(tax_id))
-            if names:
-                return names
+        nodes = self.file[GROUP_NODES]
+        node = nodes.get(str(tax_id))
+        if node:
+            return [[name.decode() for name in name_pair] for name_pair in node[DATA_TAXANAMES][:]]
         return []
 
-    def get_taxon_name(self, tax_id, kind="scientific name"):  # TODO NAMES
+    def get_taxon_name(self, tax_id, kind="scientific name"):
         """
         Checks names_dump for each partition and returns eturns the first name of the given 'kind'
         for the taxon given by 'tax_id', or None if no such name was found.
         """
-        for partition in self.names_dump:
-            names = self.names_dump[partition].get(str(tax_id))
-            if names is not None:
-                for name in names:
-                    if name[0] == kind:
-                        return [name[1], int(partition)]
-        return "Not Found", "N/A"
+        failure = ("Not Found", "N/A")
+
+        nodes = self.file[GROUP_NODES]
+        node = nodes.get(str(tax_id))
+        if not node:
+            return failure
+        
+        names = [[name.decode() for name in name_pair] for name_pair in node[DATA_TAXANAMES][:]]
+        partition = node[DATA_PARTITION][0]
+
+        if names and partition is not None:
+            for name in names:
+                if name[0] == kind:
+                    return [name[1], partition]
+        return failure
 
     def search_taxon_names(self, text, kind=None, search_similar=False):  # TODO NAMES
         """
@@ -764,14 +775,14 @@ up with the 'names' command.""",
 
         return lineage
 
-    def find_taxon(self, tax_id):  # TODO NAMES
+    def find_taxon(self, tax_id):
         """
         Returns the partition number containing the taxon
         """
-        for partition in self.names_dump:
-            if str(tax_id) in self.names_dump[partition]:
-                return int(partition)
-        return None
+        node = self.file[GROUP_NODES].get(str(tax_id))
+        if node:        
+            return int(node[DATA_PARTITION][0])
+        return None        
 
     def get_all_taxa_names(self):  # TODO NAMES
         """
