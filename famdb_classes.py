@@ -25,6 +25,17 @@ from famdb_globals import (
     DATA_TAXANAMES,
     DATA_PARTITION,
     DATA_NAMES_CACHE,
+    META_DB_VERSION,
+    META_DB_DESCRIPTION,
+    META_DB_COPYRIGHT,
+    META_DB_DATE,
+    META_DB_NAME,
+    META_CREATED,
+    META_META,
+    META_UUID,
+    META_FILE_INFO,
+    META_FAMDB_VERSION,
+    META_FILE_MAP,
     DESCRIPTION,
 )
 from famdb_helper_methods import (
@@ -129,9 +140,9 @@ class FamDBLeaf:
     @_change_logger
     def __write_metadata(self):
         """Sets file data during writing. Called during file creation"""
-        self.file.attrs["famdb_version"] = FAMDB_VERSION
-        self.file.attrs["created"] = str(datetime.datetime.now())
-        self.file.attrs["db_description"] = DESCRIPTION
+        self.file.attrs[META_FAMDB_VERSION] = FAMDB_VERSION
+        self.file.attrs[META_CREATED] = str(datetime.datetime.now())
+        self.file.attrs[META_DB_DESCRIPTION] = DESCRIPTION
 
     @_change_logger
     def set_metadata(self, partition_num, map_str, name, version, date, copyright_text):
@@ -140,12 +151,12 @@ class FamDBLeaf:
         Stores information about other files as json string
         Sets partition number (key to file info) and bool if is root file or not
         """
-        self.file.attrs["db_name"] = name
-        self.file.attrs["db_version"] = version
-        self.file.attrs["db_date"] = date
-        self.file.attrs["db_copyright"] = copyright_text
+        self.file.attrs[META_DB_NAME] = name
+        self.file.attrs[META_DB_VERSION] = version
+        self.file.attrs[META_DB_DATE] = date
+        self.file.attrs[META_DB_COPYRIGHT] = copyright_text
 
-        self.file.attrs["file_info"] = json.dumps(map_str)
+        self.file.attrs[META_FILE_INFO] = json.dumps(map_str)
 
         self.file.attrs["partition_num"] = partition_num
         self.file.attrs["root"] = partition_num == "0" or partition_num == 0
@@ -158,7 +169,7 @@ class FamDBLeaf:
     @_change_logger
     def update_description(self, new_desc):
         """Updates the description. Available to the user and during the append command"""
-        self.file.attrs["db_description"] = new_desc
+        self.file.attrs[META_DB_DESCRIPTION] = new_desc
 
     # Attribute Getters -----------------------------------------------------------------------------------------------
     def get_partition_num(self):
@@ -167,7 +178,7 @@ class FamDBLeaf:
 
     def get_file_info(self):
         """returns dictionary containing information regarding other related files"""
-        return json.loads(self.file.attrs["file_info"])
+        return json.loads(self.file.attrs[META_FILE_INFO])
 
     def is_root(self):
         """Tests if file is root file"""
@@ -181,18 +192,18 @@ class FamDBLeaf:
         """
         if "db_name" not in self.file.attrs:
             return None
-        num = self.file.attrs["partition_num"]
-        partition = self.get_file_info()["file_map"][str(num)]
+        num = self.get_partition_num()
+        partition = self.get_file_info()[META_FILE_MAP][str(num)]
         return {
-            "famdb_version": self.file.attrs["famdb_version"],
-            "created": self.file.attrs["created"],
+            "famdb_version": self.file.attrs[META_FAMDB_VERSION],
+            "created": self.file.attrs[META_CREATED],
             "partition_name": partition["T_root_name"],
             "partition_detail": ", ".join(partition["F_roots_names"]),
-            "name": self.file.attrs["db_name"],
-            "db_version": self.file.attrs["db_version"],
-            "date": self.file.attrs["db_date"],
-            "description": self.file.attrs["db_description"],
-            "copyright": self.file.attrs["db_copyright"],
+            "name": self.file.attrs[META_DB_NAME],
+            "db_version": self.file.attrs[META_DB_VERSION],
+            "date": self.file.attrs[META_DB_DATE],
+            "description": self.file.attrs[META_DB_DESCRIPTION],
+            "copyright": self.file.attrs[META_DB_COPYRIGHT],
         }
 
     def get_history(self):
@@ -421,11 +432,11 @@ class FamDBRoot(FamDBLeaf):
         Also cache all taxa names as a node:[names] json string
         This cache is loaded on __init__ to speed up search times
         """
-        LOGGER.info(f"Writing taxonomy tree in partition 0")
+        LOGGER.info(f"Writing Full Taxonomy Tree Root File")
         start = time.perf_counter()
 
         partition_map = {
-            node: partition for partition in nodes for node in nodes[partition]
+            node: int(partition) for partition in nodes for node in nodes[partition]
         }
         names_dump = {}
         count = 0
@@ -456,7 +467,7 @@ class FamDBRoot(FamDBLeaf):
         )
 
         delta = time.perf_counter() - start
-        LOGGER.info(f"Wrote {count} taxonomy nodes in {delta}")
+        LOGGER.info(f"Wrote {count} taxonomy nodes in full tree in {delta}")
 
     @FamDBLeaf._change_logger
     def update_pruned_taxa(self, tree):
@@ -851,7 +862,6 @@ class FamDB:
 
         # Make sure we have *only* one database present
         if len(root_prefixes) > 1:
-            print(root_prefixes)
 
             LOGGER.error(
                 "Multiple famdb root partitions were found in this export directory: "
@@ -873,21 +883,20 @@ class FamDB:
                     self.files[idx] = FamDBLeaf(f"{db_dir}/{file}", mode)
 
         file_info = self.files[0].get_file_info()
-
         self.db_dir = db_dir
-        self.file_map = file_info["file_map"]
-        self.uuid = file_info["meta"]["partition_id"]
-        self.db_version = file_info["meta"]["db_version"]
-        self.db_date = file_info["meta"]["db_date"]
+        self.file_map = file_info[META_FILE_MAP]
+        self.uuid = file_info[META_META][META_UUID]
+        self.db_version = file_info[META_META][META_DB_VERSION]
+        self.db_date = file_info[META_META][META_DB_DATE]
 
         partition_err_files = []
         for file in self.files:
-            meta = self.files[file].get_file_info()["meta"]
+            meta = self.files[file].get_file_info()[META_META]
 
             if (
-                self.uuid != meta["partition_id"]
-                or self.db_version != meta["db_version"]
-                or self.db_date != meta["db_date"]
+                self.uuid != meta[META_UUID]
+                or self.db_version != meta[META_DB_VERSION]
+                or self.db_date != meta[META_DB_DATE]
             ):
                 partition_err_files += [file]
         if partition_err_files:
@@ -920,11 +929,12 @@ class FamDB:
             """Recurs up the tree ancestor by ancestor until it finds the nearest ancestor with data"""
             node = tree[id]
             if node.parent_id:
-                parent = tree[node.parent_id]
-                if parent.val:
-                    return parent.tax_id
-                else:
-                    return traverse_val_parents(tree, parent.tax_id)
+                parent = tree.get(node.parent_id)
+                if parent:
+                    if parent.val:
+                        return parent.tax_id
+                    else:
+                        return traverse_val_parents(tree, parent.tax_id)
             else:
                 return None
 
@@ -935,10 +945,11 @@ class FamDB:
             """
             node = tree[id]
             if node.parent_id:
-                parent = tree[node.parent_id]
-                parent.val_children += [node_id]
-                if not parent.val:
-                    traverse_val_children(tree, parent.tax_id, node_id)
+                parent = tree.get(node.parent_id)
+                if parent:
+                    parent.val_children += [node_id]
+                    if not parent.val:
+                        traverse_val_children(tree, parent.tax_id, node_id)
 
         # read taxonomy tree
         tree = {

@@ -5,7 +5,18 @@ Fakes, stubs, etc. for use in testing FamDB
 from copy import deepcopy
 from famdb_classes import FamDBLeaf, FamDBRoot
 from famdb_helper_classes import TaxNode, Family
-from famdb_globals import FAMDB_VERSION, DESCRIPTION
+from famdb_globals import (
+    FAMDB_VERSION,
+    DESCRIPTION,
+    META_META,
+    META_UUID,
+    META_DB_VERSION,
+    META_DB_DATE,
+    META_FILE_MAP,
+    META_FAMDB_VERSION,
+    META_CREATED,
+    META_DB_DESCRIPTION,
+)
 
 """
         1
@@ -40,8 +51,8 @@ COMMON_NAMES = {
 NODES = {0: [1, 2, 3], 1: [4, 6], 2: [5, 7]}
 
 FILE_INFO = {
-    "meta": {"partition_id": "uuidXX", "db_version": "V1", "db_date": "2020-07-15"},
-    "file_map": {
+    META_META: {META_UUID: "uuidXX", META_DB_VERSION: "V1", META_DB_DATE: "2020-07-15"},
+    META_FILE_MAP: {
         "0": {
             "T_root": 1,
             "filename": "unittest.0.h5",
@@ -95,9 +106,9 @@ def make_family(acc, clades, consensus, model):
 
 def write_test_metadata(db):
     # Override setting of format metadata for testing
-    db.file.attrs["famdb_version"] = FAMDB_VERSION
-    db.file.attrs["created"] = "<creation date>"
-    db.file.attrs["db_description"] = DESCRIPTION
+    db.file.attrs[META_FAMDB_VERSION] = FAMDB_VERSION
+    db.file.attrs[META_CREATED] = "<creation date>"
+    db.file.attrs[META_DB_DESCRIPTION] = DESCRIPTION
 
 
 def init_db_file(filename):
@@ -135,7 +146,6 @@ def init_db_file(filename):
 
         db.write_full_taxonomy(taxa, NODES)
         db.write_taxonomy(NODES[0])
-        # db.write_taxa_names(taxa, NODES)
 
         db.add_family(families[0])
         db.add_family(families[1])
@@ -181,12 +191,11 @@ def init_single_file(n, db_dir, change_id=False):
     if n == 0:
         file = FamDBRoot(filename, "w")
         file.write_full_taxonomy(taxa, NODES)
-        # file.write_taxa_names(taxa, {n: NODES[n] for n in NODES})
     else:
         file = FamDBLeaf(filename, "w")
     if change_id:
         file_info = deepcopy(FILE_INFO)
-        file_info["meta"]["partition_id"] = "uuidYY"
+        file_info[META_META][META_UUID] = "uuidYY"
 
     else:
         file_info = deepcopy(FILE_INFO)

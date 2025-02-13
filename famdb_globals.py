@@ -11,6 +11,7 @@ GROUP_LOOKUP_BYTAXON = "Lookup/ByTaxon"
 GROUP_NODES = "Taxonomy"
 GROUP_REPEATPEPS = "RepeatPeps"
 GROUP_FILE_HISTORY = "File_History"
+
 DATA_CHILDREN = "Children"
 DATA_PARENT = "Parent"
 DATA_VAL_CHILDREN = "Val_Children"
@@ -18,6 +19,21 @@ DATA_VAL_PARENT = "Val_Parent"
 DATA_TAXANAMES = "TaxaNames"
 DATA_PARTITION = "Partition"
 DATA_NAMES_CACHE = "NamesCache"
+
+# key variables used in partition and export
+META_DB_VERSION = "db_version"
+META_DB_DESCRIPTION = "db_description"
+META_DB_NAME = "db_name"
+META_DB_DATE = "db_date"
+META_DB_COPYRIGHT = "db_copyright"
+META_CREATED = 'created'
+META_FAMDB_VERSION = 'famdb_version'
+META_META = "meta"
+META_UUID = "uuid"
+META_FILE_MAP = "file_map"
+META_FILE_INFO = "file_info"
+META_FAMDB_VERSION = "famdb_version"
+
 
 # DF####### or DF########## or DR####### or DR##########
 dfam_acc_pat = re.compile("^(D[FR])([0-9]{2})([0-9]{2})([0-9]{2})[0-9]{3,6}$")
