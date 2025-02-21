@@ -555,9 +555,10 @@ def command_append(args):
 
     embl_iter = FamDB.read_embl_families(args.infile, lookup, header_cb=set_header)
 
-    message = f"Adding Data From {args.infile.split('/')[-1]}"
+    message = f"Adding Families From {args.infile.split('/')[-1]}"
     rec = args.db_dir.append_start_changelog(message)
 
+    LOGGER.info(message)
     total_ctr = 0
     added_ctr = 0
     file_counts = {}
@@ -614,7 +615,9 @@ def command_append(args):
     )
 
     # Write the updated counts and metadata
+    LOGGER.info("Rebuilding Sparse Taxonomy Tree")
     args.db_dir.build_pruned_tree()
+    LOGGER.info("Finalizing Files")
     args.db_dir.finalize()
 
 
@@ -886,20 +889,17 @@ def main():  # =================================================================
             if os.path.exists(default_db_dir):
                 args.db_dir = default_db_dir
 
-    if args.db_dir and os.path.isdir(args.db_dir):
-        try:
-            args.db_dir = FamDB(args.db_dir, mode)
-        except:
-            args.db_dir = None
-            # exc_value = sys.exc_info()[1]
-            # LOGGER.error("Error reading file: %s", exc_value)
-            # if LOGGER.getEffectiveLevel() <= logging.DEBUG:
-            #    raise
-            raise
-    else:
-        # LOGGER.info(" No file directory specified, minimal initialization used")
-        # args.db_dir = FamDB(args.db_dir, mode, min=True)
-        LOGGER.error("Please specify a file to operate on with the -i/--file option.")
+    if not (args.db_dir and os.path.exists(args.db_dir) and os.path.isdir(args.db_dir)):
+        LOGGER.error(
+            "Please specify a directory containing FamDB files to operate on with the -i/--file option."
+        )
+        exit(1)
+
+    try:
+        args.db_dir = FamDB(args.db_dir, mode)
+    except:
+        args.db_dir = None
+        raise
 
     if not args.db_dir:
         return

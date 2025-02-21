@@ -481,14 +481,18 @@ class FamDBRoot(FamDBLeaf):
             val_children = [int(child) for child in node.val_children]
             val_parent = int(node.val_parent) if node.val_parent else None
             group = self.file[GROUP_NODES][id]
-            group.require_dataset(
+            if group[DATA_VAL_CHILDREN]:
+                del group[DATA_VAL_CHILDREN]
+            group.create_dataset(
                 DATA_VAL_CHILDREN,
                 data=numpy.array(val_children),
                 shape=(len(val_children),),
                 dtype="i8",
             )
             if val_parent:
-                group.require_dataset(
+                if group[DATA_VAL_PARENT]:
+                    del group[DATA_VAL_PARENT]
+                group.create_dataset(
                     DATA_VAL_PARENT,
                     data=numpy.array([val_parent]),
                     shape=(1,),
@@ -807,7 +811,7 @@ up with the 'names' command.""",
         """
         return {
             name[1].lower(): taxon
-            for taxon, names in self.names_dump
+            for taxon, names in self.names_dump.items()
             for name in names
             if name[0] == "sanitized scientific name" or name[0] == "sanitized synonym"
         }
@@ -1011,9 +1015,9 @@ class FamDB:
                 name,
                 version,
                 date,
-                desc,
                 copyright_text,
             )
+            self.files[file].update_description(desc)
 
     def append_start_changelog(self, message):
         """
