@@ -71,3 +71,48 @@ where `<directory>` is the folder holding the .h5 export files
 where `<command>` is one of `info`, `names`, `lineage`, `families`, or `family`.
 
 See the example files for each command in the `usage` directory.
+```
+$ famdb.py -h
+
+usage: famdb.py [-h] [-l LOG_LEVEL] [-i DB_DIR]
+                {info,names,lineage,families,family,append} ...
+
+This is famdb.py version 2.0.0.
+
+example commands, including the most commonly used options:
+
+  famdb.py [-i DB_DIR] info
+    Prints information about the file including database name and date.
+
+  famdb.py [-i DB_DIR] names 'mus' | head
+    Prints taxonomy nodes that include 'mus', and the corresponding IDs.
+    The IDs and names are stored in the FamDB file, and are based
+    on the NCBI taxonomy database (https://www.ncbi.nlm.nih.gov/taxonomy).
+
+  famdb.py [-i DB_DIR] lineage -ad 'Homo sapiens'
+  famdb.py [-i DB_DIR] lineage -ad --format totals 9606
+    Prints a taxonomic tree including the given clade and optionally ancestors
+    and/or descendants, with the number of repeats indicated at each level of
+    the hierarchy. With the 'totals' format, prints the number of matching
+    ancestral and lineage-specific entries.
+
+  famdb.py [-i DB_DIR] family --format fasta_acc MIR3
+    Exports a single family from the database in one of several formats.
+
+  famdb.py [-i DB_DIR] families -f embl_meta -ad --curated 'Drosophila melanogaster'
+  famdb.py [-i DB_DIR] families -f hmm -ad --curated --class LTR 7227
+    Searches and exports multiple families from the database, in one of several formats.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -l LOG_LEVEL, --log_level LOG_LEVEL
+  -i DB_DIR, --db_dir DB_DIR
+                        specifies the directory to query
+
+subcommands:
+  Specifies the kind of query to perform.
+  For more information on all the possible options for a command, add the --help option after it:
+  famdb.py families --help
+
+  {info,names,lineage,families,family,append}
+```

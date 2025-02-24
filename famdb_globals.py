@@ -32,7 +32,6 @@ META_META = "meta"
 META_UUID = "uuid"
 META_FILE_MAP = "file_map"
 META_FILE_INFO = "file_info"
-META_FAMDB_VERSION = "famdb_version"
 
 
 # DF####### or DF########## or DR####### or DR##########

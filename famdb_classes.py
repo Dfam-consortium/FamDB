@@ -81,9 +81,9 @@ class FamDBLeaf:
         self.mode = mode
 
         try:
-            if reading and self.file.attrs["famdb_version"] != FAMDB_VERSION:
+            if reading and self.file.attrs[META_FAMDB_VERSION] != FAMDB_VERSION:
                 raise Exception(
-                    f"File version is {self.file.attrs['famdb_version']}, but this is version {FAMDB_VERSION}"
+                    f"File version is {self.file.attrs[META_FAMDB_VERSION]}, but this is version {FAMDB_VERSION}"
                 )
         except:
             # This 'except' catches both "version" missing from attrs, or the
