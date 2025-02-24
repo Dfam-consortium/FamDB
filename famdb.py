@@ -604,7 +604,8 @@ def command_append(args):
     if args.description:
         db_info["description"] += "\n" + args.description
 
-    db_info["copyright"] += f"\n\n{header}"
+    if header:
+        db_info["copyright"] += f"\n\n{header}"
 
     args.db_dir.set_db_info(
         db_info["name"],

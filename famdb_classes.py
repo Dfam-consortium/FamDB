@@ -481,7 +481,7 @@ class FamDBRoot(FamDBLeaf):
             val_children = [int(child) for child in node.val_children]
             val_parent = int(node.val_parent) if node.val_parent else None
             group = self.file[GROUP_NODES][id]
-            if group[DATA_VAL_CHILDREN]:
+            if group.get(DATA_VAL_CHILDREN):
                 del group[DATA_VAL_CHILDREN]
             group.create_dataset(
                 DATA_VAL_CHILDREN,
@@ -490,7 +490,7 @@ class FamDBRoot(FamDBLeaf):
                 dtype="i8",
             )
             if val_parent:
-                if group[DATA_VAL_PARENT]:
+                if group.get(DATA_VAL_PARENT):
                     del group[DATA_VAL_PARENT]
                 group.create_dataset(
                     DATA_VAL_PARENT,
