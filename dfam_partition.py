@@ -184,7 +184,7 @@ def generate_T(args, session, db_version, db_date):
             new_parents = list(new_parents)
             tax_ids.extend(new_taxs)
             parent_ids.extend(new_parents)
-   
+
     # query file sizes for each node
     node_query = "SELECT family_clade.dfam_taxdb_tax_id, SUM((family.length + (family.length * 177) + 1160 + OCTET_LENGTH(COALESCE(family.description, '')))) AS byte_est FROM family_clade JOIN family ON family_clade.family_id = family.id GROUP BY family_clade.dfam_taxdb_tax_id"
 
@@ -199,11 +199,11 @@ def generate_T(args, session, db_version, db_date):
             filesizes = {}
             for size in list(sizes):
                 filesizes[size[0]] = int(size[1]) if size[1] else 0
-      
+
         with open(Node_file, "wb") as phandle:
             # pickle with protocol 4 since we require python 3.6.8 or later
             pickle.dump(filesizes, phandle, protocol=4)
-    
+
 
     LOGGER.info("Building Tree")
     # assemble tree from node info
@@ -324,6 +324,10 @@ def main(*args):
     db_version = version_info.dfam_version
     db_date = version_info.dfam_release_date.strftime("%Y-%m-%d")
 
+    # Create PREPPED_DIR if it doesn't exist
+    if not os.path.exists(PREPPED_DIR):
+        os.makedirs(PREPPED_DIR)
+
     # ~ PARSE RMRB.emble ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     if args.rep_base:
         if os.path.exists(rb_taxa_file) and os.path.exists(RB_file):
@@ -405,7 +409,8 @@ def main(*args):
                 chunk_weight = size
 
         # modify T with labels
-        LOGGER.info(f"Chunk {chunk_ctr} Root:{chunk_root}, Weight {chunk_weight}")
+        chunk_weight_gb = chunk_weight / 1_073_741_824
+        LOGGER.info(f"Chunk {chunk_ctr} Root:{chunk_root}, Weight {chunk_weight_gb:,.2f} GB")
         label_chunk(chunk_root)
         subtract_chunk(chunk_root, chunk_weight)
 
@@ -424,7 +429,11 @@ def main(*args):
     # ~ CHUNK 0 ASSIGNMENT / CLEANUP ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # assign remaining T to chunk 0
     chunk_ctr = 0
-    LOGGER.info(f"Chunk 0 Root:1, Weight {T[1]['tot_weight'] + sum}")
+    # This gives an error because sum is a function
+    #LOGGER.info(f"Chunk 0 Root:1, Weight {T[1]['tot_weight'] + sum}")
+    # TODO: Check with Anthony, I don't think this bugfix is correct
+    root_weight_gb = (T[1]['tot_weight'] + root_offset) / 1_073_741_824
+    LOGGER.info(f"Chunk 0 Root:1, Weight {root_weight_gb:,.2f}")
     F[0]["bytes"] += T[1]['tot_weight']
     label_chunk(1)
     subtract_chunk(1, T[1]["tot_weight"])
@@ -497,8 +506,10 @@ def main(*args):
     LOGGER.info("")
     LOGGER.info("F nodes after root tracing:")
     for n in F:
+
+        weight_gb = sum([T[i]['filesize'] for i in F[n]['nodes']]) / 1_073_741_824
         LOGGER.info(
-            f"Chunk: {n}, roots {F[n]['F_roots']}, size: {sum([T[i]['filesize'] for i in F[n]['nodes']])}"
+                f"Chunk: {n}, roots {F[n]['F_roots']}, size: {weight_gb:,.2f} GB"
         )
 
     # ~ OUTPUTS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
