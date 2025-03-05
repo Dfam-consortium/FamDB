@@ -44,7 +44,7 @@
         --log_level, -l   : Control the logger level of the script
         --dfam_config, -c : Dfam Config file
         --version, -v     : Get Dfam Version
-        --chunk_size, -S  : Maximum file size of the partitions in bytes (default 10,000,000,000)
+        --chunk_size, -S  : Maximum file size of the partitions in bytes (default 25,000,000,000)
         --rep_base, -r    : Save space for Repbase Data in the partitions
 
 SEE ALSO: related_script.py
@@ -297,7 +297,7 @@ def main(*args):
     parser.add_argument("-l", "--log_level", default="INFO")
     parser.add_argument("-c", "--dfam_config", dest="dfam_config")
     parser.add_argument("-v", "--version", dest="get_version", action="store_true")
-    parser.add_argument("-S", "--chunk_size", dest="chunk_size", default=130000000000)
+    parser.add_argument("-S", "--chunk_size", dest="chunk_size", default=25000000000)
     parser.add_argument("-r", "--rep_base", dest="rep_base")
     args = parser.parse_args()
 
@@ -392,7 +392,7 @@ def main(*args):
     
     root_offset = sum(root_id_weights)
 
-    S = args.chunk_size
+    S = int(args.chunk_size)
     F = {}
     F[0] = {"T_root": 1, "bytes": root_offset, "nodes": [], "F_roots": []}
 
