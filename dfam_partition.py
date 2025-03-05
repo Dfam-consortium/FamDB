@@ -88,7 +88,9 @@ from sqlalchemy.orm import sessionmaker
 # TODO rm
 tempwork = "/Dfam-umbrella"
 
-import dfam_35 as dfam
+# Import our schemas
+sys.path.append(os.path.join(os.path.dirname(__file__), "../../Schemata/ORMs/python"))
+import dfamorm as dfam
 
 # Import our Libs
 sys.path.append(os.path.join(os.path.dirname(__file__), f"..{tempwork}/Lib"))
@@ -382,15 +384,17 @@ def main(*args):
     # include taxa as default members of root partition
     chunk_ctr = 0
     # defaults: Mammalia
-    default_root_ids = [40674]
+    #default_root_ids = [40674]
+    default_root_ids = []
     root_id_weights = []
     for id in default_root_ids:
         weight = T[id]['tot_weight']
         root_id_weights.append(weight)
         subtract_chunk(id, weight)
         label_chunk(id)
-    
+
     root_offset = sum(root_id_weights)
+    print("Root Offset is : " + str(root_offset))
 
     S = int(args.chunk_size)
     F = {}
@@ -410,7 +414,7 @@ def main(*args):
 
         # modify T with labels
         chunk_weight_gb = chunk_weight / 1_073_741_824
-        LOGGER.info(f"Chunk {chunk_ctr} Root:{chunk_root}, Weight {chunk_weight_gb:,.2f} GB")
+        LOGGER.info(f"Chunk {chunk_ctr} Root:{chunk_root}, Weight {chunk_weight_gb:,.2f} GB or " + str(chunk_weight))
         label_chunk(chunk_root)
         subtract_chunk(chunk_root, chunk_weight)
 
@@ -506,11 +510,43 @@ def main(*args):
     LOGGER.info("")
     LOGGER.info("F nodes after root tracing:")
     for n in F:
-
         weight_gb = sum([T[i]['filesize'] for i in F[n]['nodes']]) / 1_073_741_824
+        tax_names = []
+        for i in F[n]['F_roots']:
+            tax_rec = session.query(dfam.DfamTaxdb).filter(dfam.DfamTaxdb.tax_id == i).one_or_none()
+            tax_name = ""
+            if tax_rec:
+                tax_name = tax_rec.scientific_name
+                if tax_rec.common_name is not None:
+                    tax_name = tax_name + " (" + tax_rec.common_name + ")"
+                tax_name = tax_name + " [" + str(i) + "]"
+            else:
+                tax_rec = session.query(dfam.NcbiTaxdbName) \
+                              .filter(dfam.NcbiTaxdbName.name_class == "scientific name") \
+                              .filter(dfam.NcbiTaxdbName.tax_id == i).one_or_none()
+                if tax_rec:
+                    tax_name = tax_rec.name_txt
+
+                tax_rec = session.query(dfam.NcbiTaxdbName) \
+                              .filter(dfam.NcbiTaxdbName.name_class == "common name") \
+                              .filter(dfam.NcbiTaxdbName.tax_id == i).first()
+                if tax_rec:
+                    tax_name = tax_name + " (" + tax_rec.name_txt + ")"
+
+                tax_name = tax_name  + " [" + str(i) + "]"
+            if tax_name == "":
+                tax_name = str(i)
+            tax_names.append(tax_name)
         LOGGER.info(
-                f"Chunk: {n}, roots {F[n]['F_roots']}, size: {weight_gb:,.2f} GB"
+                f"Chunk: {n}, roots {tax_names}, size: {weight_gb:,.2f} GB"
         )
+
+    tnodes = []
+    for n in F:
+        for i in F[n]['F_roots']:
+            #print(str(i))
+            tnodes.append(i)
+    LOGGER.info(f"All taxa nodes: {tnodes}")
 
     # ~ OUTPUTS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # save F
