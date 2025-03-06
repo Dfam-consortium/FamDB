@@ -836,7 +836,8 @@ class FamDB:
         for file in os.listdir(db_dir):
             if file.endswith(".h5"):
                 h5_files += [file]
-                prefix = file[:-5]
+                splits = file.split('.')
+                prefix = '.'.join(splits[:-2])
                 prefixes.add(prefix)
                 if file.endswith(".0.h5"):
                     root_prefixes.add(prefix)
@@ -896,7 +897,6 @@ class FamDB:
         partition_err_files = []
         for file in self.files:
             meta = self.files[file].get_file_info()[META_META]
-
             if (
                 self.uuid != meta[META_UUID]
                 or self.db_version != meta[META_DB_VERSION]
@@ -955,15 +955,18 @@ class FamDB:
                     if not parent.val:
                         traverse_val_children(tree, parent.tax_id, node_id)
 
+        LOGGER.info("Reading Taxonomy Tree")
         # read taxonomy tree
         tree = {
             node: self.files[0].file[GROUP_NODES][node]
             for node in self.files[0].file[GROUP_NODES]
         }
+        LOGGER.info("Mapping Nodes To Files")
         nodes = {
             file: list(self.files[file].file[GROUP_LOOKUP_BYTAXON].keys())
             for file in [file for file in self.files.keys()]
         }
+        LOGGER.info("Determining Which Nodes Have Associated Families")
         # build set of nodes with associated family data
         vals = set(
             [
@@ -990,6 +993,7 @@ class FamDB:
             tree_node.children = children
             tree[id] = tree_node
 
+        LOGGER.info("Full Tree Prepared")
         # assign each node a val_parent
         for id in tree:
             node = tree[id]
@@ -1001,8 +1005,11 @@ class FamDB:
             if node.val:
                 traverse_val_children(tree, node.tax_id, node.tax_id)
 
+        LOGGER.info("Pruned Tree Prepared")
+
         # update database nodes
         self.files[0].update_pruned_taxa(tree)
+        LOGGER.info("Pruned Tree Written")
 
     def set_db_info(self, name, version, date, desc, copyright_text):
         """Method for resetting metadata"""
