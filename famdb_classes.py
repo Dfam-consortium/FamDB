@@ -80,15 +80,15 @@ class FamDBLeaf:
         self.file = h5py.File(filename, mode)
         self.mode = mode
 
-        try:
-            if reading and self.file.attrs[META_FAMDB_VERSION] != FAMDB_VERSION:
-                raise Exception(
-                    f"File version is {self.file.attrs[META_FAMDB_VERSION]}, but this is version {FAMDB_VERSION}"
-                )
-        except:
-            # This 'except' catches both "version" missing from attrs, or the
-            # value not matching if it is present.
-            raise Exception("This file cannot be read by this version of famdb.py.")
+        if (reading and not self.file.attrs.get(META_FAMDB_VERSION)) or (
+            reading and self.file.attrs[META_FAMDB_VERSION] != FAMDB_VERSION
+        ):
+            LOGGER.error(
+                "\tThis file cannot be read by this version of famdb.py.\n"
+                f" Export File Version: {self.file.attrs.get(META_FAMDB_VERSION, 'Not Found')}\n"
+                f" FamDB Script Version: {FAMDB_VERSION}\n"
+            )
+            sys.exit(1)
 
         if self.mode == "w":
             self.seen = {}
@@ -836,8 +836,8 @@ class FamDB:
         for file in os.listdir(db_dir):
             if file.endswith(".h5"):
                 h5_files += [file]
-                splits = file.split('.')
-                prefix = '.'.join(splits[:-2])
+                splits = file.split(".")
+                prefix = ".".join(splits[:-2])
                 prefixes.add(prefix)
                 if file.endswith(".0.h5"):
                     root_prefixes.add(prefix)
