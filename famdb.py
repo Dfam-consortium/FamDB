@@ -572,6 +572,7 @@ def command_append(args):
         # prepare set of local files to add family to
         add_files = set()
         add_taxa = set()
+        missing_files = {}
         for clade in entry.clades:
             file = args.db_dir.find_taxon(clade)
             if args.db_dir.files.get(file):
@@ -581,9 +582,10 @@ def command_append(args):
                     if not args.db_dir.get_families_for_taxon(clade, file):
                         add_taxa.add(clade)
             else:
-                LOGGER.info(
-                    f"Entry {acc} Not Appended, Local File For Taxon {clade} Not Found. Taxon {clade} Is Found In Partition File {file}"
-                )
+                if missing_files.get(file):
+                    missing_files[file] += [[acc, clade]]
+                else:
+                    missing_files[file] = [[acc, clade]]
 
         if not add_files:
             LOGGER.debug(f" {acc} not added to local files, local file not found")
@@ -610,6 +612,12 @@ def command_append(args):
     LOGGER.info(f"Added {added_ctr}/{total_ctr} families")
     if dups:
         LOGGER.debug(f" {len(dups)} Duplicate Accesisons: {dups}")
+    if missing_files:
+        for file in missing_files:
+            LOGGER.info(f"Partition File {file} Not Found. The Following Entries Were Not Appended:")
+            entries = missing_files[file]
+            for acc, clade in entries:
+                LOGGER.info(f"Entry {acc} At Taxon {clade}")
 
     db_info = args.db_dir.get_metadata()
 
