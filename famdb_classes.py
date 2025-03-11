@@ -674,7 +674,7 @@ class FamDBRoot(FamDBLeaf):
                     "No results were found for that name, but some names sound similar:",
                     file=sys.stderr,
                 )
-                for tax_id, _ in similar_results:
+                for tax_id, partition, exact in similar_results:
                     names = self.get_taxon_names(tax_id)
                     print(
                         tax_id,

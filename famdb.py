@@ -574,7 +574,7 @@ def command_append(args):
         add_taxa = set()
         for clade in entry.clades:
             file = args.db_dir.find_taxon(clade)
-            if args.db_dir.files[file].has_taxon(clade):
+            if args.db_dir.files.get(file) and args.db_dir.files[file].has_taxon(clade):
                 add_files.add(file)
                 # check if the taxon is empty
                 if not args.db_dir.get_families_for_taxon(clade, file):
@@ -597,7 +597,7 @@ def command_append(args):
 
         # track formerly empty clades with new additions
         if added:
-            new_val_taxa.add(add_taxa)
+            new_val_taxa.update(add_taxa)
 
     args.db_dir.append_finish_changelog(message, rec)
     args.db_dir.update_changelog(added_ctr, total_ctr, file_counts, args.infile)

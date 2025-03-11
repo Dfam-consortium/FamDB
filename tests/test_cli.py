@@ -44,8 +44,13 @@ def test_one(t, test, args):
                 print("    ERROR: cli output mismatch for ", test)
             t.assertEqual(actual, expected)
 
-    compare_output(result.stdout or "", out_path)
-    compare_output(result.stderr or "", err_path)
+    if test == "lineage-bad-name": # tests that are meant to represent failures
+        compare_output(result.stderr or "", out_path)
+        compare_output(result.stdout or "", err_path)
+    
+    else:
+        compare_output(result.stdout or "", out_path)
+        compare_output(result.stderr or "", err_path)
 
 
 class TestCliOutput(unittest.TestCase):
@@ -163,6 +168,11 @@ class TestCliOutput(unittest.TestCase):
     def test_lineage_curated(self):
         test = "lineage-curated"
         args = ["lineage", "-cdk", "1"]
+        test_one(self, test, args)
+
+    def test_lineage_bad_name(self):
+        test = "lineage-bad-name"
+        args = ["lineage", "-a", "Other Geus"]
         test_one(self, test, args)
 
     def test_names_pretty(self):
