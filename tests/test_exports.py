@@ -4,13 +4,13 @@ import shutil
 import logging
 from .doubles import init_single_file, make_family
 from famdb_classes import FamDB
-from famdb_globals import FILE_VERSION, GENERATOR_VERSION
+from famdb_globals import FAMDB_VERSION, TEST_DIR, DESCRIPTION
 
 
 class TestExports(unittest.TestCase):
     def setUp(self):
-        file_dir = "/tmp/export"
-        os.makedirs(file_dir)
+        file_dir = f"{TEST_DIR}/export"
+        os.makedirs(file_dir, exist_ok=True)
         db_dir = f"{file_dir}/unittest"
         self.file_dir = file_dir
         self.db_dir = db_dir
@@ -28,12 +28,11 @@ class TestExports(unittest.TestCase):
             {
                 "copyright": "<copyright header>",
                 "date": "2020-07-15",
-                "description": "Test Database",
-                "name": "Test",
+                "description": DESCRIPTION,
+                "name": "Test Dfam",
                 "db_version": "V1",
-                "generator": GENERATOR_VERSION,
-                "famdb_version": FILE_VERSION,
-                "created": "2023-01-09 09:57:56.026443",
+                "famdb_version": FAMDB_VERSION,
+                "created": "<creation date>",
                 "partition_name": "Root Node",
                 "partition_detail": "",
             },
@@ -58,11 +57,11 @@ class TestExports(unittest.TestCase):
         with self.assertRaises(SystemExit):
             famdb = FamDB(self.file_dir, "r")
 
-    # def test_multiple_exports(self):
-    #     init_single_file(0, self.db_dir)
-    #     init_single_file(1, f"{self.db_dir}-bad")
-    #     with self.assertRaises(SystemExit):
-    #         famdb = FamDB(self.file_dir, "r")
+    def test_multiple_exports(self):
+        init_single_file(0, self.db_dir)
+        init_single_file(1, f"{self.db_dir}-bad")
+        with self.assertRaises(SystemExit):
+            famdb = FamDB(self.file_dir, "r")
 
     def test_different_ids(self):
         init_single_file(0, self.db_dir)

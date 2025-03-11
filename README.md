@@ -26,21 +26,30 @@ or HMM files.
 ## Installation/Setup
 FamDB files follow a simple hierarchical structure based on the NCBI taxonomy tree. These files represent partitioned subsets of the Dfam database and contain data for related areas of the taxonomy tree. 
 
-Each installation comprises a required root file as well as a number of optional leaf files. The root file contains data for the higher levels of the taxonomy tree, data for less represented taxa (Fungi, Amoebas), and data for highly studied taxa (Mammals). The leaf files contain data for related taxa as shown in the table below.
+Each installation comprises a required root file as well as a number of optional leaf files. The root file contains data for the highest levels of the taxonomy tree and is required in order to interact with the leaf files. The leaf files contain data for related taxa as shown in the table below.
 
 The current partitions are:
  Number | Name | Description | Root Taxon ID | File Size | Required 
 :---: | :---: | :---: | :---: | :---: | :---: 
- 0 | Root | Mammals, Microbes, Fungi, Jellies, & Sponges | 1 | 71Gb | * 
- 1 | Obtectomera | Moths & Butterflies | 104431 | 125Gb | |
- 2 | Euteleosteomorpha | Bony Fish | 1489388 | 118Gb | 
- 3 | Sarcopterygii | Reptiles, Amphibians, & Coelacanths | 8287 | 90Gb | 
- 4 | Diptera | Flies | 7147 | 87Gb | 
- 5 | Viridiplantae | Plants | 33090 | 72Gb | 
- 6 | Deuterostomia | Other Fish & Echinoderms | 33511 | 69Gb | 
- 7 | Hymenoptera | Wasps, Bees, & Ants | 7399 | 63Gb | 
- 8 | Ecdysozoa | Other Arthropods & Roundworms | 1206794 | 126Gb | 
+ 0 | Root | | 1 | 0.074Gb | &#9745;
+ 1 | Brachycera | Flies | 7203 | 73Gb | |
+ 2 | Archelosauria | Turtles, Birds, & Crocodilians | 1329799 | 66Gb | 
+ 3 | Hymenoptera | Ants, Bees, & Wasps | 7399 | 60Gb | 
+ 4 | Otomorpha | Smelts, Herrings, & Milkfish | 186634 | 57Gb | 
+ 5 | rosids | Vitis, fabids, & malvids | 71275 | 57Gb | 
+ 6 | Viridiplantae | Other Plants, Mosses, & Green Algae | 33090 | 60Gb | 
+ 7 | Mammalia | Mammals | 40674 | 57Gb | 
+ 8 | Noctuoidea | Owlet Moths | 37570 | 52Gb | 
+ 9 | Obtectomera | Other Moths and Butterflies* | 104431 | 67Gb |
+ 10 | Eupercaria | Diverse Ray-Finned Fishes* | 1489922 | 50Gb |
+ 11 | Ctenosquamata | Diverse Ray-Finned Fishes* | 123367 | 64Gb |
+ 12 | Vertebrata <vertebrates> | Lepidosaurs, Amphibians, Ancient Fish, Other Ray-Finned Fishes | 7742 | 74Gb |
+ 13 | Coleoptera | Beetles | 7041 | 40Gb |
+ 14 | Endopterygota | Other Files, Moth, & Insects* | 33392 | 43Gb |
+ 15 | Protostomia | Roundworms, Non-Insect Arthropods, Other Insects & Worms* | 33317 | 70Gb |
+ 16 | Riboviria | Fungi, Marine Invertebrates, Red Algae, Protists, Viruses | 2559587 | 35Gb |
 
+\* For more detail regarding partition contents, see the `README.txt` at the [download link](https://www.dfam.org/releases/current/families/FamDB/) 
 
 All FamDB files follow the convention `<export name>.<partition number>.h5` where the root partition is partition 0. All files from the same export should be kept in the same directory with no other exports present. The FamDB software will display a warning if files from different export or partitioning runs are present. The name of the directory containing the FamDB files is passed as an argument to `famdb.py`.
 
@@ -59,12 +68,10 @@ All FamDB files follow the convention `<export name>.<partition number>.h5` wher
 RepeatMasker includes a compatible version of famdb.py. This file should
 generally not be installed or upgraded manually.
 
-FamDB can also be downloaded separately. At this time, only the file famdb.py is
-needed. The latest development version is located here:
-<https://raw.githubusercontent.com/Dfam-consortium/FamDB/master/famdb.py>
+FamDB can also be downloaded separately. The latest development version is located here:
+<https://github.com/Dfam-consortium/FamDB/releases/latest>
 
 ## Usage
-
 General usage is as follows:
 
 `famdb.py -i <directory> <command>`
@@ -72,178 +79,49 @@ General usage is as follows:
 where `<directory>` is the folder holding the .h5 export files
 where `<command>` is one of `info`, `names`, `lineage`, `families`, or `family`.
 
-### info
-
-Prints general information and statistics about the database, such as title,
-version, date, and count of consensus sequences and HMMs in the database.
-
-### names
-
-Searches the taxonomy database for species names and prints all known names for
-any matches. The output is human-readable ("pretty") by default but can also be
-in JSON format. The JSON format is intended for parsing by scripts; the pretty
-format is too unstructured to parse reliably.
-
-`famdb.py -i ./dfam names [-f json] <term>`
-
-`term` can be a taxonomy identifier number or part of a species/clade name.
-In this example the FamDB files are stored in a directory called 'dfam' in 
-the current working directory.  RepeatMasker looks for them in its "Library/famdb"
-directory by default.
-
-Exact matches are distinguished from non-exact matches. For example:
-
+See the example files for each command in the `usage` directory.
 ```
-$ famdb.py -i ./dfam names rattus
+$ famdb.py -h
 
-Exact Matches
-=============
-10114 rat <Rattus> (common name), rats <Rattus> (common name), Rattus
-(scientific name)
+usage: famdb.py [-h] [-l LOG_LEVEL] [-i DB_DIR]
+                {info,names,lineage,families,family,append} ...
 
-Non-exact Matches
-=================
-10115 Cape York rat (common name), mottle-tailed rat (genbank common name),
-Rattus leucopus (scientific name)
-10116 brown rat (common name), Buffalo rat (includes), laboratory rat
-(includes), Norway rat (genbank common name), rat <Rattus norvegicus> (common
-name), rats <Rattus norvegicus> (common name), Rattus norvegicus (scientific
-name), Rattus PC12 clone IS (includes), Rattus sp. strain Wistar (includes),
-Sprague-Dawley rat (includes), Wistar rats (includes), zitter rats (includes)
-10117 black rat (genbank common name), house rat (common name), Rattus rattoides
-<Rattus rattus> (synonym), Rattus rattoides (Pictet & Pictet, 1844) (authority),
-Rattus rattus (scientific name), Rattus rattus (Linnaeus, 1758) (authority),
-Rattus wroughtoni (synonym), Rattus wroughtoni Hinton, 1919 (authority), roof
-rat (common name)
-(...)
-```
+This is famdb.py version 2.0.0.
 
-Other commands that take a taxonomy "term", including `lineage` and `families`,
-generally use the same search system as the `names` command. Most commands
-require a single exact match, or if there are no exact matches a single partial
-match. This requirement provides some leniency in name choice without allowing
-ambiguities.
+example commands, including the most commonly used options:
 
-If there are no matches for `term`, similar-sounding names will be suggested.
+  famdb.py [-i DB_DIR] info
+    Prints information about the file including database name and date.
 
-### lineage
+  famdb.py [-i DB_DIR] names 'mus' | head
+    Prints taxonomy nodes that include 'mus', and the corresponding IDs.
+    The IDs and names are stored in the FamDB file, and are based
+    on the NCBI taxonomy database (https://www.ncbi.nlm.nih.gov/taxonomy).
 
-Prints the lineage tree for a species or clade with line drawing characters. The
-tree includes the number of families assigned to each clade. The options `-a`
-(ancestors) and/or `-d` (descendants) can be added to include ancestors,
-descendants, or both, as desired.
+  famdb.py [-i DB_DIR] lineage -ad 'Homo sapiens'
+  famdb.py [-i DB_DIR] lineage -ad --format totals 9606
+    Prints a taxonomic tree including the given clade and optionally ancestors
+    and/or descendants, with the number of repeats indicated at each level of
+    the hierarchy. With the 'totals' format, prints the number of matching
+    ancestral and lineage-specific entries.
 
-`famdb.py -i ./dfam lineage [-a] [-d] [-f semicolon|totals] <term>`
+  famdb.py [-i DB_DIR] family --format fasta_acc MIR3
+    Exports a single family from the database in one of several formats.
 
-The semicolon-delimited format does not include the tree drawing and is more
-suitable for parsing. The `totals` format prints the number of ancestral
-and of lineage-specific repeats known for the given species.  In the example
-below the count of families specifically assigned to each taxon is shown in
-brackets.  The number in parentheses indicates which partition of FamDB contains
-the data for that taxon and its descendants.
+  famdb.py [-i DB_DIR] families -f embl_meta -ad --curated 'Drosophila melanogaster'
+  famdb.py [-i DB_DIR] families -f hmm -ad --curated --class LTR 7227
+    Searches and exports multiple families from the database, in one of several formats.
 
-```
-$ famdb.py -i ./dfam lineage -ad humans
+optional arguments:
+  -h, --help            show this help message and exit
+  -l LOG_LEVEL, --log_level LOG_LEVEL
+  -i DB_DIR, --db_dir DB_DIR
+                        specifies the directory to query
 
-1 root(0) [0]
-└─131567 cellular organisms(0) [0]
-  └─2759 Eukaryota(0) [0]
-    └─33154 Opisthokonta(0) [0]
-      └─33208 Metazoa(0) [5]
-        └─6072 Eumetazoa(0) [0]
-          └─33213 Bilateria(0) [0]
-            └─33511 Deuterostomia(0) [0]
-              └─7711 Chordata(0) [0]
-                └─89593 Craniata <chordates>(0) [0]
-                  └─7742 Vertebrata <vertebrates>(0) [67]
-                    └─7776 Gnathostomata <vertebrates>(0) [0]
-                      └─117570 Teleostomi(0) [0]
-                        └─117571 Euteleostomi(0) [1]
-                          └─8287 Sarcopterygii(0) [0]
-                            └─1338369 Dipnotetrapodomorpha(0) [0]
-                              └─32523 Tetrapoda(0) [19]
-                                └─32524 Amniota(0) [100]
-                                  └─40674 Mammalia(0) [68]
-                                    └─32525 Theria <mammals>(0) [69]
-                                      └─9347 Eutheria(0) [387]
-                                        └─1437010 Boreoeutheria(0) [40]
-                                          └─314146 Euarchontoglires(0) [44]
-                                            └─9443 Primates(0) [140]
-                                              └─376913 Haplorrhini(0) [199]
-                                                └─314293 Simiiformes(0) [56]
-                                                  └─9526 Catarrhini(0) [104]
-                                                    └─314295 Hominoidea(0) [23]
-                                                      └─9604 Hominidae(0) [6]
-                                                        └─207598 Homininae(0) [14]
-                                                          └─9605 Homo(0) [0]
-                                                            └─9606 Homo sapiens(0) [52]
-```
+subcommands:
+  Specifies the kind of query to perform.
+  For more information on all the possible options for a command, add the --help option after it:
+  famdb.py families --help
 
-### family
-
-Prints a single family given by the family accession.
-
-`famdb.py -i ./dfam family [-f <format>] <acc>`
-
-There are many formats to choose from:
-
-  * `summary` (default): A human-readable summary format. Currently includes
-    accession, name, classification, and length.
-  * `hmm`: The family's HMM, including some additional metadata such as species
-    and RepeatMasker classification.
-  * `hmm_species`: Same as `hmm`, but with a species-specific TH line extracted
-    into the GA/TC/NC values. This format is only useful for the `families`
-    command when querying within a species for which such thresholds have been
-    determined.
-  * `fasta_name`: FASTA, with the following header format:
-    `>MIR @Mammalia [S:40,60,65]`
-  * `fasta_acc`: FASTA, with the following header format:
-    `>DF0000001.4 @Mammalia [S:40,60,65]`
-  * `embl`: EMBL, including all metadata and the consensus sequence.
-  * `embl_meta`: Same as `embl`, but with only the metadata included.
-  * `embl_seq`: Same as `embl`, but with only the sequences included.
-
-```
-$ famdb.py -i ./dfam family -f fasta_name DF0000001
-
->MIR @Mammalia [S:40,60,65]
-ACAGTATAGCATAGTGGTTAAGAGCACGGGCTCTGGAGCCAGACTGCCTGGGTTCGAATC
-CCGGCTCTGCCACTTACTAGCTGTGTGACCTTGGGCAAGTTACTTAACCTCTCTGTGCCT
-CAGTTTCCTCATCTGTAAAATGGGGATAATAATAGTACCTACCTCATAGGGTTGTTGTGA
-GGATTAAATGAGTTAATACATGTAAAGCGCTTAGAACAGTGCCTGGCACATAGTAAGCGC
-TCAATAAATGTTAGCTATTATT
-```
-
-### families
-
-The `families` command takes a taxonomy `term` and prints all families assigned
-to that clade (optionally including ancestors and/or descendants) with optional
-additional filters.
-
-`famdb.py -i ./dfam families [-a] [-d]
-  [--stage <st>] [--class <cl>] [--name <name>] [--curated]
-  [-f <format>] [--add-reverse-complement] [--include-class-in-name]
-  <term>`
-
-`[-a]`, `[-d]` include ancestors/descendants as with lineage.
-The formats for `[-f <format>]` are the same as for `family`.
-
-Filters:
-  * `--stage <st>`: Includes only families in the given search or buffer stage.
-    Search stages and buffer stages are a concept specific to RepeatMasker.
-  * `--class <class>`: Includes only families whose class starts with the
-    specified repeat type, according to the RepeatMasker nomenclature.
-  * `--name <name>`: Includes only families whose name starts with the search
-    term.
-  * `--curated`: Excludes uncurated entires (accession `DR_______`).
-
-Output options:
-  * `--add-reverse-complement` (`fasta` formats only): Adds a second copy of
-    each family found in the reverse complement; used internally by
-    RepeatMasker.
-  * `--include-class-in-name` (`fasta` and `hmm` formats only): Includes the
-    RepeatMasker type/subtype in the family name, e.g. `HERV16#LTR/ERVL`.
-
-```
-$ famdb.py -i ./dfam families -f embl_seq -a human
+  {info,names,lineage,families,family,append}
 ```
