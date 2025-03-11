@@ -922,15 +922,31 @@ class FamDB:
     def build_pruned_tree(self):
         """
         Establishes a sparse taxonomy tree where parent-child relationships are restricted to
-        nodes with associated family data. For example, a node will be assigned a sparese parent
-        as the closesed ancestor node with data, rather than it's actual parent node, if it's
+        nodes with associated family data. For example, a node will be assigned a sparse parent
+        as the closest ancestor node with data, rather than its actual parent node, if its
         actual parent node is empty.
         This method exists in FamDB instead of FamDBRoot because it is subject to change after an append,
         and because the associated data is stored in FamDBLeaf files
+
+        Taxonomy Tree is stored as a dictionary of TaxNodes ( self.files[0].file[GROUP_NODES][node] )
+            node:
+                tax_id: int
+                parent_id: int
+                val: bool
+                children: [int]
+                val_parent: int
+                val_children: [int]
+
+        If adding a family this should be easily modified by:
+             1. Identify the node which the new family is assigned to (or more than one for multiple clades)
+             2. Set the val flag to True
+             3. For each child in val_children
+                 ....
+             Go over this with Anthony
         """
 
         def traverse_val_parents(tree, id):
-            """Recurs up the tree ancestor by ancestor until it finds the nearest ancestor with data"""
+            """Recurse up the tree ancestor by ancestor until it finds the nearest ancestor with data"""
             node = tree[id]
             if node.parent_id:
                 parent = tree.get(node.parent_id)
