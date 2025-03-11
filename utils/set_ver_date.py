@@ -85,16 +85,18 @@ def main():
                 db_copyright = h5f.attrs["db_copyright"]
                 meta_created = h5f.attrs["created"]
 
-                print(f"  current: dfam version: {db_version}")
+                print("  current: dfam version: {}".format(db_version))
 
                 if args.db_version:
                     db_version = args.db_version
                     h5f.attrs["db_version"] = db_version
-                    print(f"    ** new: db_info - dfam version: {db_version}")
+                    print("    ** new: db_info - dfam version: {}".format(db_version))
 
-                print(f"  current: db_meta - famdb creation date: {meta_created}")
-                print(f"  current: db_info - dfam creation date: {db_date}")
-                print(f"  current: copyright: {db_copyright}")
+                print(
+                    "  current: db_meta - famdb creation date: {}".format(meta_created)
+                )
+                print("  current: db_info - dfam creation date: {}".format(db_date))
+                print("  current: copyright: {}".format(db_copyright))
                 if args.db_date:
                     db_date = args.db_date
                     year_match = re.match(r"^(\d{4})-\d{2}-\d{2}$", db_date)
@@ -114,10 +116,14 @@ def main():
                     h5f.attrs["db_date"] = db_date
                     h5f.attrs["created"] = new_creation_time
                     print(
-                        f"    ** new: db_meta - famdb creation date: {new_creation_time}"
+                        "    ** new: db_meta - famdb creation date: {}".format(
+                            new_creation_time
+                        )
                     )
-                    print(f"    ** new: db_info - dfam creation date: {db_date}")
-                    print(f"    ** new: copyright: {copyright_text}")
+                    print(
+                        "    ** new: db_info - dfam creation date: {}".format(db_date)
+                    )
+                    print("    ** new: copyright: {}".format(copyright_text))
 
 
 if __name__ == "__main__":

@@ -4,7 +4,6 @@ import os
 from famdb_classes import FamDBRoot
 from famdb_helper_classes import Family
 from .doubles import init_db_file
-from famdb_globals import TEST_DIR
 
 
 def test_family():
@@ -45,8 +44,8 @@ HMM          A        C        G        T
 class TestHMM(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        file_dir = f"{TEST_DIR}/hmm"
-        os.makedirs(file_dir, exist_ok=True)
+        file_dir = "/tmp/hmm"
+        os.makedirs(file_dir)
         db_dir = f"{file_dir}/unittest"
         init_db_file(db_dir)
         filenames = [f"{db_dir}.0.h5", f"{db_dir}.1.h5", f"{db_dir}.2.h5"]
