@@ -4,13 +4,14 @@ import os
 from famdb_classes import FamDBRoot
 from famdb_helper_classes import Family
 from .doubles import init_db_file
+from famdb_globals import TEST_DIR
 
 
 class TestFASTA(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        file_dir = "/tmp/fasta"
-        os.makedirs(file_dir)
+        file_dir = f"{TEST_DIR}/fasta"
+        os.makedirs(file_dir, exist_ok=True)
         db_dir = f"{file_dir}/unittest"
         init_db_file(db_dir)
         filenames = [f"{db_dir}.0.h5", f"{db_dir}.1.h5", f"{db_dir}.2.h5"]
@@ -137,19 +138,19 @@ ACGTTGCAACGTTGCAACGTTGCAACGTTGCAACGTTGCA
 """,
             )
 
-        self.assertEqual(
-            fam.to_fasta(
-                db,
-                use_accession=True,
-                include_class_in_name=True,
-                do_reverse_complement=True,
-                buffer=[23, 39],
-            ),
-            """\
+            self.assertEqual(
+                fam.to_fasta(
+                    db,
+                    use_accession=True,
+                    include_class_in_name=True,
+                    do_reverse_complement=True,
+                    buffer=[23, 39],
+                ),
+                """\
 >TEST0007.7_23_39#buffer (anti) name=Test7 @Order @Other_Order
 GCAACGTTGCAACGTTG
 """,
-        )
+            )
 
     def test_missing_consensus(self):
         fam = Family()

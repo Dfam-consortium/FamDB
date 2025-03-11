@@ -55,8 +55,6 @@ from famdb_globals import (
     FAMILY_FORMATS_EPILOG,
     MISSING_FILE,
     HELP_URL,
-    ROOT_LINK,
-    LEAF_LINK,
 )
 from famdb_classes import FamDB
 
@@ -70,7 +68,6 @@ def command_info(args):
     print(
         f"""\
 FamDB Directory     : {os.path.realpath(args.db_dir.db_dir)}
-FamDB Generator     : {db_info["generator"]}
 FamDB Format Version: {db_info["famdb_version"]}
 FamDB Creation Date : {db_info["created"]}
 
@@ -125,12 +122,10 @@ def command_names(args):
 def print_lineage_tree(
     file,
     tree,
-    partition,
     gutter_self,
     gutter_children,
-    uncurated_only=False,
     curated_only=False,
-    prune=False,
+    uncurated_only=False,
 ):
     """Pretty-prints a lineage tree with box drawing characters."""
 
@@ -142,9 +137,6 @@ def print_lineage_tree(
     else:
         tax_id = tree[0]
         children = tree[1:]
-
-    if ROOT_LINK in str(tax_id) or LEAF_LINK in str(tax_id):
-        tax_id = str(tax_id).split(":")[1]
     name, tax_partition = file.get_taxon_name(tax_id, "scientific name")
     if name != "Not Found":
         fams = file.get_families_for_taxon(
@@ -160,7 +152,6 @@ def print_lineage_tree(
             + f"\n{gutter_self[:-2]}│"
         )
         count = f"[{num_fams}]" if fams is not None else missing_message
-        # if (prune and num_fams > 0) or (not prune):
         print(f"{gutter_self}{tax_id} {name}({tax_partition}) {count}")
 
     # All but the last child need a downward-pointing line that will link up
@@ -170,24 +161,20 @@ def print_lineage_tree(
             print_lineage_tree(
                 file,
                 child,
-                tax_partition,
                 gutter_children + "├─",
                 gutter_children + "│ ",
                 curated_only,
                 uncurated_only,
-                prune,
             )
 
     if children:
         print_lineage_tree(
             file,
             children[-1],
-            tax_partition,
             gutter_children + "└─",
             gutter_children + "  ",
             curated_only,
             uncurated_only,
-            prune,
         )
 
 
@@ -318,10 +305,11 @@ def command_lineage(args):
         return
     if target_id == "Ambiguous":
         return
-    tree = args.db_dir.get_lineage_combined(
+    tree = args.db_dir.get_lineage(
         target_id,
         descendants=args.descendants,
         ancestors=args.ancestors or args.format == "semicolon",
+        complete=args.complete or args.format == "semicolon",
     )
     if not tree:
         return
@@ -329,12 +317,10 @@ def command_lineage(args):
         print_lineage_tree(
             args.db_dir,
             tree,
-            partition,
             "",
             "",
             args.curated,
             args.uncurated,
-            args.prune,
         )
     elif args.format == "semicolon":
         print_lineage_semicolons(
@@ -540,10 +526,12 @@ def command_fasta_all(args):
 
 
 def command_repeatpeps(args):
+    """prints the RepeatPeps file"""
     print(args.db_dir.get_repeatpeps())
 
 
 def command_edit_description(args):
+    """Updates the db description"""
     args.db_dir.update_description(args.new)
 
 
@@ -567,12 +555,14 @@ def command_append(args):
 
     embl_iter = FamDB.read_embl_families(args.infile, lookup, header_cb=set_header)
 
-    message = f"Adding Data From {args.infile.split('/')[-1]}"
+    message = f"Adding Families From {args.infile.split('/')[-1]}"
     rec = args.db_dir.append_start_changelog(message)
 
+    LOGGER.info(message)
     total_ctr = 0
     added_ctr = 0
     file_counts = {}
+    new_val_taxa = set()
     dups = set()
     for entry in embl_iter:
         total_ctr += 1
@@ -581,10 +571,18 @@ def command_append(args):
 
         # prepare set of local files to add family to
         add_files = set()
+        add_taxa = set()
+        missing_files = {}
         for clade in entry.clades:
-            for file in args.db_dir.files:
+            file = args.db_dir.find_taxon(clade)
+            if args.db_dir.files.get(file):
                 if args.db_dir.files[file].has_taxon(clade):
                     add_files.add(file)
+                    # check if the taxon is empty
+                    if not args.db_dir.get_families_for_taxon(clade, file):
+                        add_taxa.add(clade)
+            else:
+                missing_files[file] = missing_files.get(file,0) + 1
 
         if not add_files:
             LOGGER.debug(f" {acc} not added to local files, local file not found")
@@ -601,12 +599,19 @@ def command_append(args):
                 LOGGER.debug(f" Ignoring duplicate entry {entry.accession}: {e}")
                 dups.add(entry.accession)
 
+        # track formerly empty clades with new additions
+        if added:
+            new_val_taxa.update(add_taxa)
+
     args.db_dir.append_finish_changelog(message, rec)
     args.db_dir.update_changelog(added_ctr, total_ctr, file_counts, args.infile)
 
     LOGGER.info(f"Added {added_ctr}/{total_ctr} families")
     if dups:
         LOGGER.debug(f" {len(dups)} Duplicate Accesisons: {dups}")
+    if missing_files:
+        for file in missing_files:
+            LOGGER.info(f"Partition File {file} Not Found. {missing_files[file]} Entries Were Not Appended:")
 
     db_info = args.db_dir.get_metadata()
 
@@ -615,7 +620,8 @@ def command_append(args):
     if args.description:
         db_info["description"] += "\n" + args.description
 
-    db_info["copyright"] += f"\n\n{header}"
+    if header:
+        db_info["copyright"] += f"\n\n{header}"
 
     args.db_dir.set_db_info(
         db_info["name"],
@@ -626,14 +632,16 @@ def command_append(args):
     )
 
     # Write the updated counts and metadata
+    if new_val_taxa:
+        LOGGER.info("Rebuilding Sparse Taxonomy Tree")
+        args.db_dir.rebuild_pruned_tree(new_val_taxa)
+
+    LOGGER.info("Finalizing Files")
     args.db_dir.finalize()
 
 
-def main():  # ================================================================================================================================
-    """Parses command-line arguments and runs the requested command."""
-
-    logging.basicConfig()
-
+def build_args():
+    """builds and parses the command line args"""
     parser = argparse.ArgumentParser(
         description=FILE_DESCRIPTION,
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -701,10 +709,11 @@ famdb.py families --help
         help="include all descendants of the given clade",
     )
     p_lineage.add_argument(
-        "-p",
-        "--prune",
+        "-k",
+        "--complete",
         action="store_true",
-        help="suppress output of taxa without families",
+        help="include output of taxa without families",
+        default=False,
     )
     p_lineage.add_argument(
         "-c",
@@ -782,11 +791,13 @@ with a given clade, optionally filtered by additional criteria",
         help="include only families whose name begins with this search term",
     )
     p_families.add_argument(
+        "-u",
         "--uncurated",
         action="store_true",
         help="include only 'uncurated' families (i.e. named DRXXXXXXXXX)",
     )
     p_families.add_argument(
+        "-c",
         "--curated",
         action="store_true",
         help="include only 'curated' families (i.e. not named DFXXXXXXXXX)",
@@ -866,6 +877,15 @@ with a given clade, optionally filtered by additional criteria",
     p_desc.add_argument("new")
     p_desc.set_defaults(func=command_edit_description)
 
+    return parser
+
+
+def main():  # ================================================================================================================================
+    """Parses command-line arguments and runs the requested command."""
+
+    logging.basicConfig()
+
+    parser = build_args()
     args = parser.parse_args()
     logging.getLogger().setLevel(getattr(logging, args.log_level.upper()))
 
@@ -888,20 +908,17 @@ with a given clade, optionally filtered by additional criteria",
             if os.path.exists(default_db_dir):
                 args.db_dir = default_db_dir
 
-    if args.db_dir and os.path.isdir(args.db_dir):
-        try:
-            args.db_dir = FamDB(args.db_dir, mode)
-        except:
-            args.db_dir = None
-            # exc_value = sys.exc_info()[1]
-            # LOGGER.error("Error reading file: %s", exc_value)
-            # if LOGGER.getEffectiveLevel() <= logging.DEBUG:
-            #    raise
-            raise
-    else:
-        # LOGGER.info(" No file directory specified, minimal initialization used")
-        # args.db_dir = FamDB(args.db_dir, mode, min=True)
-        LOGGER.error("Please specify a file to operate on with the -i/--file option.")
+    if not (args.db_dir and os.path.exists(args.db_dir) and os.path.isdir(args.db_dir)):
+        LOGGER.error(
+            "Please specify a directory containing FamDB files to operate on with the -i/--file option."
+        )
+        exit(1)
+
+    try:
+        args.db_dir = FamDB(args.db_dir, mode)
+    except:
+        args.db_dir = None
+        raise
 
     if not args.db_dir:
         return

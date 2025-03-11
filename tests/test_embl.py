@@ -5,13 +5,14 @@ import os
 from famdb_classes import FamDB
 from famdb_helper_classes import Family
 from .doubles import init_db_file
+from famdb_globals import TEST_DIR
 
 
 class TestEMBL(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        file_dir = "/tmp/embl"
-        os.makedirs(file_dir)
+        file_dir = f"{TEST_DIR}/embl"
+        os.makedirs(file_dir, exist_ok=True)
         db_dir = f"{file_dir}/unittest"
         init_db_file(db_dir)
         filenames = [f"{db_dir}.0.h5", f"{db_dir}.1.h5", f"{db_dir}.2.h5"]
@@ -50,7 +51,7 @@ XX
 KW   Type/SubType.
 XX
 OS   Genus
-OC   .
+OC   root; Order.
 XX
 CC
 CC   RepeatMasker Annotations:
@@ -89,7 +90,7 @@ XX
 KW   Test/Multiline.
 XX
 OS   Other Genus
-OC   .
+OC   root; Order.
 XX
 CC
 CC   RepeatMasker Annotations:
@@ -130,7 +131,7 @@ XX
 KW   Test/Metadata.
 XX
 OS   Other Genus
-OC   .
+OC   root; Order.
 XX
 CC
 CC   RepeatMasker Annotations:
@@ -197,9 +198,9 @@ XX
 KW   Long terminal repeat of retrovirus-like element; Test5.
 XX
 OS   Other Genus
-OC   .
+OC   root; Order.
 OS   Other Order
-OC   .
+OC   root.
 XX
 CC
 CC   RepeatMasker Annotations:
@@ -293,7 +294,7 @@ XX
 KW   Test/HasCitations.
 XX
 OS   Order
-OC   .
+OC   root.
 XX
 RN   [1] (bases 1 to 16)
 RA   John Doe
@@ -359,7 +360,7 @@ XX
 KW   Test/CodingSequence.
 XX
 OS   Order
-OC   .
+OC   root.
 XX
 CC
 CC   RepeatMasker Annotations:

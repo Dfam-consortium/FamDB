@@ -7,14 +7,14 @@ XX
 XX
 KW   /.
 XX
-OS   Other Genus
-OC   .
+OS   Other Species
+OC   root; Order; Other Genus.
 XX
 CC
 CC   RepeatMasker Annotations:
 CC        Type: 
 CC        SubType: 
-CC        Species: Other_Genus
+CC        Species: Other_Species
 CC        SearchStages: 
 CC        BufferStages: 
 XX
@@ -28,7 +28,7 @@ XX
 KW   /.
 XX
 OS   Species
-OC   .
+OC   root; Order; Genus.
 XX
 CC
 CC   RepeatMasker Annotations:
@@ -47,9 +47,9 @@ XX
 KW   /.
 XX
 OS   Order
-OC   .
+OC   root.
 OS   Other Order
-OC   .
+OC   root.
 XX
 CC
 CC   RepeatMasker Annotations:
@@ -69,7 +69,7 @@ XX
 KW   SINE/.
 XX
 OS   Genus
-OC   .
+OC   root; Order.
 XX
 CC
 CC   RepeatMasker Annotations:
