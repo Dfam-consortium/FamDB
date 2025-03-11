@@ -81,10 +81,10 @@ class FamDBLeaf:
         self.mode = mode
 
         if (reading and not self.file.attrs.get(META_FAMDB_VERSION)) or (
-            reading and self.file.attrs[META_FAMDB_VERSION] != FAMDB_VERSION
+            reading and not self.version_match()
         ):
             LOGGER.error(
-                "\tThis file cannot be read by this version of famdb.py.\n"
+                f"\t Partition {self.get_partition_num()}:This file cannot be read by this version of famdb.py.\n"
                 f" Export File Version: {self.file.attrs.get(META_FAMDB_VERSION, 'Not Found')}\n"
                 f" FamDB Script Version: {FAMDB_VERSION}\n"
             )
@@ -96,6 +96,20 @@ class FamDBLeaf:
             self.__write_metadata()
         elif self.mode == "r+":
             self.added = self.get_counts()
+
+    def version_match(self):
+        file_version = self.file.attrs.get(META_FAMDB_VERSION)
+        file_splits = file_version.split(".")
+        file_major = file_splits[0] if file_splits else None
+
+        script_splits = FAMDB_VERSION.split(".")
+        script_major = script_splits[0] if script_splits else None
+
+        same_major = file_major == script_major
+
+        if not same_major:
+            return False
+        return True
 
     def update_changelog(self, message, verified=False):
         """
@@ -1010,6 +1024,89 @@ class FamDB:
         # update database nodes
         self.files[0].update_pruned_taxa(tree)
         LOGGER.info("Pruned Tree Written")
+
+    def rebuild_pruned_tree(self, new_val_taxa):
+        """
+        This method takes a list/set of taxon ids that did not have families associated with them,
+        but do now due to a recent append command. It resets the val_parent/val_child links in the
+        taxonomy tree to accound for the fact that there is new data in the tree.
+        It assumes that a subject node's val_parent and all ancestor nodes between them will set it
+        as one of thier val_children in place of any val_children that it used to share with the
+        subject node.
+        Likewise, it assumes that any of it's val_children and all child nodes betweem will replace
+        thier val_parents with the subject node.
+        """
+
+        def build_taxa_node(id):
+            """Builds a TaxNode object from HDF5 data"""
+            node = self.files[0].file[GROUP_NODES][id]
+            children = node[DATA_CHILDREN][()] if node[DATA_CHILDREN].size > 0 else []
+            parent = (
+                node[DATA_PARENT][()][0]
+                if node.get(DATA_PARENT) and node[DATA_PARENT].size > 0
+                else None
+            )
+            val_children = (
+                node[DATA_VAL_CHILDREN][()] if node[DATA_VAL_CHILDREN].size > 0 else []
+            )
+            val_parent = (
+                node[DATA_VAL_PARENT][()][0]
+                if node.get(DATA_VAL_PARENT) and node[DATA_VAL_PARENT].size > 0
+                else None
+            )
+
+            tree_node = TaxNode(id, str(parent) if parent else None)
+            tree_node.val = True
+            tree_node.children = children
+            tree_node.val_children = val_children
+            tree_node.val_parent = val_parent
+
+            return tree_node
+
+        def climb_non_val_parents(node, ancestor_path=[]):
+            """collects the nodes between a node and it's val_parent, not inclusive"""
+            if node.parent_id != node.val_parent:
+                parent_node = build_taxa_node(node.parent_id)
+                ancestor_path += [parent_node]
+                climb_non_val_parents(parent_node, ancestor_path)
+            return ancestor_path
+
+        tree = {}
+        for id in new_val_taxa:
+            tree[id] = build_taxa_node(id)
+
+        update_nodes = {}
+        for id in tree:
+            node = tree[id]
+            # collect all nodes that need their val_children updated
+            change_ancestors = [build_taxa_node(node.val_parent)]
+            change_ancestors += climb_non_val_parents(node)
+
+            # collect all nodes that need thier val_parent updated
+            change_descendants = []
+            for val_child in node.val_children:
+                child_node = build_taxa_node(val_child)
+                change_descendants += [child_node]
+                change_descendants += climb_non_val_parents(child_node)
+
+            # all nodes below this one should point to it now, instead of it's val_parent
+            for desc_node in change_descendants:
+                desc_node.val_parent = id
+                update_nodes[desc_node.tax_id] = desc_node
+
+            # all nodes above it should point to it as well, instead of any of it's val_children
+            for ansc_node in change_ancestors:
+                # remove any val_children that are below this node
+                for id in node.val_children:
+                    if id in ansc_node.val_children:
+                        ansc_node.val_children.remove(id)
+                # add this node to the ancestral val_children
+                ansc_node.val_children += [id]
+                update_nodes[ansc_node.tax_id] = ansc_node
+
+            # update the tree for each newly val'd taxon, to avoid tangling pointers when multiple updates occur on the same path
+            self.files[0].update_pruned_taxa(tree)
+            update_nodes = {}
 
     def set_db_info(self, name, version, date, desc, copyright_text):
         """Method for resetting metadata"""

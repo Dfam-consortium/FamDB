@@ -562,6 +562,7 @@ def command_append(args):
     total_ctr = 0
     added_ctr = 0
     file_counts = {}
+    new_val_taxa = set()
     dups = set()
     for entry in embl_iter:
         total_ctr += 1
@@ -570,10 +571,14 @@ def command_append(args):
 
         # prepare set of local files to add family to
         add_files = set()
+        add_taxa = set()
         for clade in entry.clades:
-            for file in args.db_dir.files:
-                if args.db_dir.files[file].has_taxon(clade):
-                    add_files.add(file)
+            file = args.db_dir.find_taxon(clade)
+            if args.db_dir.files[file].has_taxon(clade):
+                add_files.add(file)
+                # check if the taxon is empty
+                if not args.db_dir.get_families_for_taxon(clade, file):
+                    add_taxa.add(clade)
 
         if not add_files:
             LOGGER.debug(f" {acc} not added to local files, local file not found")
@@ -589,6 +594,10 @@ def command_append(args):
             except Exception as e:
                 LOGGER.debug(f" Ignoring duplicate entry {entry.accession}: {e}")
                 dups.add(entry.accession)
+
+        # track formerly empty clades with new additions
+        if added:
+            new_val_taxa.add(add_taxa)
 
     args.db_dir.append_finish_changelog(message, rec)
     args.db_dir.update_changelog(added_ctr, total_ctr, file_counts, args.infile)
@@ -616,8 +625,10 @@ def command_append(args):
     )
 
     # Write the updated counts and metadata
-    LOGGER.info("Rebuilding Sparse Taxonomy Tree")
-    args.db_dir.build_pruned_tree()
+    if new_val_taxa:
+        LOGGER.info("Rebuilding Sparse Taxonomy Tree")
+        args.db_dir.rebuild_pruned_tree(new_val_taxa)
+
     LOGGER.info("Finalizing Files")
     args.db_dir.finalize()
 
