@@ -674,7 +674,7 @@ class FamDBRoot(FamDBLeaf):
                     "No results were found for that name, but some names sound similar:",
                     file=sys.stderr,
                 )
-                for tax_id, _ in similar_results:
+                for tax_id, partition, exact in similar_results:
                     names = self.get_taxon_names(tax_id)
                     print(
                         tax_id,
@@ -1079,53 +1079,63 @@ class FamDB:
 
             return tree_node
 
-        def climb_non_val_parents(node, ancestor_path=[]):
-            """collects the nodes between a node and it's val_parent, not inclusive"""
-            if node.parent_id != node.val_parent:
+        # RMH: This parameter default pattern "foo=[]" is dangerous.  The
+        #      list generated is global and gets reused between independent
+        #      invocations!
+        #def climb_non_val_parents(node, ancestor_path=[]):
+        #    """collects the nodes between a node and it's val_parent, not inclusive"""
+        #    if node.parent_id != node.val_parent:
+        #        parent_node = build_taxa_node(node.parent_id)
+        #        ancestor_path += [parent_node]
+        #        climb_non_val_parents(parent_node, ancestor_path)
+        #    return ancestor_path
+
+        def climb_non_val_parents(target_id, node, ancestor_path=None):
+            """Collects TaxNodes between a given node and a ancestral
+               node defined by target_id (exclusive). """
+
+            if ancestor_path == None:
+                ancestor_path = []
+
+            if hasattr(node,"parent_id") and str(node.parent_id) != str(target_id):
                 parent_node = build_taxa_node(node.parent_id)
                 ancestor_path += [parent_node]
-                climb_non_val_parents(parent_node, ancestor_path)
+                ancestor_path = climb_non_val_parents(target_id, parent_node, ancestor_path)
             return ancestor_path
 
-        # RMH: This is a redundant loop.  It should be possible to treat each insertion
-        #       as independent of all others (even if they overlap).  Therefore you could
-        #       collapse this loop with the one below.
-        tree = {}
-        for id in new_val_taxa:
-            tree[id] = build_taxa_node(id, value=True)
-
         update_nodes = {}
-        for id in tree:
-            node = tree[id]
-            # collect all nodes that need their val_children updated
-            change_ancestors = [build_taxa_node(node.val_parent, value=True)]
-            change_ancestors += climb_non_val_parents(node)
+        for id in new_val_taxa:
+            node = build_taxa_node(id, value=True)
 
-            # Collect all nodes that need thier val_parent updated
-            # This should be all nodes between this node and including
-            # its val_children.
-            change_descendants = []
+            seen_tax_ids = set()
+            # Fix the descendants of the target node
             for val_child in node.val_children:
                 child_node = build_taxa_node(val_child, value=True)
-                change_descendants += [child_node]
-                change_descendants += climb_non_val_parents(child_node)
 
-            # all nodes below this one should point to it now, instead of its val_parent
-            for desc_node in change_descendants:
-                desc_node.val_parent = id
-                update_nodes[desc_node.tax_id] = desc_node
+                # Fix the val_child node itself
+                if child_node.tax_id not in seen_tax_ids:
+                    seen_tax_ids.add(child_node.tax_id)
+                    child_node.val_parent = id
+                    update_nodes[child_node.tax_id] = child_node
 
-            # all nodes above it should point to it as well, instead of any of its val_children
+                # Fix the ancestors up until (but not including) the target node
+                for ancestor in climb_non_val_parents(id, child_node):
+                    if ancestor.tax_id not in seen_tax_ids:
+                        seen_tax_ids.add(ancestor.tax_id)
+                        ancestor.val_parent = id
+                        update_nodes[ancestor.tax_id] = ancestor
+
+            # Gather all nodes above the target node up until its val_parent
+            change_ancestors = [build_taxa_node(node.val_parent, value=True)]
+            change_ancestors += climb_non_val_parents(node.val_parent, node)
+
+            # All nodes above it should point to it as well, instead of any of its val_children
             for ansc_node in change_ancestors:
                 # remove any val_children that are below this node
-                for id in node.val_children:
-                    if id in ansc_node.val_children:
-                        #ansc_node.val_children.remove(id)
-                        # RMH: This is a numpy.ndarray (for some reason), and remove is not
-                        # a method on  that object.  How about this:
-                        ansc_node.val_children = ansc_node.val_children[ansc_node.val_children != id]
+                for vid in node.val_children:
+                    ansc_node.val_children = ansc_node.val_children[ansc_node.val_children != vid]
                 # add this node to the ancestral val_children
-                ansc_node.val_children += [id]
+                ansc_node.val_children = numpy.append(ansc_node.val_children, id)
                 update_nodes[ansc_node.tax_id] = ansc_node
 
             # update the tree for each newly val'd taxon, to avoid tangling pointers when multiple updates occur on the same path
