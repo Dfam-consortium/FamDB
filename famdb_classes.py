@@ -494,7 +494,7 @@ class FamDBRoot(FamDBLeaf):
             node = tree[id]
             val_children = [int(child) for child in node.val_children]
             val_parent = int(node.val_parent) if node.val_parent else None
-            group = self.file[GROUP_NODES][id]
+            group = self.file[GROUP_NODES][str(id)]
             if group.get(DATA_VAL_CHILDREN):
                 del group[DATA_VAL_CHILDREN]
             group.create_dataset(
@@ -1055,7 +1055,7 @@ class FamDB:
 
         def build_taxa_node(id, value=False):
             """Builds a TaxNode object from HDF5 data"""
-            node = self.files[0].file[GROUP_NODES][id]
+            node = self.files[0].file[GROUP_NODES][str(id)]
             children = node[DATA_CHILDREN][()] if node[DATA_CHILDREN].size > 0 else []
             parent = (
                 node[DATA_PARENT][()][0]
@@ -1120,7 +1120,10 @@ class FamDB:
                 # remove any val_children that are below this node
                 for id in node.val_children:
                     if id in ansc_node.val_children:
-                        ansc_node.val_children.remove(id)
+                        #ansc_node.val_children.remove(id)
+                        # RMH: This is a numpy.ndarray (for some reason), and remove is not
+                        # a method on  that object.  How about this:
+                        ansc_node.val_children = ansc_node.val_children[ansc_node.val_children != id]
                 # add this node to the ancestral val_children
                 ansc_node.val_children += [id]
                 update_nodes[ansc_node.tax_id] = ansc_node
