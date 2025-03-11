@@ -5,18 +5,7 @@ Fakes, stubs, etc. for use in testing FamDB
 from copy import deepcopy
 from famdb_classes import FamDBLeaf, FamDBRoot
 from famdb_helper_classes import TaxNode, Family
-from famdb_globals import (
-    FAMDB_VERSION,
-    DESCRIPTION,
-    META_META,
-    META_UUID,
-    META_DB_VERSION,
-    META_DB_DATE,
-    META_FILE_MAP,
-    META_FAMDB_VERSION,
-    META_CREATED,
-    META_DB_DESCRIPTION,
-)
+from famdb_globals import FILE_VERSION, GENERATOR_VERSION
 
 """
         1
@@ -25,8 +14,8 @@ from famdb_globals import (
 --------------
 (1)/ |\\ (2)
   4	 | *5
- /   |  \\
-6    |    7
+ /   |
+6    |
 """
 
 TAX_NAMES = {
@@ -36,7 +25,6 @@ TAX_NAMES = {
     4: "Genus",
     5: "Other Genus",
     6: "Species",
-    7: "Other Species",
 }
 COMMON_NAMES = {
     1: "Root Dummy 1",
@@ -45,14 +33,13 @@ COMMON_NAMES = {
     4: "Leaf Dummy 4",
     5: "Leaf Dummy 5",
     6: "Leaf Dummy 6",
-    7: "Leaf Dummy 7",
 }
 # 0 - root, 1 - search, 2 - other
-NODES = {0: [1, 2, 3], 1: [4, 6], 2: [5, 7]}
+NODES = {0: [1, 2, 3], 1: [4, 6], 2: [5]}
 
 FILE_INFO = {
-    META_META: {META_UUID: "uuidXX", META_DB_VERSION: "V1", META_DB_DATE: "2020-07-15"},
-    META_FILE_MAP: {
+    "meta": {"partition_id": "uuidXX", "db_version": "V1", "db_date": "2020-07-15"},
+    "file_map": {
         "0": {
             "T_root": 1,
             "filename": "unittest.0.h5",
@@ -77,7 +64,7 @@ FILE_INFO = {
     },
 }
 
-DB_INFO = ("Test Dfam", "V1", "2020-07-15", "<copyright header>")
+DB_INFO = ("Test", "V1", "2020-07-15", "Test Database", "<copyright header>")
 FAKE_REPPEPS = "./tests/rep_pep_test.lib"
 
 
@@ -106,9 +93,9 @@ def make_family(acc, clades, consensus, model):
 
 def write_test_metadata(db):
     # Override setting of format metadata for testing
-    db.file.attrs[META_FAMDB_VERSION] = FAMDB_VERSION
-    db.file.attrs[META_CREATED] = "<creation date>"
-    db.file.attrs[META_DB_DESCRIPTION] = DESCRIPTION
+    db.file.attrs["version"] = FILE_VERSION
+    db.file.attrs["generator"] = GENERATOR_VERSION
+    db.file.attrs["created"] = "2023-01-09 09:57:56.026443"
 
 
 def init_db_file(filename):
@@ -117,7 +104,7 @@ def init_db_file(filename):
         make_family("TEST0002", [2, 3], None, "<model2>"),
         make_family("TEST0003", [3], "GGTC", "<model3>"),
         make_family("TEST0004", [4], "CCCCTTTT", None),
-        make_family("DR000000001", [7], "GCATATCG", None),
+        make_family("DR000000001", [5], "GCATATCG", None),
         make_family("DR_Repeat1", [6], "CGACTAT", None),
     ]
     families = FAMILIES
@@ -135,7 +122,6 @@ def init_db_file(filename):
         4: TaxNode(4, 2),
         5: TaxNode(5, 2),
         6: TaxNode(6, 4),
-        7: TaxNode(7, 5),
     }
     taxa = build_taxa(TAX_DB)
 
@@ -144,8 +130,8 @@ def init_db_file(filename):
         write_test_metadata(db)
         db.write_repeatpeps(FAKE_REPPEPS)
 
-        db.write_full_taxonomy(taxa, NODES)
-        db.write_taxonomy(NODES[0])
+        db.write_taxonomy(taxa, NODES[0])
+        db.write_taxa_names(taxa, NODES)
 
         db.add_family(families[0])
         db.add_family(families[1])
@@ -157,7 +143,7 @@ def init_db_file(filename):
         db.set_metadata(1, FILE_INFO, *DB_INFO)
         write_test_metadata(db)
 
-        db.write_taxonomy(NODES[1])
+        db.write_taxonomy(taxa, NODES[1])
 
         db.add_family(families[3])
         db.add_family(families[5])
@@ -168,7 +154,7 @@ def init_db_file(filename):
         db.set_metadata(2, FILE_INFO, *DB_INFO)
         write_test_metadata(db)
 
-        db.write_taxonomy(NODES[2])
+        db.write_taxonomy(taxa, NODES[2])
 
         db.add_family(families[4])
 
@@ -184,26 +170,25 @@ def init_single_file(n, db_dir, change_id=False):
         4: TaxNode(4, 2),
         5: TaxNode(5, 2),
         6: TaxNode(6, 4),
-        7: TaxNode(7, 5),
     }
     filename = f"{db_dir}.{n}.h5"
     taxa = build_taxa(TAX_DB)
     if n == 0:
         file = FamDBRoot(filename, "w")
-        file.write_full_taxonomy(taxa, NODES)
+        file.write_taxa_names(taxa, {n: NODES[n] for n in NODES})
     else:
         file = FamDBLeaf(filename, "w")
     if change_id:
         file_info = deepcopy(FILE_INFO)
-        file_info[META_META][META_UUID] = "uuidYY"
+        file_info["meta"]["partition_id"] = "uuidYY"
 
     else:
         file_info = deepcopy(FILE_INFO)
-
-    file.write_taxonomy(NODES[n])
 
     write_test_metadata(file)
 
     file.set_metadata(n, file_info, *DB_INFO)
 
+    nodes = NODES[n]
+    file.write_taxonomy(taxa, nodes)
     file.finalize()

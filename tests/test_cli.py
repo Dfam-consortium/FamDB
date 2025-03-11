@@ -1,9 +1,8 @@
 import os
 import subprocess
 import unittest
-from famdb_classes import FamDB
+
 from .doubles import init_db_file
-from famdb_globals import TEST_DIR
 
 
 def test_one(t, test, args):
@@ -44,30 +43,22 @@ def test_one(t, test, args):
                 print("    ERROR: cli output mismatch for ", test)
             t.assertEqual(actual, expected)
 
-    if test == "lineage-bad-name":  # tests that are meant to represent failures
-        compare_output(result.stderr or "", out_path)
-        compare_output(result.stdout or "", err_path)
-
-    else:
-        compare_output(result.stdout or "", out_path)
-        compare_output(result.stderr or "", err_path)
+    compare_output(result.stdout or "", out_path)
+    compare_output(result.stderr or "", err_path)
 
 
 class TestCliOutput(unittest.TestCase):
     # Set up a single database file shared by all tests in this class
     @classmethod
     def setUpClass(cls):
-        file_dir = f"{TEST_DIR}/cli"
-        os.makedirs(file_dir, exist_ok=True)
+        file_dir = "/tmp/cli"
+        os.makedirs(file_dir)
         db_dir = f"{file_dir}/unittest"
         init_db_file(db_dir)
         filenames = [f"{db_dir}.0.h5", f"{db_dir}.1.h5", f"{db_dir}.2.h5"]
         TestCliOutput.filenames = filenames
         TestCliOutput.file_dir = file_dir
         TestCliOutput.tests_dir = os.path.join(os.path.dirname(__file__), "cli")
-        TestCliOutput.famdb = FamDB(file_dir, "r+")
-        TestCliOutput.famdb.build_pruned_tree()
-        TestCliOutput.famdb.close()
 
     @classmethod
     def tearDownClass(cls):
@@ -146,33 +137,19 @@ class TestCliOutput(unittest.TestCase):
         test_one(self, test, args)
 
     def test_lineage_pretty(self):
+        # prune and curated aren't tested yet TODO
         test = "lineage-pretty"
         args = ["lineage", "-d", "1"]
         test_one(self, test, args)
 
-    def test_lineage_pretty_full(self):
-        test = "lineage-pretty-full"
-        args = ["lineage", "-dk", "1"]
-        test_one(self, test, args)
-
     def test_lineage_semicolons(self):
         test = "lineage-semicolon"
-        args = ["lineage", "--format", "semicolon", "7"]
+        args = ["lineage", "--format", "semicolon", "-a", "5"]
         test_one(self, test, args)
 
     def test_lineage_totals(self):
         test = "lineage-totals"
         args = ["lineage", "--format", "totals", "-ad", "3"]
-        test_one(self, test, args)
-
-    def test_lineage_curated(self):
-        test = "lineage-curated"
-        args = ["lineage", "-cdk", "1"]
-        test_one(self, test, args)
-
-    def test_lineage_bad_name(self):
-        test = "lineage-bad-name"
-        args = ["lineage", "-a", "Other Geus"]
         test_one(self, test, args)
 
     def test_names_pretty(self):
@@ -189,10 +166,3 @@ class TestCliOutput(unittest.TestCase):
         test = "names-json"
         args = ["names", "--format", "json", "genus"]
         test_one(self, test, args)
-
-    def test_info(self):
-        test = "info"
-        args = ["info"]
-        test_one(self, test, args)
-
-    # can't test history, the timestamps change

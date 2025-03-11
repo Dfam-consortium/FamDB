@@ -29,7 +29,6 @@ def accession_bin(acc):
 
 
 def get_family(entry):
-    """Builds a Family from db data"""
     if not entry:
         return None
 
@@ -44,9 +43,8 @@ def get_family(entry):
 
 
 def families_iterator(g, prefix=""):
-    """Generator that returns all items in a group"""
     for key, item in g.items():
-        path = f"{prefix}/{key}"
+        path = "{}/{}".format(prefix, key)
         if isinstance(item, h5py.Dataset):  # test for dataset
             yield (key)
         elif isinstance(item, h5py.Group):  # test for group (go down)
