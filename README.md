@@ -26,21 +26,28 @@ or HMM files.
 ## Installation/Setup
 FamDB files follow a simple hierarchical structure based on the NCBI taxonomy tree. These files represent partitioned subsets of the Dfam database and contain data for related areas of the taxonomy tree. 
 
-Each installation comprises a required root file as well as a number of optional leaf files. The root file contains data for the higher levels of the taxonomy tree, data for less represented taxa (Fungi, Amoebas), and data for highly studied taxa (Mammals). The leaf files contain data for related taxa as shown in the table below.
+Each installation comprises a required root file as well as a number of optional leaf files. The root file contains data for the highest levels of the taxonomy tree and is required in order to interact with the leaf files. The leaf files contain data for related taxa as shown in the table below.
 
 The current partitions are:
  Number | Name | Description | Root Taxon ID | File Size | Required 
 :---: | :---: | :---: | :---: | :---: | :---: 
- 0 | Root | Mammals, Microbes, Fungi, Jellies, & Sponges | 1 | 71Gb | * 
- 1 | Obtectomera | Moths & Butterflies | 104431 | 125Gb | |
- 2 | Euteleosteomorpha | Bony Fish | 1489388 | 118Gb | 
- 3 | Sarcopterygii | Reptiles, Amphibians, & Coelacanths | 8287 | 90Gb | 
- 4 | Diptera | Flies | 7147 | 87Gb | 
- 5 | Viridiplantae | Plants | 33090 | 72Gb | 
- 6 | Deuterostomia | Other Fish & Echinoderms | 33511 | 69Gb | 
- 7 | Hymenoptera | Wasps, Bees, & Ants | 7399 | 63Gb | 
- 8 | Ecdysozoa | Other Arthropods & Roundworms | 1206794 | 126Gb | 
-
+ 0 | Root | | 1 | 0.074Gb | * 
+ 1 | Brachycera | Flies | 7203 | 73Gb | |
+ 2 | Archelosauria | Turtles, Birds, & Crocodilians | 1329799 | 66Gb | 
+ 3 | Hymenoptera | Ants, Bees, & Wasps | 7399 | 60Gb | 
+ 4 | Otomorpha | Bony Fishes(?) | 186634 | 57Gb | 
+ 5 | rosids | rosids | 71275 | 57Gb | 
+ 6 | Viridiplantae | Other Plants | 33090 | 60Gb | 
+ 7 | Mammalia | Mammals | 40674 | 57Gb | 
+ 8 | Noctuoidea | Owlet Moths | 37570 | 52Gb | 
+ 9 | Obtectomera | Other Moths and Butterflies(?) | 104431 | 67Gb |
+ 10 | Eupercaria | Bony Fishes (?) | 1489922 | 50Gb |
+ 11 | Ctenosquamata | Bony Fishes (?) | 123367 | 64Gb |
+ 12 | Vertebrata <vertebrates> | Ancient Fish (?), Other Reptiles | 7742 | 74Gb |
+ 13 | Coleoptera | Beetles | 7041 | 40Gb |
+ 14 | Endopterygota | Other Insects (?) | 33392 | 43Gb |
+ 15 | Protostomia | Roundworms, Non Insect Arthropods, Other inects and worms (?)| 33317 | 70Gb |
+ 16 | Riboviria | Fungi, Marine Invertebrates, Red Algae, Protists, Viruses | 2559587 | 35Gb |
 
 All FamDB files follow the convention `<export name>.<partition number>.h5` where the root partition is partition 0. All files from the same export should be kept in the same directory with no other exports present. The FamDB software will display a warning if files from different export or partitioning runs are present. The name of the directory containing the FamDB files is passed as an argument to `famdb.py`.
 
