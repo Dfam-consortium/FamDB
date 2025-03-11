@@ -1087,6 +1087,9 @@ class FamDB:
                 climb_non_val_parents(parent_node, ancestor_path)
             return ancestor_path
 
+        # RMH: This is a redundant loop.  It should be possible to treat each insertion
+        #       as independent of all others (even if they overlap).  Therefore you could
+        #       collapse this loop with the one below.
         tree = {}
         for id in new_val_taxa:
             tree[id] = build_taxa_node(id, value=True)
@@ -1098,19 +1101,21 @@ class FamDB:
             change_ancestors = [build_taxa_node(node.val_parent, value=True)]
             change_ancestors += climb_non_val_parents(node)
 
-            # collect all nodes that need thier val_parent updated
+            # Collect all nodes that need thier val_parent updated
+            # This should be all nodes between this node and including
+            # its val_children.
             change_descendants = []
             for val_child in node.val_children:
                 child_node = build_taxa_node(val_child, value=True)
                 change_descendants += [child_node]
                 change_descendants += climb_non_val_parents(child_node)
 
-            # all nodes below this one should point to it now, instead of it's val_parent
+            # all nodes below this one should point to it now, instead of its val_parent
             for desc_node in change_descendants:
                 desc_node.val_parent = id
                 update_nodes[desc_node.tax_id] = desc_node
 
-            # all nodes above it should point to it as well, instead of any of it's val_children
+            # all nodes above it should point to it as well, instead of any of its val_children
             for ansc_node in change_ancestors:
                 # remove any val_children that are below this node
                 for id in node.val_children:
