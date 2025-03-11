@@ -31,23 +31,25 @@ Each installation comprises a required root file as well as a number of optional
 The current partitions are:
  Number | Name | Description | Root Taxon ID | File Size | Required 
 :---: | :---: | :---: | :---: | :---: | :---: 
- 0 | Root | | 1 | 0.074Gb | * 
+ 0 | Root | | 1 | 0.074Gb | &#9745;
  1 | Brachycera | Flies | 7203 | 73Gb | |
  2 | Archelosauria | Turtles, Birds, & Crocodilians | 1329799 | 66Gb | 
  3 | Hymenoptera | Ants, Bees, & Wasps | 7399 | 60Gb | 
- 4 | Otomorpha | Bony Fishes(?) | 186634 | 57Gb | 
- 5 | rosids | rosids | 71275 | 57Gb | 
- 6 | Viridiplantae | Other Plants | 33090 | 60Gb | 
+ 4 | Otomorpha | Smelts, Herrings, & Milkfish | 186634 | 57Gb | 
+ 5 | rosids | Vitis, fabids, & malvids | 71275 | 57Gb | 
+ 6 | Viridiplantae | Other Plants, Mosses, & Green Algae | 33090 | 60Gb | 
  7 | Mammalia | Mammals | 40674 | 57Gb | 
  8 | Noctuoidea | Owlet Moths | 37570 | 52Gb | 
- 9 | Obtectomera | Other Moths and Butterflies(?) | 104431 | 67Gb |
- 10 | Eupercaria | Bony Fishes (?) | 1489922 | 50Gb |
- 11 | Ctenosquamata | Bony Fishes (?) | 123367 | 64Gb |
- 12 | Vertebrata <vertebrates> | Ancient Fish (?), Other Reptiles | 7742 | 74Gb |
+ 9 | Obtectomera | Other Moths and Butterflies* | 104431 | 67Gb |
+ 10 | Eupercaria | Diverse Ray-Finned Fishes* | 1489922 | 50Gb |
+ 11 | Ctenosquamata | Diverse Ray-Finned Fishes* | 123367 | 64Gb |
+ 12 | Vertebrata <vertebrates> | Lepidosaurs, Amphibians, Ancient Fish, Other Ray-Finned Fishes | 7742 | 74Gb |
  13 | Coleoptera | Beetles | 7041 | 40Gb |
- 14 | Endopterygota | Other Insects (?) | 33392 | 43Gb |
- 15 | Protostomia | Roundworms, Non Insect Arthropods, Other inects and worms (?)| 33317 | 70Gb |
+ 14 | Endopterygota | Other Files, Moth, & Insects* | 33392 | 43Gb |
+ 15 | Protostomia | Roundworms, Non-Insect Arthropods, Other Insects & Worms* | 33317 | 70Gb |
  16 | Riboviria | Fungi, Marine Invertebrates, Red Algae, Protists, Viruses | 2559587 | 35Gb |
+
+\* For more detail regarding partition contents, see the `README.txt` at the [download link](https://www.dfam.org/releases/current/families/FamDB/) 
 
 All FamDB files follow the convention `<export name>.<partition number>.h5` where the root partition is partition 0. All files from the same export should be kept in the same directory with no other exports present. The FamDB software will display a warning if files from different export or partitioning runs are present. The name of the directory containing the FamDB files is passed as an argument to `famdb.py`.
 
