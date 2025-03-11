@@ -1037,7 +1037,7 @@ class FamDB:
         thier val_parents with the subject node.
         """
 
-        def build_taxa_node(id):
+        def build_taxa_node(id, value=False):
             """Builds a TaxNode object from HDF5 data"""
             node = self.files[0].file[GROUP_NODES][id]
             children = node[DATA_CHILDREN][()] if node[DATA_CHILDREN].size > 0 else []
@@ -1056,7 +1056,7 @@ class FamDB:
             )
 
             tree_node = TaxNode(id, str(parent) if parent else None)
-            tree_node.val = True
+            tree_node.val = value
             tree_node.children = children
             tree_node.val_children = val_children
             tree_node.val_parent = val_parent
@@ -1073,19 +1073,19 @@ class FamDB:
 
         tree = {}
         for id in new_val_taxa:
-            tree[id] = build_taxa_node(id)
+            tree[id] = build_taxa_node(id, value=True)
 
         update_nodes = {}
         for id in tree:
             node = tree[id]
             # collect all nodes that need their val_children updated
-            change_ancestors = [build_taxa_node(node.val_parent)]
+            change_ancestors = [build_taxa_node(node.val_parent, value=True)]
             change_ancestors += climb_non_val_parents(node)
 
             # collect all nodes that need thier val_parent updated
             change_descendants = []
             for val_child in node.val_children:
-                child_node = build_taxa_node(val_child)
+                child_node = build_taxa_node(val_child, value=True)
                 change_descendants += [child_node]
                 change_descendants += climb_non_val_parents(child_node)
 
