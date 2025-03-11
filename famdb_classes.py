@@ -1045,7 +1045,7 @@ class FamDB:
         """
         This method takes a list/set of taxon ids that did not have families associated with them,
         but do now due to a recent append command. It resets the val_parent/val_child links in the
-        taxonomy tree to accound for the fact that there is new data in the tree.
+        taxonomy tree to account for the fact that there is new data in the tree.
         It assumes that a subject node's val_parent and all ancestor nodes between them will set it
         as one of thier val_children in place of any val_children that it used to share with the
         subject node.
@@ -1121,7 +1121,7 @@ class FamDB:
                 update_nodes[ansc_node.tax_id] = ansc_node
 
             # update the tree for each newly val'd taxon, to avoid tangling pointers when multiple updates occur on the same path
-            self.files[0].update_pruned_taxa(tree)
+            self.files[0].update_pruned_taxa(update_nodes)
             update_nodes = {}
 
     def set_db_info(self, name, version, date, desc, copyright_text):
