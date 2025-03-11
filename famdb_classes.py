@@ -936,15 +936,31 @@ class FamDB:
     def build_pruned_tree(self):
         """
         Establishes a sparse taxonomy tree where parent-child relationships are restricted to
-        nodes with associated family data. For example, a node will be assigned a sparese parent
-        as the closesed ancestor node with data, rather than it's actual parent node, if it's
+        nodes with associated family data. For example, a node will be assigned a sparse parent
+        as the closest ancestor node with data, rather than its actual parent node, if its
         actual parent node is empty.
         This method exists in FamDB instead of FamDBRoot because it is subject to change after an append,
         and because the associated data is stored in FamDBLeaf files
+
+        Taxonomy Tree is stored as a dictionary of TaxNodes ( self.files[0].file[GROUP_NODES][node] )
+            node:
+                tax_id: int
+                parent_id: int
+                val: bool
+                children: [int]
+                val_parent: int
+                val_children: [int]
+
+        If adding a family this should be easily modified by:
+             1. Identify the node which the new family is assigned to (or more than one for multiple clades)
+             2. Set the val flag to True
+             3. For each child in val_children
+                 ....
+             Go over this with Anthony
         """
 
         def traverse_val_parents(tree, id):
-            """Recurs up the tree ancestor by ancestor until it finds the nearest ancestor with data"""
+            """Recurse up the tree ancestor by ancestor until it finds the nearest ancestor with data"""
             node = tree[id]
             if node.parent_id:
                 parent = tree.get(node.parent_id)
@@ -1071,6 +1087,9 @@ class FamDB:
                 climb_non_val_parents(parent_node, ancestor_path)
             return ancestor_path
 
+        # RMH: This is a redundant loop.  It should be possible to treat each insertion
+        #       as independent of all others (even if they overlap).  Therefore you could
+        #       collapse this loop with the one below.
         tree = {}
         for id in new_val_taxa:
             tree[id] = build_taxa_node(id, value=True)
@@ -1082,19 +1101,21 @@ class FamDB:
             change_ancestors = [build_taxa_node(node.val_parent, value=True)]
             change_ancestors += climb_non_val_parents(node)
 
-            # collect all nodes that need thier val_parent updated
+            # Collect all nodes that need thier val_parent updated
+            # This should be all nodes between this node and including
+            # its val_children.
             change_descendants = []
             for val_child in node.val_children:
                 child_node = build_taxa_node(val_child, value=True)
                 change_descendants += [child_node]
                 change_descendants += climb_non_val_parents(child_node)
 
-            # all nodes below this one should point to it now, instead of it's val_parent
+            # all nodes below this one should point to it now, instead of its val_parent
             for desc_node in change_descendants:
                 desc_node.val_parent = id
                 update_nodes[desc_node.tax_id] = desc_node
 
-            # all nodes above it should point to it as well, instead of any of it's val_children
+            # all nodes above it should point to it as well, instead of any of its val_children
             for ansc_node in change_ancestors:
                 # remove any val_children that are below this node
                 for id in node.val_children:
