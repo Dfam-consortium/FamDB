@@ -44,10 +44,10 @@ def test_one(t, test, args):
                 print("    ERROR: cli output mismatch for ", test)
             t.assertEqual(actual, expected)
 
-    if test == "lineage-bad-name": # tests that are meant to represent failures
+    if test == "lineage-bad-name":  # tests that are meant to represent failures
         compare_output(result.stderr or "", out_path)
         compare_output(result.stdout or "", err_path)
-    
+
     else:
         compare_output(result.stdout or "", out_path)
         compare_output(result.stderr or "", err_path)

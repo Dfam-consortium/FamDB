@@ -574,11 +574,16 @@ def command_append(args):
         add_taxa = set()
         for clade in entry.clades:
             file = args.db_dir.find_taxon(clade)
-            if args.db_dir.files.get(file) and args.db_dir.files[file].has_taxon(clade):
-                add_files.add(file)
-                # check if the taxon is empty
-                if not args.db_dir.get_families_for_taxon(clade, file):
-                    add_taxa.add(clade)
+            if args.db_dir.files.get(file):
+                if args.db_dir.files[file].has_taxon(clade):
+                    add_files.add(file)
+                    # check if the taxon is empty
+                    if not args.db_dir.get_families_for_taxon(clade, file):
+                        add_taxa.add(clade)
+            else:
+                LOGGER.info(
+                    f"Entry {acc} Not Appended, Local File For Taxon {clade} Not Found. Taxon {clade} Is Found In Partition File {file}"
+                )
 
         if not add_files:
             LOGGER.debug(f" {acc} not added to local files, local file not found")
