@@ -139,7 +139,6 @@ class FamDBLeaf:
             "write_taxonomy": "Taxonomy Nodes Written",
             "write_full_taxonomy": "Taxonomy Nodes Written",
             "update_description": "File Description Updated",
-            "update_pruned_taxa": "Pruned Tree Updated",
         }
         message = func_to_note[func.__name__]
 
@@ -483,7 +482,6 @@ class FamDBRoot(FamDBLeaf):
         delta = time.perf_counter() - start
         LOGGER.info(f"Wrote {count} taxonomy nodes in full tree in {delta}")
 
-    @FamDBLeaf._change_logger
     def update_pruned_taxa(self, tree):
         """
         Takes a map of TaxaNodes
@@ -1038,8 +1036,11 @@ class FamDB:
         LOGGER.info("Pruned Tree Prepared")
 
         # update database nodes
+        message = "Pruned Tree Written"
+        rec = self.append_start_changelog(message)
         self.files[0].update_pruned_taxa(tree)
-        LOGGER.info("Pruned Tree Written")
+        self.append_finish_changelog(message, rec)
+        LOGGER.info(message)
 
     def rebuild_pruned_tree(self, new_val_taxa):
         """
@@ -1055,6 +1056,7 @@ class FamDB:
 
         def build_taxa_node(id, value=False):
             """Builds a TaxNode object from HDF5 data"""
+            # if self.files[0].file[GROUP_NODES].get(str(id)):
             node = self.files[0].file[GROUP_NODES][str(id)]
             children = node[DATA_CHILDREN][()] if node[DATA_CHILDREN].size > 0 else []
             parent = (
@@ -1082,7 +1084,7 @@ class FamDB:
         # RMH: This parameter default pattern "foo=[]" is dangerous.  The
         #      list generated is global and gets reused between independent
         #      invocations!
-        #def climb_non_val_parents(node, ancestor_path=[]):
+        # def climb_non_val_parents(node, ancestor_path=[]):
         #    """collects the nodes between a node and it's val_parent, not inclusive"""
         #    if node.parent_id != node.val_parent:
         #        parent_node = build_taxa_node(node.parent_id)
@@ -1092,17 +1094,21 @@ class FamDB:
 
         def climb_non_val_parents(target_id, node, ancestor_path=None):
             """Collects TaxNodes between a given node and a ancestral
-               node defined by target_id (exclusive). """
+            node defined by target_id (exclusive)."""
 
             if ancestor_path == None:
                 ancestor_path = []
 
-            if hasattr(node,"parent_id") and str(node.parent_id) != str(target_id):
+            if hasattr(node, "parent_id") and str(node.parent_id) != str(target_id):
                 parent_node = build_taxa_node(node.parent_id)
                 ancestor_path += [parent_node]
-                ancestor_path = climb_non_val_parents(target_id, parent_node, ancestor_path)
+                ancestor_path = climb_non_val_parents(
+                    target_id, parent_node, ancestor_path
+                )
             return ancestor_path
 
+        message = "Pruned Tree Updated"
+        rec = self.append_start_changelog(message)
         update_nodes = {}
         for id in new_val_taxa:
             node = build_taxa_node(id, value=True)
@@ -1126,21 +1132,26 @@ class FamDB:
                         update_nodes[ancestor.tax_id] = ancestor
 
             # Gather all nodes above the target node up until its val_parent
-            change_ancestors = [build_taxa_node(node.val_parent, value=True)]
-            change_ancestors += climb_non_val_parents(node.val_parent, node)
+            if node.val_parent:
+                change_ancestors = [build_taxa_node(node.val_parent, value=True)]
+                change_ancestors += climb_non_val_parents(node.val_parent, node)
 
-            # All nodes above it should point to it as well, instead of any of its val_children
-            for ansc_node in change_ancestors:
-                # remove any val_children that are below this node
-                for vid in node.val_children:
-                    ansc_node.val_children = ansc_node.val_children[ansc_node.val_children != vid]
-                # add this node to the ancestral val_children
-                ansc_node.val_children = numpy.append(ansc_node.val_children, id)
-                update_nodes[ansc_node.tax_id] = ansc_node
+                # All nodes above it should point to it as well, instead of any of its val_children
+                for ansc_node in change_ancestors:
+                    # remove any val_children that are below this node
+                    for vid in node.val_children:
+                        ansc_node.val_children = ansc_node.val_children[
+                            ansc_node.val_children != vid
+                        ]
+                    # add this node to the ancestral val_children
+                    ansc_node.val_children = numpy.append(ansc_node.val_children, id)
+                    update_nodes[ansc_node.tax_id] = ansc_node
 
             # update the tree for each newly val'd taxon, to avoid tangling pointers when multiple updates occur on the same path
             self.files[0].update_pruned_taxa(update_nodes)
             update_nodes = {}
+        self.append_finish_changelog(message, rec)
+        LOGGER.info(message)
 
     def set_db_info(self, name, version, date, desc, copyright_text):
         """Method for resetting metadata"""
