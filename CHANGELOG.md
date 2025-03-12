@@ -2,8 +2,10 @@
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+## 2.0.1- 2025-03-12
+- Updated The logging during the append command, both the output and interal file log
 
-## 2.0 - 2025-03
+## 2.0.0 - 2025-03-11
 ### Added
 - The taxonomy now includes links between nodes connecting only nodes with associated family data. By default, traversing the taxonomy tree will skip empty nodes except in specific instances like semicolon-delineated lineage output. Standard parent-child traversal is still available.
 - Each file now tracks it's change history. This history is accessible via the `info --history` command.
