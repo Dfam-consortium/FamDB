@@ -564,6 +564,8 @@ def command_append(args):
     file_counts = {}
     new_val_taxa = set()
     dups = set()
+    missing_files = {}
+
     for entry in embl_iter:
         total_ctr += 1
         acc = entry.accession
@@ -572,7 +574,6 @@ def command_append(args):
         # prepare set of local files to add family to
         add_files = set()
         add_taxa = set()
-        missing_files = {}
         for clade in entry.clades:
             file = args.db_dir.find_taxon(clade)
             if args.db_dir.files.get(file):
