@@ -6,12 +6,24 @@
     Usage: set_ver_date.py [-h] [-l LOG_LEVEL]
                [--db-version 3.2]
                [--db-date YYYY-MM-DD]
+               [--db-name Test_name]
+               [--db-description  'New Description']
+               [--file-info dump/load]
+               [-t d]
                famdb_database_dir
 
 
-    --db-version    : Set the database version explicitly, overriding the version in --from-db if present.
-    --db-date       : Set the database date explicitly, overriding the date in --from-db if present.
-                      If not given, the current date will be used.
+    --db-version        : Set the database version explicitly, overriding the version in --from-db if present.
+    --db-date           : Set the database date explicitly, overriding the date in --from-db if present.
+                          If not given, the current date will be used.
+    --db-name           : Set the database name.
+    --db-description    : Set the database description.
+    --file-info         : This argument takes two options, either 'dump' or 'load'. Dump outputs the file info 
+                          JSON string to a file, and load loads that file back into the FamDB files. The file 
+                          can be edited by hand.
+    --input-type, -t    : Input type can be 'd' or 'directory' for editing whole FamDB installations, or 'f' 
+                          or 'file' to modify individual files.
+    input               : This path to the file or directory to be edited.
 
 SEE ALSO:
     famdb.py
@@ -19,6 +31,7 @@ SEE ALSO:
 
 AUTHOR(S):
     Robert Hubley <rhubley@systemsbiology.org>
+    Anthony Gray <agray@systemsbiology.org>
 
 LICENSE:
     This code may be used in accordance with the Creative Commons
@@ -59,7 +72,6 @@ from famdb_globals import (
     META_CREATED,
     COPYRIGHT_TEXT,
 )
-
 
 LOGGER = logging.getLogger(__name__)
 
@@ -154,52 +166,21 @@ def main():
     new_creation_time = str(datetime.datetime.now())
 
     open_mode = "r+"
-    if not args.db_version and not args.db_date:
-        open_mode = "r"
-
-    for filename in os.listdir(args.db_dir):
+    input = args.input
+    if args.input_type == "f" or args.input_type == "file":
         matches = re.match(r"\S+\.(\d+)\.h5", filename)
         if matches:
-            with h5py.File(os.path.join(args.db_dir, filename), mode=open_mode) as h5f:
-                print(filename + ":")
-                db_version = h5f.attrs["db_version"]
-                db_date = h5f.attrs["db_date"]
-                db_copyright = h5f.attrs["db_copyright"]
-                meta_created = h5f.attrs["created"]
+            update_file(input, open_mode, new_creation_time, args)
 
-                print(f"  current: dfam version: {db_version}")
+    elif args.input_type == "d" or args.input_type == "directory":
+        for filename in os.listdir(input):
+            matches = re.match(r"\S+\.(\d+)\.h5", filename)
+            if matches:
+                file_path = os.path.join(input, filename)
+                update_file(file_path, open_mode, new_creation_time, args)
 
-                if args.db_version:
-                    db_version = args.db_version
-                    h5f.attrs["db_version"] = db_version
-                    print(f"    ** new: db_info - dfam version: {db_version}")
-
-                print(f"  current: db_meta - famdb creation date: {meta_created}")
-                print(f"  current: db_info - dfam creation date: {db_date}")
-                print(f"  current: copyright: {db_copyright}")
-                if args.db_date:
-                    db_date = args.db_date
-                    year_match = re.match(r"^(\d{4})-\d{2}-\d{2}$", db_date)
-                    if year_match:
-                        db_year = year_match.group(1)
-                    else:
-                        raise Exception(
-                            "Date should be in YYYY-MM-DD format, got: " + db_date
-                        )
-
-                    copyright_text = COPYRIGHT_TEXT % (
-                        db_year,
-                        db_version,
-                        db_date,
-                    )
-                    h5f.attrs["db_copyright"] = copyright_text
-                    h5f.attrs["db_date"] = db_date
-                    h5f.attrs["created"] = new_creation_time
-                    print(
-                        f"    ** new: db_meta - famdb creation date: {new_creation_time}"
-                    )
-                    print(f"    ** new: db_info - dfam creation date: {db_date}")
-                    print(f"    ** new: copyright: {copyright_text}")
+    else:
+        print("Please Specify If The Input Is A Single File (-f) Or A Directory (-d)")
 
 
 if __name__ == "__main__":
