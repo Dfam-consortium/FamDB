@@ -15,7 +15,6 @@
 
     --db-version        : Set the database version explicitly, overriding the version in --from-db if present.
     --db-date           : Set the database date explicitly, overriding the date in --from-db if present.
-                          If not given, the current date will be used.
     --db-name           : Set the database name.
     --db-description    : Set the database description.
     --file-info         : This argument takes two options, either 'dump' or 'load'. Dump outputs the file info 
