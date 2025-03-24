@@ -36,7 +36,7 @@ The python script invoked by the user. Mediates between the user provided argume
 These files contain utility classes and methods that are used by the previous famdb scripts.
 
 ### `famdb_data_loaders.py`
-This script is used by `export_dfam.py` to read data during export.
+This script has been moved to an internal Server library, since it interfaces directly with the Dfam database.
 
 ### `export_dfam.py`
 This script has been moved to an internal Server library, since it interfaces directly with the Dfam database.
