@@ -94,6 +94,10 @@ class FamDBLeaf:
             self.seen = {}
             self.added = {"consensus": 0, "hmm": 0}
             self.__write_metadata()
+            # ensure lookups exist to avoid random breaking depending on the export data
+            self.file.require_group(GROUP_LOOKUP_BYNAME)
+            self.file.require_group(GROUP_LOOKUP_BYSTAGE)
+            self.file.require_group(GROUP_LOOKUP_BYTAXON)
         elif self.mode == "r+":
             self.added = self.get_counts()
 
@@ -288,12 +292,12 @@ class FamDBLeaf:
             f"{binned_v}/{accession}v"
         ):
             return False
-
+        # TODO: check for DF/DR record first, then check by name, ensure case insensitivity 
         # check for unique name
         # if family.name:
-        #    name_lookup = f"{GROUP_LOOKUP_BYNAME}/{family.name}"
-        #    if self.file.get(name_lookup) or self.file.get(name_lookup + 'v'):
-        #        return False
+        #     name_lookup = f"{GROUP_LOOKUP_BYNAME}/{family.name}"
+        #     if self.file.get(name_lookup) or self.file.get(name_lookup + "v"):
+        #         return False
 
         if self.file.get(f"{GROUP_LOOKUP_BYNAME}/{accession}") or self.file.get(
             f"{GROUP_LOOKUP_BYNAME}/{accession}v"
@@ -1474,9 +1478,12 @@ class FamDB:
     def get_family_by_name(self, accession):
         """Wrapper method to call the Leaf get_family_by_name"""
         for file in self.files:
-            fam = self.files[file].get_family_by_name(accession)
-            if fam:
-                return fam
+            try:
+                fam = self.files[file].get_family_by_name(accession)
+                if fam:
+                    return fam
+            except Exception:
+                pass
         return None
 
     def finalize(self):
