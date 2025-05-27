@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## 2.0.2- 2025-05-27
 ### Fixed
 - Fixed a bug where lookup keys might not have been created in a specific file, causing a query to break if that file was included in the search
+### Added
+- Added a file holding names of RepBase families to exclude from the append command. This prevents duplicate families from being added.
 
 ## 2.0.1- 2025-03-12
 - Updated The logging during the append command, both the output and interal file log

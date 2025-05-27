@@ -63,6 +63,7 @@ from famdb_globals import (
 
 LOGGER = logging.getLogger(__name__)
 
+
 def update_file(file_path, open_mode, new_creation_time, args):
     with h5py.File(file_path, mode=open_mode) as h5f:
         print(file_path + ":")

@@ -55,6 +55,7 @@ from famdb_globals import (
     FAMILY_FORMATS_EPILOG,
     MISSING_FILE,
     HELP_URL,
+    REPBASE_NAMESPACE,
 )
 from famdb_classes import FamDB
 
@@ -565,6 +566,13 @@ def command_append(args):
     new_val_taxa = set()
     dups = set()
     for entry in embl_iter:
+        # check installation namespace and skip entry if it already exists
+        if entry.accession in args.rb_names or not args.db_dir.check_unique(entry):
+            LOGGER.info(
+                f"Skipped {entry.accession}. A family with the same accession/name is already in Dfam"
+            )
+            continue
+
         total_ctr += 1
         acc = entry.accession
         added = False
@@ -582,7 +590,7 @@ def command_append(args):
                     if not args.db_dir.get_families_for_taxon(clade, file):
                         add_taxa.add(clade)
             else:
-                missing_files[file] = missing_files.get(file,0) + 1
+                missing_files[file] = missing_files.get(file, 0) + 1
 
         if not add_files:
             LOGGER.debug(f" {acc} not added to local files, local file not found")
@@ -611,7 +619,9 @@ def command_append(args):
         LOGGER.debug(f" {len(dups)} Duplicate Accesisons: {dups}")
     if missing_files:
         for file in missing_files:
-            LOGGER.info(f"Partition File {file} Not Found. {missing_files[file]} Entries Were Not Appended:")
+            LOGGER.info(
+                f"Partition File {file} Not Found. {missing_files[file]} Entries Were Not Appended:"
+            )
 
     db_info = args.db_dir.get_metadata()
 
@@ -913,6 +923,17 @@ def main():  # =================================================================
             "Please specify a directory containing FamDB files to operate on with the -i/--file option."
         )
         exit(1)
+
+    if args.func.__name__ == "command_append":
+        rb_name_file = args.db_dir + REPBASE_NAMESPACE
+        if os.path.exists(rb_name_file):
+            with open(rb_name_file) as f:
+                args.rb_names = set(name.strip() for name in f.readlines())
+        else:
+            LOGGER.error(
+                f"{REPBASE_NAMESPACE} should be present in your FamDB installation folder before appending."
+            )
+            exit(1)
 
     try:
         args.db_dir = FamDB(args.db_dir, mode)
