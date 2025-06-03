@@ -864,7 +864,7 @@ with a given clade, optionally filtered by additional criteria",
     # APPEND --------------------------------------------------------------------------------------------------------------------------------
     p_append = subparsers.add_parser("append")
     p_append.add_argument("infile", help="the name of the input file to be appended")
-    p_append.add_argument("exclusion_file", help="the name of the file containing family names to be excluded")
+    p_append.add_argument("exclusion_file", help="the name of the file listing family names to be excluded")
     p_append.add_argument(
         "--name", help="new name for the database (replaces the existing name)"
     )
@@ -926,8 +926,14 @@ def main():  # =================================================================
 
     if args.func.__name__ == "command_append":
         if os.path.exists(args.exclusion_file):
-            with open(args.exclusion_file) as f:
-                args.rb_names = set(name.strip() for name in f.readlines())
+            try:
+                with open(args.exclusion_file) as f:
+                    args.rb_names = set(name.strip() for name in f.readlines())
+            except Exception:
+                LOGGER.error(
+                    f"{args.exclusion_file} could not be parsed."
+                )
+            exit(1)
         else:
             LOGGER.error(
                 f"{args.exclusion_file} not found."
