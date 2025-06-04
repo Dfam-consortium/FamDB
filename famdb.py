@@ -649,6 +649,7 @@ def command_append(args):
     LOGGER.info("Finalizing Files")
     args.db_dir.finalize()
 
+
 def build_args():
     """builds and parses the command line args"""
     parser = argparse.ArgumentParser(
