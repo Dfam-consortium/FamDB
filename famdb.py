@@ -567,6 +567,13 @@ def command_append(args):
     missing_files = {}
 
     for entry in embl_iter:
+        # check installation namespace and skip entry if it already exists
+        if entry.accession in args.rb_names or not args.db_dir.check_unique(entry):
+            LOGGER.info(
+                f"Skipped {entry.accession}. A family with the same accession/name is already in Dfam"
+            )
+            continue
+
         total_ctr += 1
         acc = entry.accession
         added = False
@@ -641,7 +648,6 @@ def command_append(args):
 
     LOGGER.info("Finalizing Files")
     args.db_dir.finalize()
-
 
 def build_args():
     """builds and parses the command line args"""
@@ -859,6 +865,10 @@ with a given clade, optionally filtered by additional criteria",
     p_append = subparsers.add_parser("append")
     p_append.add_argument("infile", help="the name of the input file to be appended")
     p_append.add_argument(
+        "exclusion_file",
+        help="the name of the file listing family names to be excluded",
+    )
+    p_append.add_argument(
         "--name", help="new name for the database (replaces the existing name)"
     )
     p_append.add_argument(
@@ -916,6 +926,18 @@ def main():  # =================================================================
             "Please specify a directory containing FamDB files to operate on with the -i/--file option."
         )
         exit(1)
+
+    if args.func.__name__ == "command_append":
+        if os.path.exists(args.exclusion_file):
+            try:
+                with open(args.exclusion_file) as f:
+                    args.rb_names = set(name.strip() for name in f.readlines())
+            except Exception:
+                LOGGER.error(f"{args.exclusion_file} could not be parsed.")
+            exit(1)
+        else:
+            LOGGER.error(f"{args.exclusion_file} not found.")
+            exit(1)
 
     try:
         args.db_dir = FamDB(args.db_dir, mode)
