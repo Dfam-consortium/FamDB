@@ -479,7 +479,7 @@ class FamDBRoot(FamDBLeaf):
                 DATA_PARTITION, data=numpy.array([partition_map[node]])
             )
 
-        LOGGER.info(f"Writing Taxonomy Name Cache String")
+        LOGGER.info(f"Writing Name Cache String")
         self.file.create_dataset(
             DATA_NAMES_CACHE, data=numpy.array(json.dumps(names_dump), dtype="S")
         )

@@ -106,24 +106,24 @@ def update_file(file_path, open_mode, new_creation_time, args):
             h5f.attrs[META_DB_DESCRIPTION] = db_description
             print(f"    ** new: db_desc - dfam description: {db_description}")
 
-        dump_base = "_file_info.json"
+        dump_base = '_file_info.json'
         dump_name = f"{db_name}{dump_base}"
-        if args.file_info and args.file_info == "dump":
+        if args.file_info and args.file_info == 'dump':
             file_info = h5f.attrs[META_FILE_INFO]
             info_obj = json.loads(file_info)
-            with open(dump_name, "w") as outfile:
+            with open(dump_name, 'w') as outfile:
                 json.dump(info_obj, outfile, indent=4)
             print(f"File Info Dumped To {dump_name}")
-
+            
         if args.db_date:
             db_date = args.db_date
             year_match = re.match(r"^(\d{4})-\d{2}-\d{2}$", db_date)
             if year_match:
                 db_year = year_match.group(1)
                 copyright_text = COPYRIGHT_TEXT % (
-                    db_year,
-                    db_version,
-                    db_date,
+                db_year,
+                db_version,
+                db_date,
                 )
                 h5f.attrs[META_DB_COPYRIGHT] = copyright_text
                 h5f.attrs[META_DB_DATE] = db_date
@@ -133,16 +133,15 @@ def update_file(file_path, open_mode, new_creation_time, args):
                 print(f"    ** new: copyright: {copyright_text}")
             else:
                 raise Exception("Date should be in YYYY-MM-DD format, got: " + db_date)
-
-        if args.file_info and args.file_info == "load":
+        
+        if args.file_info and args.file_info == 'load':
             try:
-                with open(dump_name, "r") as outfile:
+                with open(dump_name, 'r') as outfile:
                     new_info = json.load(outfile)
                 h5f.attrs[META_FILE_INFO] = json.dumps(new_info)
-                print(f"File Info Loaded From {dump_name}")
-            except:
+                print(f"File Info Loaded From {dump_name}")  
+            except:                     
                 raise Exception("File Info Not In JSON Format")
-
 
 def main():
     """Parses command-line arguments and runs the import."""
@@ -155,7 +154,7 @@ def main():
     parser.add_argument("--db-date")
     parser.add_argument("--db-name")
     parser.add_argument("--db-description")
-    parser.add_argument("--file-info", choices=("load", "dump"))
+    parser.add_argument("--file-info", choices=('load', 'dump'))
     parser.add_argument("-t", "--input-type", choices=("f", "file", "d", "directory"))
     parser.add_argument("input")
 
@@ -180,7 +179,6 @@ def main():
 
     else:
         print("Please Specify If The Input Is A Single File (-f) Or A Directory (-d)")
-
 
 if __name__ == "__main__":
     main()

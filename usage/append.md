@@ -16,6 +16,7 @@ optional arguments:
 
 The append command can be used to add families from an EMBL file to the FamDB files. 
 The families must map to a clade that is already contained in the FamDB files.
+
 The command should also include a file listing names that occur in both Dfam and the appending file. These names will be excluded from the append to avoid duplicate information. An exclusion file for RepBase will be provided with the other FamDB file downloads.
 If no names are to be excluded, an empty file can be used.
 
