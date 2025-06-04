@@ -564,6 +564,8 @@ def command_append(args):
     file_counts = {}
     new_val_taxa = set()
     dups = set()
+    missing_files = {}
+
     for entry in embl_iter:
         # check installation namespace and skip entry if it already exists
         if entry.accession in args.rb_names or not args.db_dir.check_unique(entry):
@@ -580,6 +582,7 @@ def command_append(args):
         add_files = set()
         add_taxa = set()
         missing_files = {}
+
         for clade in entry.clades:
             file = args.db_dir.find_taxon(clade)
             if args.db_dir.files.get(file):
@@ -647,7 +650,6 @@ def command_append(args):
 
     LOGGER.info("Finalizing Files")
     args.db_dir.finalize()
-
 
 def build_args():
     """builds and parses the command line args"""

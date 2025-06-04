@@ -480,7 +480,7 @@ class FamDBRoot(FamDBLeaf):
                 DATA_PARTITION, data=numpy.array([partition_map[node]])
             )
 
-        LOGGER.info(f"Writing Taxonomy Name Cache String")
+        LOGGER.info(f"Writing Name Cache String")
         self.file.create_dataset(
             DATA_NAMES_CACHE, data=numpy.array(json.dumps(names_dump), dtype="S")
         )
@@ -488,7 +488,6 @@ class FamDBRoot(FamDBLeaf):
         delta = time.perf_counter() - start
         LOGGER.info(f"Wrote {count} taxonomy nodes in full tree in {delta}")
 
-    @FamDBLeaf._change_logger
     def update_pruned_taxa(self, tree):
         """
         Takes a map of TaxaNodes
@@ -1027,8 +1026,11 @@ class FamDB:
         LOGGER.info("Pruned Tree Prepared")
 
         # update database nodes
+        message = "Pruned Tree Written"
+        rec = self.append_start_changelog(message)
         self.files[0].update_pruned_taxa(tree)
-        LOGGER.info("Pruned Tree Written")
+        self.append_finish_changelog(message, rec)
+        LOGGER.info(message)
 
     def rebuild_pruned_tree(self, new_val_taxa):
         """

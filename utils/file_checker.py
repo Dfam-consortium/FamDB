@@ -54,23 +54,27 @@ from famdb_globals import (
     FILE_DESCRIPTION,
     GROUP_FAMILIES,
     GROUP_LOOKUP_BYNAME,
+    GROUP_LOOKUP_BYTAXON,
+    GROUP_LOOKUP_BYSTAGE,
     GROUP_NODES,
-    GROUP_TAXANAMES,
-    GROUP_OTHER_DATA,
     GROUP_REPEATPEPS,
     GROUP_FILE_HISTORY,
+    META_DB_VERSION,
+    META_DB_NAME,
+    META_CREATED,
+    META_FAMDB_VERSION,
 )
 
 # List of expected file groups in FamDb files.
 # True indicates that it should be in all files, False that it should only appear in a root file
 file_groups = {
     GROUP_FAMILIES: True,
-    GROUP_LOOKUP_BYNAME: False,
-    GROUP_NODES: True,
-    GROUP_TAXANAMES: False,
-    GROUP_OTHER_DATA: True,
-    f"{GROUP_OTHER_DATA}/{GROUP_REPEATPEPS}": False,
-    f"{GROUP_OTHER_DATA}/{GROUP_FILE_HISTORY}": True,
+    GROUP_LOOKUP_BYNAME: True,
+    GROUP_LOOKUP_BYTAXON: True,
+    GROUP_LOOKUP_BYSTAGE: True,
+    GROUP_NODES: False,
+    GROUP_REPEATPEPS: False,
+    GROUP_FILE_HISTORY: True,
 }
 
 
@@ -110,19 +114,19 @@ def get_group(file, group):
                 return (
                     len(keys) > 0
                 )  # names vary, just testing that there is more than one element
+            if group == GROUP_LOOKUP_BYSTAGE:
+                return len(keys) > 0
+            if group == GROUP_LOOKUP_BYTAXON:
+                return len(keys) > 0
             if group == GROUP_NODES:
                 return all(
                     x.isdigit() for x in set(keys)
                 )  # test that all elements are numbers
-            if group == GROUP_TAXANAMES:
+            if group == GROUP_NODES:
                 return all(
                     x.isdigit() for x in set(keys)
                 )  # test that all elements are numbers
-            if group == GROUP_OTHER_DATA:
-                return (
-                    len(keys) == 2 or len(keys) == 1
-                )  # should be exactly two elements for root, 1 for leaf
-            if group == f"{GROUP_OTHER_DATA}/{GROUP_FILE_HISTORY}":
+            if group == GROUP_FILE_HISTORY:
                 for elem in keys:
                     try:
                         datetime.datetime.strptime(
@@ -132,7 +136,7 @@ def get_group(file, group):
                         return False
                 return True
         else:
-            if group == f"{GROUP_OTHER_DATA}/{GROUP_REPEATPEPS}":
+            if group == GROUP_REPEATPEPS:
                 return True  # if this exists, it's just a dataset
 
     return False
@@ -150,11 +154,10 @@ def get_famdb_class(is_root, path):
 def get_attrs(file):
     print(
         "  Metatadata Retrieved:\n"
-        f"    FamDB Version: {file.attrs['famdb_version'] if file.attrs.get('famdb_version') else file.attrs['version']}\n"
-        f"    FamDB Generator Version: {file.attrs['generator']}\n"
-        f"    File Created: {file.attrs['created']}\n"
-        f"    Name: {file.attrs['db_name']}\n"
-        f"    Dfam Version: {file.attrs['db_version']}\n"
+        f"    FamDB Version: {file.attrs[META_FAMDB_VERSION] if file.attrs.get(META_FAMDB_VERSION) else None}\n"
+        f"    File Created: {file.attrs[META_CREATED]}\n"
+        f"    Name: {file.attrs[META_DB_NAME]}\n"
+        f"    Dfam Version: {file.attrs[META_DB_VERSION]}\n"
         f"    Consensi Count: {file.attrs['count_consensus']}\n"
         f"    HMM Count: {file.attrs['count_hmm']}"
     )

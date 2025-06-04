@@ -2,6 +2,23 @@
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+## 2.0.1- 2025-03-12
+- Updated The logging during the append command, both the output and interal file log
+
+## 2.0.0 - 2025-03-11
+### Added
+- The taxonomy now includes links between nodes connecting only nodes with associated family data. By default, traversing the taxonomy tree will skip empty nodes except in specific instances like semicolon-delineated lineage output. Standard parent-child traversal is still available.
+- Each file now tracks it's change history. This history is accessible via the `info --history` command.
+- The file history also tracks any interrupted changes. Files with recorded interruptions will be considered corrupt and won't be accessible. Please back up files before appending any data.
+- RepeatPeps file added to FamDB Root file, along with a command to access it. This is for better future integration with RepeatMasker/RepeatModeler.
+- A new command to edit the description of an export was added.
+- The README.md file no longer contains usage information. There is now a `./usage` directory containing a file for each command with examples and additional detail.
+### Changed
+- The taxonomy system is simplified and moved entirely to the FamDB Root file. The Lineage class has been removed.
+- Leaf files no longer store taxonomy data. They have a Lookup/ByTaxon field instead.
+- Many Metadata variable keys were changed to gobal variables to enable standardization across scripts
+- Read_embl_families was moved from a static method on Family to a static method on FamDB. This simplifies some import trees.
+- Various bug fixes involving filters and file coordination.
 
 ## 2.0.2- 2025-05-27
 ### Fixed
