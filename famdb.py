@@ -927,7 +927,7 @@ def main():  # =================================================================
         )
         exit(1)
 
-    if args.func.__name__ == "command_append":
+    if hasattr(args,'func') and args.func.__name__ == "command_append":
         if os.path.exists(args.exclusion_file):
             try:
                 with open(args.exclusion_file) as f:

@@ -45,6 +45,7 @@ from famdb_helper_methods import (
     filter_curated,
     filter_repeat_type,
     filter_search_stages,
+    filter_defined_search_stages,
     filter_name,
     get_family,
     accession_bin,
@@ -1240,8 +1241,15 @@ class FamDB:
 
         filter_stage = kwargs.get("stage")
         stages = []
-        if filter_stage:
-            if filter_stage == 80:
+        if filter_stage is not None:
+            print("Filtering by stage:", filter_stage)
+            if filter_stage == 0:
+                # RMH: 6/27/25
+                # stage 0 = 'no stage defined'
+                # so filter out anything with a defined search stage
+                print("Filtering out families with defined search stages")
+                filters += [lambda a, f: filter_defined_search_stages(f())]
+            elif filter_stage == 80:
                 # "stage 80" = "all stages", so skip filtering
                 pass
             elif filter_stage == 95:
