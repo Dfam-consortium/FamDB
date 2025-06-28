@@ -162,7 +162,7 @@ class TestCliOutput(unittest.TestCase):
 
     def test_lineage_totals(self):
         test = "lineage-totals"
-        args = ["lineage", "--format", "totals", "-ad", "3"]
+        args = ["lineage", "--format", "totals", "-ad", "6"]
         test_one(self, test, args)
 
     def test_lineage_curated(self):

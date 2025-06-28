@@ -255,6 +255,7 @@ def get_lineage_totals(
 
     tax_id = tree[0]
     children = tree[1:]
+    partition = file.find_taxon(tax_id)
     accessions = file.get_families_for_taxon(
         tax_id, partition, curated_only, uncurated_only
     )
@@ -291,7 +292,6 @@ def get_lineage_totals(
         counts[1] += count_here
     else:
         counts[0] += count_here
-
     return counts, present
 
 
