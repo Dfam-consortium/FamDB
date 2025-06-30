@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2.0.3- 2025-06-27
+### Fixed
+- Fixed a bug where the lineage total format would skip taxa on partition boundaries
+
 ## 2.0.2- 2025-06-03
 ### Fixed
 - Fixed a bug where lookup keys might not have been created in a specific file, causing a query to break if that file was included in the search
