@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2.0.4- 2025-06-30
+### Added
+- Added the `--stage 0` option to filter for families with no stage defined
+
 ## 2.0.3- 2025-06-27
 ### Fixed
 - Fixed a bug where the lineage total format would skip taxa on partition boundaries
