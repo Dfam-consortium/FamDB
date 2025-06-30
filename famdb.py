@@ -934,7 +934,7 @@ def main():  # =================================================================
                     args.rb_names = set(name.strip() for name in f.readlines())
             except Exception:
                 LOGGER.error(f"{args.exclusion_file} could not be parsed.")
-            exit(1)
+                exit(1)
         else:
             LOGGER.error(f"{args.exclusion_file} not found.")
             exit(1)
