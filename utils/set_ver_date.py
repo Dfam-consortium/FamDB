@@ -181,5 +181,6 @@ def main():
     else:
         print("Please Specify If The Input Is A Single File (-f) Or A Directory (-d)")
 
+
 if __name__ == "__main__":
     main()

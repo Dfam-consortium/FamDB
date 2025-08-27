@@ -1,0 +1,10 @@
+2 Order(0) [1]
+├─4 Genus(1) [1]
+│ └─6 Species(1) [1]
+└─7 Other Species(2) 
+│ * 	Taxon in Partition 2, Partition File Not Found
+│ * 	      
+│ * 	This partition is available for download from Dfam and may
+│ * 	be installed in the /tmp/famdb_test/cli directory.  Please see
+│ * 	http://www.dfam.org/home for more details.
+│

@@ -1,11 +1,11 @@
 
-FamDB Directory     : /tmp/famdb_test/cli
-FamDB Format Version: 2.0.2
-FamDB Creation Date : <creation date>
+FamDB Directory               : /tmp/famdb_test/cli
+FamDB Creation Format Version : 2.0.5
+FamDB Creation Date           : <creation date>
 
-Database: Test Dfam
-Version : V1
-Date    : 2020-07-15
+Database : Test Dfam
+Version  : V1
+Date     : 2020-07-15
 
 Dfam - A database of transposable element (TE) sequence alignments and HMMs.
 

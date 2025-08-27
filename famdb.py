@@ -67,13 +67,13 @@ def command_info(args):
     print()
     print(
         f"""\
-FamDB Directory     : {os.path.realpath(args.db_dir.db_dir)}
-FamDB Format Version: {db_info["famdb_version"]}
-FamDB Creation Date : {db_info["created"]}
+FamDB Directory               : {os.path.realpath(args.db_dir.db_dir)}
+FamDB Creation Format Version : {db_info["famdb_version"]}
+FamDB Creation Date           : {db_info["created"]}
 
-Database: {db_info["name"]}
-Version : {db_info["db_version"]}
-Date    : {db_info["date"]}
+Database : {db_info["name"]}
+Version  : {db_info["db_version"]}
+Date     : {db_info["date"]}
 
 {db_info["description"]}
 
@@ -261,17 +261,17 @@ def get_lineage_totals(
     )
 
     count_here = 0
-    for acc in accessions:
-        if acc not in seen:
-            seen.add(acc)
-            count_here += 1
+    if accessions:
+        for acc in accessions:
+            if acc not in seen:
+                seen.add(acc)
+                count_here += 1
 
     if target_id == tax_id:
         target_id = None
 
     counts = [0, 0]
     for child in children:
-        partition = file.find_taxon(tax_id)
         if partition is not None:
             new_counts, new_present = get_lineage_totals(
                 file,
@@ -649,6 +649,7 @@ def command_append(args):
     LOGGER.info("Finalizing Files")
     args.db_dir.finalize()
 
+
 def build_args():
     """builds and parses the command line args"""
     parser = argparse.ArgumentParser(
@@ -658,6 +659,12 @@ def build_args():
     parser.add_argument("-l", "--log_level", default="INFO")
 
     parser.add_argument("-i", "--db_dir", help="specifies the directory to query")
+
+    parser.add_argument(
+        "-e",
+        "--exclude_files",
+        help="exclude specific files, in the form -e X, or -e X,Y,Z for multiple files. 0 has no effect",
+    )
 
     subparsers = parser.add_subparsers(
         description="""Specifies the kind of query to perform.
@@ -927,7 +934,7 @@ def main():  # =================================================================
         )
         exit(1)
 
-    if hasattr(args,'func') and args.func.__name__ == "command_append":
+    if hasattr(args, "func") and args.func.__name__ == "command_append":
         if os.path.exists(args.exclusion_file):
             try:
                 with open(args.exclusion_file) as f:
@@ -940,7 +947,12 @@ def main():  # =================================================================
             exit(1)
 
     try:
-        args.db_dir = FamDB(args.db_dir, mode)
+        exclude = (
+            [int(n) for n in args.exclude_files.split(",")]
+            if args.exclude_files
+            else []
+        )
+        args.db_dir = FamDB(args.db_dir, mode, exclude)
     except:
         args.db_dir = None
         raise

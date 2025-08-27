@@ -13,7 +13,7 @@ def test_one(t, test, args):
     # print("Testing " + test)
 
     args.insert(0, os.path.join(os.path.dirname(__file__), "../famdb.py"))
-    args.insert(1, "--db_dir")
+    args.insert(1, "-i")
     args.insert(2, TestCliOutput.file_dir)
 
     if os.environ.get("FAMDB_TEST_COVERAGE"):
@@ -120,6 +120,11 @@ class TestCliOutput(unittest.TestCase):
         args = ["families", "--format", "hmm", "-ad", "3"]
         test_one(self, test, args)
 
+    def test_families_missing(self):
+        test = "families-missing"
+        args = ["-e", "2", "families", "-d", "1"]
+        test_one(self, test, args)
+
     def test_families_summary(self):
         test = "families-summary"
         args = ["families", "-d", "1"]
@@ -155,14 +160,29 @@ class TestCliOutput(unittest.TestCase):
         args = ["lineage", "-dk", "1"]
         test_one(self, test, args)
 
+    def test_lineage_pretty_missing(self):
+        test = "lineage-pretty-missing"
+        args = ["-e", "2", "lineage", "-d", "2"]
+        test_one(self, test, args)
+
     def test_lineage_semicolons(self):
         test = "lineage-semicolon"
         args = ["lineage", "--format", "semicolon", "7"]
         test_one(self, test, args)
 
+    def test_lineage_semicolons_missing(self):
+        test = "lineage-semicolon-missing"
+        args = ["-e", "2", "lineage", "--format", "semicolon", "-d", "2"]
+        test_one(self, test, args)
+
     def test_lineage_totals(self):
         test = "lineage-totals"
         args = ["lineage", "--format", "totals", "-ad", "6"]
+        test_one(self, test, args)
+
+    def test_lineage_totals_missing(self):
+        test = "lineage-totals-missing"
+        args = ["-e", "2", "lineage", "--format", "totals", "-d", "2"]
         test_one(self, test, args)
 
     def test_lineage_curated(self):

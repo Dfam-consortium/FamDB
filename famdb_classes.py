@@ -837,7 +837,7 @@ up with the 'names' command.""",
 
 class FamDB:
 
-    def __init__(self, db_dir, mode):
+    def __init__(self, db_dir, mode, exclude=[]):
         """
         Initialize from a directory containing a *partitioned* famdb dataset
         """
@@ -902,7 +902,7 @@ class FamDB:
                 idx = int(fields[-2])
                 if idx == 0:
                     self.files[idx] = FamDBRoot(f"{db_dir}/{file}", mode)
-                else:
+                elif idx not in exclude:
                     self.files[idx] = FamDBLeaf(f"{db_dir}/{file}", mode)
 
         file_info = self.files[0].get_file_info()
