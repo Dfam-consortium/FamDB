@@ -360,7 +360,7 @@ def _fetch_batch_data(session, records, is_hmm, timing_stats=None,
             dfam.FamilyHasCitation.order_added,
         )
         .where(dfam.FamilyHasCitation.family_id.in_(ids))
-        .where(dfam.Citation.pmid == dfam.FamilyHasCitation.citation_pmid)
+        .where(dfam.Citation.doi == dfam.FamilyHasCitation.citation_doi)
     ):
         citation_map[row.family_id].append(
             {
