@@ -348,6 +348,24 @@ def _fetch_batch_data(session, records, is_hmm, timing_stats=None,
         alias_map[row.family_id].append(f"{row.db_id}: {row.db_link}")
     _acc("q_aliases", _ts)
 
+    # authors: {family_id: "Name; Name"}, in the same format as
+    # Lib/DfamAttribution.get_family_author_string
+    author_names = defaultdict(list)
+    _ts = _t0()
+    for row in session.execute(
+        select(dfam.FamilyAttribution.family_id, dfam.Contributor.full_name)
+        .join(
+            dfam.Contributor,
+            dfam.Contributor.id == dfam.FamilyAttribution.contributor_id,
+        )
+        .where(dfam.FamilyAttribution.family_id.in_(ids))
+        .where(dfam.FamilyAttribution.attribution_type == "author")
+        .order_by(dfam.FamilyAttribution.family_id, dfam.FamilyAttribution.sort_order)
+    ):
+        author_names[row.family_id].append(row.full_name)
+    author_map = {fid: "; ".join(names) for fid, names in author_names.items()}
+    _acc("q_authors", _ts)
+
     # citations: {family_id: [citation_dict, ...]}
     citation_map = defaultdict(list)
     _ts = _t0()
@@ -403,6 +421,7 @@ def _fetch_batch_data(session, records, is_hmm, timing_stats=None,
         "features": features_map,
         "cds": cds_map,
         "aliases": alias_map,
+        "authors": author_map,
         "citations": citation_map,
         "hmm": hmm_map,
         "seq_count": seq_count_map,
@@ -428,7 +447,7 @@ def _build_family(record, bd, class_db, is_hmm, defer_model_decompress=False):
 
     # RECOMMENDED FIELDS
     family.description = record.description
-    family.author = record.author
+    family.author = bd["authors"].get(record.id)
     family.date_created = record.date_created
     family.date_modified = record.date_modified
     family.refineable = record.refineable
@@ -636,6 +655,7 @@ def iterate_db_families_by_ids(session, family_ids, is_hmm=True, batch_size=500,
                 f"features={_ms('q_features'):.2f}ms",
                 f"cds={_ms('q_cds'):.2f}ms",
                 f"aliases={_ms('q_aliases'):.2f}ms",
+                f"authors={_ms('q_authors'):.2f}ms",
                 f"citations={_ms('q_citations'):.2f}ms",
                 f"seq_count={_ms('q_seq_count'):.2f}ms",
                 f"build={_ms('t_build'):.2f}ms",
